@@ -1,0 +1,3406 @@
+{
+  "$defs": {
+    "ASRConfig": {
+      "description": "Configuration for Automatic Speech Recognition.",
+      "properties": {
+        "asr_model": {
+          "enum": [
+            "faster_whisper",
+            "whisper_cpp",
+            "whisper",
+            "azure_asr",
+            "fun_asr",
+            "groq_whisper_asr",
+            "sherpa_onnx_asr"
+          ],
+          "title": "Asr Model",
+          "type": "string"
+        },
+        "azure_asr": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AzureASRConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "faster_whisper": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FasterWhisperConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "whisper_cpp": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WhisperCPPConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "whisper": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WhisperConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "fun_asr": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunASRConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "groq_whisper_asr": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GroqWhisperASRConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sherpa_onnx_asr": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SherpaOnnxASRConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "asr_model"
+      ],
+      "title": "ASRConfig",
+      "type": "object"
+    },
+    "AgentConfig": {
+      "description": "This class contains all of the configurations related to agent.",
+      "properties": {
+        "conversation_agent_choice": {
+          "enum": [
+            "basic_memory_agent",
+            "mem0_agent",
+            "hume_ai_agent",
+            "letta_agent"
+          ],
+          "title": "Conversation Agent Choice",
+          "type": "string"
+        },
+        "agent_settings": {
+          "$ref": "#/$defs/AgentSettings"
+        },
+        "llm_configs": {
+          "$ref": "#/$defs/StatelessLLMConfigs"
+        }
+      },
+      "required": [
+        "conversation_agent_choice",
+        "agent_settings",
+        "llm_configs"
+      ],
+      "title": "AgentConfig",
+      "type": "object"
+    },
+    "AgentSettings": {
+      "description": "Settings for different types of agents.",
+      "properties": {
+        "basic_memory_agent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BasicMemoryAgentConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mem0_agent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Mem0Config"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "hume_ai_agent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HumeAIConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "letta_agent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LettaConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "AgentSettings",
+      "type": "object"
+    },
+    "AzureASRConfig": {
+      "description": "Configuration for Azure ASR service.",
+      "properties": {
+        "api_key": {
+          "title": "Api Key",
+          "type": "string"
+        },
+        "region": {
+          "title": "Region",
+          "type": "string"
+        },
+        "languages": {
+          "default": [
+            "en-US",
+            "zh-CN"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "title": "Languages",
+          "type": "array"
+        }
+      },
+      "required": [
+        "api_key",
+        "region"
+      ],
+      "title": "AzureASRConfig",
+      "type": "object"
+    },
+    "AzureTTSConfig": {
+      "description": "Configuration for Azure TTS service.",
+      "properties": {
+        "api_key": {
+          "title": "Api Key",
+          "type": "string"
+        },
+        "region": {
+          "title": "Region",
+          "type": "string"
+        },
+        "voice": {
+          "title": "Voice",
+          "type": "string"
+        },
+        "pitch": {
+          "title": "Pitch",
+          "type": "string"
+        },
+        "rate": {
+          "title": "Rate",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api_key",
+        "region",
+        "voice",
+        "pitch",
+        "rate"
+      ],
+      "title": "AzureTTSConfig",
+      "type": "object"
+    },
+    "BarkTTSConfig": {
+      "description": "Configuration for Bark TTS.",
+      "properties": {
+        "voice": {
+          "title": "Voice",
+          "type": "string"
+        }
+      },
+      "required": [
+        "voice"
+      ],
+      "title": "BarkTTSConfig",
+      "type": "object"
+    },
+    "BasicMemoryAgentConfig": {
+      "description": "Configuration for the basic memory agent.",
+      "properties": {
+        "llm_provider": {
+          "enum": [
+            "stateless_llm_with_template",
+            "openai_compatible_llm",
+            "claude_llm",
+            "llama_cpp_llm",
+            "ollama_llm",
+            "lmstudio_llm",
+            "openai_llm",
+            "gemini_llm",
+            "zhipu_llm",
+            "deepseek_llm",
+            "groq_llm",
+            "mistral_llm"
+          ],
+          "title": "Llm Provider",
+          "type": "string"
+        },
+        "faster_first_response": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": true,
+          "title": "Faster First Response"
+        },
+        "segment_method": {
+          "default": "pysbd",
+          "enum": [
+            "regex",
+            "pysbd"
+          ],
+          "title": "Segment Method",
+          "type": "string"
+        },
+        "use_mcpp": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": false,
+          "title": "Use Mcpp"
+        },
+        "mcp_enabled_servers": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": [],
+          "title": "Mcp Enabled Servers"
+        }
+      },
+      "required": [
+        "llm_provider"
+      ],
+      "title": "BasicMemoryAgentConfig",
+      "type": "object"
+    },
+    "BiliBiliLiveConfig": {
+      "description": "Configuration for BiliBili Live platform.",
+      "properties": {
+        "room_ids": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Room Ids",
+          "type": "array"
+        },
+        "sessdata": {
+          "default": "",
+          "title": "Sessdata",
+          "type": "string"
+        }
+      },
+      "title": "BiliBiliLiveConfig",
+      "type": "object"
+    },
+    "CartesiaTTSConfig": {
+      "description": "Configuration for Cartesia TTS.",
+      "properties": {
+        "model_id": {
+          "default": "sonic-3",
+          "enum": [
+            "sonic-3",
+            "sonic-2",
+            "sonic-turbo",
+            "sonic-multilingual",
+            "sonic"
+          ],
+          "title": "Model Id",
+          "type": "string"
+        },
+        "api_key": {
+          "title": "Api Key",
+          "type": "string"
+        },
+        "voice_id": {
+          "title": "Voice Id",
+          "type": "string"
+        },
+        "output_format": {
+          "default": "wav",
+          "enum": [
+            "wav",
+            "mp3"
+          ],
+          "title": "Output Format",
+          "type": "string"
+        },
+        "language": {
+          "default": "en",
+          "enum": [
+            "en",
+            "fr",
+            "de",
+            "es",
+            "pt",
+            "zh",
+            "ja",
+            "hi",
+            "it",
+            "ko",
+            "nl",
+            "pl",
+            "ru",
+            "sv",
+            "tr",
+            "tl",
+            "bg",
+            "ro",
+            "ar",
+            "cs",
+            "el",
+            "fi",
+            "hr",
+            "ms",
+            "sk",
+            "da",
+            "ta",
+            "uk",
+            "hu",
+            "no",
+            "vi",
+            "bn",
+            "th",
+            "he",
+            "ka",
+            "id",
+            "te",
+            "gu",
+            "kn",
+            "ml",
+            "mr",
+            "pa"
+          ],
+          "title": "Language",
+          "type": "string"
+        },
+        "emotion": {
+          "default": "neutral",
+          "enum": [
+            "neutral",
+            "angry",
+            "excited",
+            "content",
+            "sad",
+            "scared",
+            "happy",
+            "enthusiastic",
+            "elated",
+            "euphoric",
+            "triumphant",
+            "amazed",
+            "surprised",
+            "flirtatious",
+            "joking/comedic",
+            "curious",
+            "peaceful",
+            "serene",
+            "calm",
+            "grateful",
+            "affectionate",
+            "trust",
+            "sympathetic",
+            "anticipation",
+            "mysterious",
+            "mad",
+            "outraged",
+            "frustrated",
+            "agitated",
+            "threatened",
+            "disgusted",
+            "contempt",
+            "envious",
+            "sarcastic",
+            "ironic",
+            "dejected",
+            "melancholic",
+            "disappointed",
+            "hurt",
+            "guilty",
+            "bored",
+            "tired",
+            "rejected",
+            "nostalgic",
+            "wistful",
+            "apologetic",
+            "hesitant",
+            "insecure",
+            "confused",
+            "resigned",
+            "anxious",
+            "panicked",
+            "alarmed",
+            "proud",
+            "confident",
+            "distant",
+            "skeptical",
+            "contemplative",
+            "determined"
+          ],
+          "title": "Emotion",
+          "type": "string"
+        },
+        "volume": {
+          "default": 1.0,
+          "title": "Volume",
+          "type": "number"
+        },
+        "speed": {
+          "default": 1.0,
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "api_key",
+        "voice_id"
+      ],
+      "title": "CartesiaTTSConfig",
+      "type": "object"
+    },
+    "CharacterConfig": {
+      "description": "Character configuration settings.",
+      "properties": {
+        "conf_name": {
+          "title": "Conf Name",
+          "type": "string"
+        },
+        "conf_uid": {
+          "title": "Conf Uid",
+          "type": "string"
+        },
+        "live2d_model_name": {
+          "title": "Live2D Model Name",
+          "type": "string"
+        },
+        "character_name": {
+          "default": "",
+          "title": "Character Name",
+          "type": "string"
+        },
+        "human_name": {
+          "default": "Human",
+          "title": "Human Name",
+          "type": "string"
+        },
+        "avatar": {
+          "default": "",
+          "title": "Avatar",
+          "type": "string"
+        },
+        "persona_prompt": {
+          "title": "Persona Prompt",
+          "type": "string"
+        },
+        "agent_config": {
+          "$ref": "#/$defs/AgentConfig"
+        },
+        "asr_config": {
+          "$ref": "#/$defs/ASRConfig"
+        },
+        "tts_config": {
+          "$ref": "#/$defs/TTSConfig"
+        },
+        "vad_config": {
+          "$ref": "#/$defs/VADConfig"
+        },
+        "tts_preprocessor_config": {
+          "$ref": "#/$defs/TTSPreprocessorConfig"
+        },
+        "long_term_memory_enabled": {
+          "default": true,
+          "title": "Long Term Memory Enabled",
+          "type": "boolean"
+        },
+        "core_memory_max_chars": {
+          "default": 1500,
+          "title": "Core Memory Max Chars",
+          "type": "integer"
+        },
+        "fts_memory_enabled": {
+          "default": false,
+          "title": "Fts Memory Enabled",
+          "type": "boolean"
+        },
+        "fts_memory_top_k": {
+          "default": 3,
+          "title": "Fts Memory Top K",
+          "type": "integer"
+        },
+        "memory_consolidation_interval": {
+          "default": 1,
+          "title": "Memory Consolidation Interval",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "conf_name",
+        "conf_uid",
+        "live2d_model_name",
+        "persona_prompt",
+        "agent_config",
+        "asr_config",
+        "tts_config",
+        "vad_config",
+        "tts_preprocessor_config"
+      ],
+      "title": "CharacterConfig",
+      "type": "object"
+    },
+    "ClaudeConfig": {
+      "description": "Configuration for OpenAI Official API.",
+      "properties": {
+        "interrupt_method": {
+          "default": "user",
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Interrupt Method",
+          "type": "string"
+        },
+        "base_url": {
+          "default": "https://api.anthropic.com",
+          "title": "Base Url",
+          "type": "string"
+        },
+        "llm_api_key": {
+          "title": "Llm Api Key",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        }
+      },
+      "required": [
+        "llm_api_key",
+        "model"
+      ],
+      "title": "ClaudeConfig",
+      "type": "object"
+    },
+    "CoquiTTSConfig": {
+      "description": "Configuration for Coqui TTS.",
+      "properties": {
+        "model_name": {
+          "title": "Model Name",
+          "type": "string"
+        },
+        "speaker_wav": {
+          "default": "",
+          "title": "Speaker Wav",
+          "type": "string"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string"
+        },
+        "device": {
+          "default": "",
+          "title": "Device",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model_name",
+        "language"
+      ],
+      "title": "CoquiTTSConfig",
+      "type": "object"
+    },
+    "Cosyvoice2TTSConfig": {
+      "description": "Configuration for Cosyvoice2 TTS.",
+      "properties": {
+        "client_url": {
+          "title": "Client Url",
+          "type": "string"
+        },
+        "mode_checkbox_group": {
+          "title": "Mode Checkbox Group",
+          "type": "string"
+        },
+        "sft_dropdown": {
+          "title": "Sft Dropdown",
+          "type": "string"
+        },
+        "prompt_text": {
+          "title": "Prompt Text",
+          "type": "string"
+        },
+        "prompt_wav_upload_url": {
+          "title": "Prompt Wav Upload Url",
+          "type": "string"
+        },
+        "prompt_wav_record_url": {
+          "title": "Prompt Wav Record Url",
+          "type": "string"
+        },
+        "instruct_text": {
+          "title": "Instruct Text",
+          "type": "string"
+        },
+        "stream": {
+          "title": "Stream",
+          "type": "boolean"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "number"
+        },
+        "api_name": {
+          "title": "Api Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "client_url",
+        "mode_checkbox_group",
+        "sft_dropdown",
+        "prompt_text",
+        "prompt_wav_upload_url",
+        "prompt_wav_record_url",
+        "instruct_text",
+        "stream",
+        "seed",
+        "speed",
+        "api_name"
+      ],
+      "title": "Cosyvoice2TTSConfig",
+      "type": "object"
+    },
+    "CosyvoiceTTSConfig": {
+      "description": "Configuration for Cosyvoice TTS.",
+      "properties": {
+        "client_url": {
+          "title": "Client Url",
+          "type": "string"
+        },
+        "mode_checkbox_group": {
+          "title": "Mode Checkbox Group",
+          "type": "string"
+        },
+        "sft_dropdown": {
+          "title": "Sft Dropdown",
+          "type": "string"
+        },
+        "prompt_text": {
+          "title": "Prompt Text",
+          "type": "string"
+        },
+        "prompt_wav_upload_url": {
+          "title": "Prompt Wav Upload Url",
+          "type": "string"
+        },
+        "prompt_wav_record_url": {
+          "title": "Prompt Wav Record Url",
+          "type": "string"
+        },
+        "instruct_text": {
+          "title": "Instruct Text",
+          "type": "string"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "api_name": {
+          "title": "Api Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "client_url",
+        "mode_checkbox_group",
+        "sft_dropdown",
+        "prompt_text",
+        "prompt_wav_upload_url",
+        "prompt_wav_record_url",
+        "instruct_text",
+        "seed",
+        "api_name"
+      ],
+      "title": "CosyvoiceTTSConfig",
+      "type": "object"
+    },
+    "DeepLXConfig": {
+      "description": "Configuration for DeepLX translation service.",
+      "properties": {
+        "deeplx_target_lang": {
+          "title": "Deeplx Target Lang",
+          "type": "string"
+        },
+        "deeplx_api_endpoint": {
+          "title": "Deeplx Api Endpoint",
+          "type": "string"
+        }
+      },
+      "required": [
+        "deeplx_target_lang",
+        "deeplx_api_endpoint"
+      ],
+      "title": "DeepLXConfig",
+      "type": "object"
+    },
+    "DeepseekConfig": {
+      "description": "Configuration for Deepseek API.",
+      "properties": {
+        "interrupt_method": {
+          "default": "user",
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Interrupt Method",
+          "type": "string"
+        },
+        "base_url": {
+          "default": "https://api.deepseek.com/v1",
+          "title": "Base Url",
+          "type": "string"
+        },
+        "llm_api_key": {
+          "title": "Llm Api Key",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "temperature": {
+          "default": 1.0,
+          "title": "Temperature",
+          "type": "number"
+        }
+      },
+      "required": [
+        "llm_api_key",
+        "model"
+      ],
+      "title": "DeepseekConfig",
+      "type": "object"
+    },
+    "EdgeTTSConfig": {
+      "description": "Configuration for Edge TTS.",
+      "properties": {
+        "voice": {
+          "title": "Voice",
+          "type": "string"
+        }
+      },
+      "required": [
+        "voice"
+      ],
+      "title": "EdgeTTSConfig",
+      "type": "object"
+    },
+    "ElevenLabsTTSConfig": {
+      "description": "Configuration for ElevenLabs TTS.",
+      "properties": {
+        "api_key": {
+          "title": "Api Key",
+          "type": "string"
+        },
+        "voice_id": {
+          "title": "Voice Id",
+          "type": "string"
+        },
+        "model_id": {
+          "default": "eleven_multilingual_v2",
+          "title": "Model Id",
+          "type": "string"
+        },
+        "output_format": {
+          "default": "mp3_44100_128",
+          "title": "Output Format",
+          "type": "string"
+        },
+        "stability": {
+          "default": 0.5,
+          "title": "Stability",
+          "type": "number"
+        },
+        "similarity_boost": {
+          "default": 0.5,
+          "title": "Similarity Boost",
+          "type": "number"
+        },
+        "style": {
+          "default": 0.0,
+          "title": "Style",
+          "type": "number"
+        },
+        "use_speaker_boost": {
+          "default": true,
+          "title": "Use Speaker Boost",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "api_key",
+        "voice_id"
+      ],
+      "title": "ElevenLabsTTSConfig",
+      "type": "object"
+    },
+    "FasterWhisperConfig": {
+      "description": "Configuration for Faster Whisper ASR.",
+      "properties": {
+        "model_path": {
+          "title": "Model Path",
+          "type": "string"
+        },
+        "download_root": {
+          "title": "Download Root",
+          "type": "string"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Language"
+        },
+        "device": {
+          "default": "auto",
+          "title": "Device",
+          "type": "string"
+        },
+        "compute_type": {
+          "default": "int8",
+          "enum": [
+            "int8",
+            "float16",
+            "float32"
+          ],
+          "title": "Compute Type",
+          "type": "string"
+        },
+        "prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt"
+        }
+      },
+      "required": [
+        "model_path",
+        "download_root"
+      ],
+      "title": "FasterWhisperConfig",
+      "type": "object"
+    },
+    "FishAPITTSConfig": {
+      "description": "Configuration for Fish API TTS.",
+      "properties": {
+        "api_key": {
+          "title": "Api Key",
+          "type": "string"
+        },
+        "reference_id": {
+          "title": "Reference Id",
+          "type": "string"
+        },
+        "latency": {
+          "enum": [
+            "normal",
+            "balanced"
+          ],
+          "title": "Latency",
+          "type": "string"
+        },
+        "base_url": {
+          "title": "Base Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api_key",
+        "reference_id",
+        "latency",
+        "base_url"
+      ],
+      "title": "FishAPITTSConfig",
+      "type": "object"
+    },
+    "FunASRConfig": {
+      "description": "Configuration for FunASR.",
+      "properties": {
+        "model_name": {
+          "default": "iic/SenseVoiceSmall",
+          "title": "Model Name",
+          "type": "string"
+        },
+        "vad_model": {
+          "default": "fsmn-vad",
+          "title": "Vad Model",
+          "type": "string"
+        },
+        "punc_model": {
+          "default": "ct-punc",
+          "title": "Punc Model",
+          "type": "string"
+        },
+        "device": {
+          "default": "cpu",
+          "enum": [
+            "cpu",
+            "cuda"
+          ],
+          "title": "Device",
+          "type": "string"
+        },
+        "disable_update": {
+          "default": true,
+          "title": "Disable Update",
+          "type": "boolean"
+        },
+        "ncpu": {
+          "default": 4,
+          "title": "Ncpu",
+          "type": "integer"
+        },
+        "hub": {
+          "default": "ms",
+          "enum": [
+            "ms",
+            "hf"
+          ],
+          "title": "Hub",
+          "type": "string"
+        },
+        "use_itn": {
+          "default": false,
+          "title": "Use Itn",
+          "type": "boolean"
+        },
+        "language": {
+          "default": "auto",
+          "title": "Language",
+          "type": "string"
+        }
+      },
+      "title": "FunASRConfig",
+      "type": "object"
+    },
+    "GPTSoVITSConfig": {
+      "description": "Configuration for GPT-SoVITS.",
+      "properties": {
+        "api_url": {
+          "title": "Api Url",
+          "type": "string"
+        },
+        "text_lang": {
+          "title": "Text Lang",
+          "type": "string"
+        },
+        "ref_audio_path": {
+          "title": "Ref Audio Path",
+          "type": "string"
+        },
+        "prompt_lang": {
+          "title": "Prompt Lang",
+          "type": "string"
+        },
+        "prompt_text": {
+          "title": "Prompt Text",
+          "type": "string"
+        },
+        "text_split_method": {
+          "title": "Text Split Method",
+          "type": "string"
+        },
+        "batch_size": {
+          "title": "Batch Size",
+          "type": "string"
+        },
+        "media_type": {
+          "title": "Media Type",
+          "type": "string"
+        },
+        "streaming_mode": {
+          "title": "Streaming Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api_url",
+        "text_lang",
+        "ref_audio_path",
+        "prompt_lang",
+        "prompt_text",
+        "text_split_method",
+        "batch_size",
+        "media_type",
+        "streaming_mode"
+      ],
+      "title": "GPTSoVITSConfig",
+      "type": "object"
+    },
+    "GeminiConfig": {
+      "description": "Configuration for Gemini API.",
+      "properties": {
+        "interrupt_method": {
+          "default": "user",
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Interrupt Method",
+          "type": "string"
+        },
+        "base_url": {
+          "default": "https://generativelanguage.googleapis.com/v1beta/openai/",
+          "title": "Base Url",
+          "type": "string"
+        },
+        "llm_api_key": {
+          "title": "Llm Api Key",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "temperature": {
+          "default": 1.0,
+          "title": "Temperature",
+          "type": "number"
+        }
+      },
+      "required": [
+        "llm_api_key",
+        "model"
+      ],
+      "title": "GeminiConfig",
+      "type": "object"
+    },
+    "GroqConfig": {
+      "description": "Configuration for Groq API.",
+      "properties": {
+        "interrupt_method": {
+          "default": "system",
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Interrupt Method",
+          "type": "string"
+        },
+        "base_url": {
+          "default": "https://api.groq.com/openai/v1",
+          "title": "Base Url",
+          "type": "string"
+        },
+        "llm_api_key": {
+          "title": "Llm Api Key",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "temperature": {
+          "default": 1.0,
+          "title": "Temperature",
+          "type": "number"
+        }
+      },
+      "required": [
+        "llm_api_key",
+        "model"
+      ],
+      "title": "GroqConfig",
+      "type": "object"
+    },
+    "GroqWhisperASRConfig": {
+      "description": "Configuration for Groq Whisper ASR.",
+      "properties": {
+        "api_key": {
+          "title": "Api Key",
+          "type": "string"
+        },
+        "model": {
+          "default": "whisper-large-v3-turbo",
+          "title": "Model",
+          "type": "string"
+        },
+        "lang": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lang"
+        }
+      },
+      "required": [
+        "api_key"
+      ],
+      "title": "GroqWhisperASRConfig",
+      "type": "object"
+    },
+    "HumeAIConfig": {
+      "description": "Configuration for the Hume AI agent.",
+      "properties": {
+        "api_key": {
+          "title": "Api Key",
+          "type": "string"
+        },
+        "host": {
+          "default": "api.hume.ai",
+          "title": "Host",
+          "type": "string"
+        },
+        "config_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Config Id"
+        },
+        "idle_timeout": {
+          "default": 15,
+          "title": "Idle Timeout",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "api_key"
+      ],
+      "title": "HumeAIConfig",
+      "type": "object"
+    },
+    "LLMTranslateConfig": {
+      "description": "Configuration for LLM-based translation (OpenAI-compatible endpoint).",
+      "properties": {
+        "api_endpoint": {
+          "title": "Api Endpoint",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "target_lang": {
+          "title": "Target Lang",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api_endpoint",
+        "model",
+        "target_lang"
+      ],
+      "title": "LLMTranslateConfig",
+      "type": "object"
+    },
+    "LettaConfig": {
+      "description": "Configuration for the Letta agent.",
+      "properties": {
+        "host": {
+          "default": "localhost",
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "default": 8283,
+          "title": "Port",
+          "type": "integer"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "faster_first_response": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": true,
+          "title": "Faster First Response"
+        },
+        "segment_method": {
+          "default": "pysbd",
+          "enum": [
+            "regex",
+            "pysbd"
+          ],
+          "title": "Segment Method",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "LettaConfig",
+      "type": "object"
+    },
+    "LiveConfig": {
+      "description": "Configuration for live streaming platforms integration.",
+      "properties": {
+        "bilibili_live": {
+          "$ref": "#/$defs/BiliBiliLiveConfig",
+          "default": {
+            "room_ids": [],
+            "sessdata": ""
+          }
+        }
+      },
+      "title": "LiveConfig",
+      "type": "object"
+    },
+    "LlamaCppConfig": {
+      "description": "Configuration for LlamaCpp.",
+      "properties": {
+        "interrupt_method": {
+          "default": "system",
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Interrupt Method",
+          "type": "string"
+        },
+        "model_path": {
+          "title": "Model Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model_path"
+      ],
+      "title": "LlamaCppConfig",
+      "type": "object"
+    },
+    "LmStudioConfig": {
+      "description": "Configuration for LM Studio.",
+      "properties": {
+        "interrupt_method": {
+          "default": "system",
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Interrupt Method",
+          "type": "string"
+        },
+        "base_url": {
+          "default": "http://localhost:1234/v1",
+          "title": "Base Url",
+          "type": "string"
+        },
+        "llm_api_key": {
+          "default": "default_api_key",
+          "title": "Llm Api Key",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "temperature": {
+          "default": 1.0,
+          "title": "Temperature",
+          "type": "number"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "LmStudioConfig",
+      "type": "object"
+    },
+    "MeloTTSConfig": {
+      "description": "Configuration for Melo TTS.",
+      "properties": {
+        "speaker": {
+          "title": "Speaker",
+          "type": "string"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string"
+        },
+        "device": {
+          "default": "auto",
+          "title": "Device",
+          "type": "string"
+        },
+        "speed": {
+          "default": 1.0,
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "speaker",
+        "language"
+      ],
+      "title": "MeloTTSConfig",
+      "type": "object"
+    },
+    "Mem0Config": {
+      "description": "Configuration for Mem0.",
+      "properties": {
+        "vector_store": {
+          "$ref": "#/$defs/Mem0VectorStoreConfig"
+        },
+        "llm": {
+          "$ref": "#/$defs/Mem0LLMConfig"
+        },
+        "embedder": {
+          "$ref": "#/$defs/Mem0EmbedderConfig"
+        }
+      },
+      "required": [
+        "vector_store",
+        "llm",
+        "embedder"
+      ],
+      "title": "Mem0Config",
+      "type": "object"
+    },
+    "Mem0EmbedderConfig": {
+      "description": "Configuration for Mem0 embedder.",
+      "properties": {
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "config": {
+          "additionalProperties": true,
+          "title": "Config",
+          "type": "object"
+        }
+      },
+      "required": [
+        "provider",
+        "config"
+      ],
+      "title": "Mem0EmbedderConfig",
+      "type": "object"
+    },
+    "Mem0LLMConfig": {
+      "description": "Configuration for Mem0 LLM.",
+      "properties": {
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "config": {
+          "additionalProperties": true,
+          "title": "Config",
+          "type": "object"
+        }
+      },
+      "required": [
+        "provider",
+        "config"
+      ],
+      "title": "Mem0LLMConfig",
+      "type": "object"
+    },
+    "Mem0VectorStoreConfig": {
+      "description": "Configuration for Mem0 vector store.",
+      "properties": {
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "config": {
+          "additionalProperties": true,
+          "title": "Config",
+          "type": "object"
+        }
+      },
+      "required": [
+        "provider",
+        "config"
+      ],
+      "title": "Mem0VectorStoreConfig",
+      "type": "object"
+    },
+    "MinimaxTTSConfig": {
+      "description": "Configuration for Minimax TTS.",
+      "properties": {
+        "group_id": {
+          "title": "Group Id",
+          "type": "string"
+        },
+        "api_key": {
+          "title": "Api Key",
+          "type": "string"
+        },
+        "model": {
+          "default": "speech-02-turbo",
+          "title": "Model",
+          "type": "string"
+        },
+        "voice_id": {
+          "default": "male-qn-qingse",
+          "title": "Voice Id",
+          "type": "string"
+        },
+        "pronunciation_dict": {
+          "default": "",
+          "title": "Pronunciation Dict",
+          "type": "string"
+        }
+      },
+      "required": [
+        "group_id",
+        "api_key"
+      ],
+      "title": "MinimaxTTSConfig",
+      "type": "object"
+    },
+    "MistralConfig": {
+      "description": "Configuration for Mistral API.",
+      "properties": {
+        "interrupt_method": {
+          "default": "user",
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Interrupt Method",
+          "type": "string"
+        },
+        "base_url": {
+          "default": "https://api.mistral.ai/v1",
+          "title": "Base Url",
+          "type": "string"
+        },
+        "llm_api_key": {
+          "title": "Llm Api Key",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "temperature": {
+          "default": 1.0,
+          "title": "Temperature",
+          "type": "number"
+        }
+      },
+      "required": [
+        "llm_api_key",
+        "model"
+      ],
+      "title": "MistralConfig",
+      "type": "object"
+    },
+    "OllamaConfig": {
+      "description": "Configuration for Ollama API.",
+      "properties": {
+        "interrupt_method": {
+          "default": "system",
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Interrupt Method",
+          "type": "string"
+        },
+        "base_url": {
+          "title": "Base Url",
+          "type": "string"
+        },
+        "llm_api_key": {
+          "default": "default_api_key",
+          "title": "Llm Api Key",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "temperature": {
+          "default": 1.0,
+          "title": "Temperature",
+          "type": "number"
+        },
+        "keep_alive": {
+          "default": -1,
+          "title": "Keep Alive",
+          "type": "number"
+        },
+        "unload_at_exit": {
+          "default": true,
+          "title": "Unload At Exit",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "base_url",
+        "model"
+      ],
+      "title": "OllamaConfig",
+      "type": "object"
+    },
+    "OpenAICompatibleConfig": {
+      "description": "Configuration for OpenAI-compatible LLM providers.",
+      "properties": {
+        "interrupt_method": {
+          "default": "user",
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Interrupt Method",
+          "type": "string"
+        },
+        "base_url": {
+          "title": "Base Url",
+          "type": "string"
+        },
+        "llm_api_key": {
+          "title": "Llm Api Key",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "temperature": {
+          "default": 1.0,
+          "title": "Temperature",
+          "type": "number"
+        }
+      },
+      "required": [
+        "base_url",
+        "llm_api_key",
+        "model"
+      ],
+      "title": "OpenAICompatibleConfig",
+      "type": "object"
+    },
+    "OpenAIConfig": {
+      "description": "Configuration for Official OpenAI API.",
+      "properties": {
+        "interrupt_method": {
+          "default": "system",
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Interrupt Method",
+          "type": "string"
+        },
+        "base_url": {
+          "default": "https://api.openai.com/v1",
+          "title": "Base Url",
+          "type": "string"
+        },
+        "llm_api_key": {
+          "title": "Llm Api Key",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "temperature": {
+          "default": 1.0,
+          "title": "Temperature",
+          "type": "number"
+        }
+      },
+      "required": [
+        "llm_api_key",
+        "model"
+      ],
+      "title": "OpenAIConfig",
+      "type": "object"
+    },
+    "OpenAITTSConfig": {
+      "description": "Configuration for OpenAI-compatible TTS client.",
+      "properties": {
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "voice": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Voice"
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Key"
+        },
+        "base_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Base Url"
+        },
+        "file_extension": {
+          "default": "mp3",
+          "enum": [
+            "mp3",
+            "wav"
+          ],
+          "title": "File Extension",
+          "type": "string"
+        }
+      },
+      "title": "OpenAITTSConfig",
+      "type": "object"
+    },
+    "PiperTTSConfig": {
+      "description": "Configuration for Piper TTS.",
+      "properties": {
+        "model_path": {
+          "default": "models/piper/zh_CN-huayan-medium.onnx",
+          "title": "Model Path",
+          "type": "string"
+        },
+        "speaker_id": {
+          "default": 0,
+          "title": "Speaker Id",
+          "type": "integer"
+        },
+        "length_scale": {
+          "default": 1.0,
+          "title": "Length Scale",
+          "type": "number"
+        },
+        "noise_scale": {
+          "default": 0.667,
+          "title": "Noise Scale",
+          "type": "number"
+        },
+        "noise_w": {
+          "default": 0.8,
+          "title": "Noise W",
+          "type": "number"
+        },
+        "volume": {
+          "default": 1.0,
+          "title": "Volume",
+          "type": "number"
+        },
+        "normalize_audio": {
+          "default": true,
+          "title": "Normalize Audio",
+          "type": "boolean"
+        },
+        "use_cuda": {
+          "default": false,
+          "title": "Use Cuda",
+          "type": "boolean"
+        }
+      },
+      "title": "PiperTTSConfig",
+      "type": "object"
+    },
+    "SherpaOnnxASRConfig": {
+      "description": "Configuration for Sherpa Onnx ASR.",
+      "properties": {
+        "model_type": {
+          "enum": [
+            "transducer",
+            "paraformer",
+            "nemo_ctc",
+            "wenet_ctc",
+            "whisper",
+            "tdnn_ctc",
+            "sense_voice",
+            "fire_red_asr"
+          ],
+          "title": "Model Type",
+          "type": "string"
+        },
+        "encoder": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Encoder"
+        },
+        "decoder": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decoder"
+        },
+        "joiner": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Joiner"
+        },
+        "paraformer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paraformer"
+        },
+        "nemo_ctc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Nemo Ctc"
+        },
+        "wenet_ctc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wenet Ctc"
+        },
+        "tdnn_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tdnn Model"
+        },
+        "whisper_encoder": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Whisper Encoder"
+        },
+        "whisper_decoder": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Whisper Decoder"
+        },
+        "sense_voice": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sense Voice"
+        },
+        "fire_red_asr_encoder": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fire Red Asr Encoder"
+        },
+        "fire_red_asr_decoder": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fire Red Asr Decoder"
+        },
+        "tokens": {
+          "title": "Tokens",
+          "type": "string"
+        },
+        "num_threads": {
+          "default": 4,
+          "title": "Num Threads",
+          "type": "integer"
+        },
+        "use_itn": {
+          "default": true,
+          "title": "Use Itn",
+          "type": "boolean"
+        },
+        "language": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "zh",
+            "en",
+            "ja",
+            "ko",
+            "yue"
+          ],
+          "title": "Language",
+          "type": "string"
+        },
+        "provider": {
+          "default": "cpu",
+          "enum": [
+            "cpu",
+            "cuda",
+            "rocm"
+          ],
+          "title": "Provider",
+          "type": "string"
+        }
+      },
+      "required": [
+        "model_type",
+        "tokens"
+      ],
+      "title": "SherpaOnnxASRConfig",
+      "type": "object"
+    },
+    "SherpaOnnxTTSConfig": {
+      "description": "Configuration for Sherpa Onnx TTS.",
+      "properties": {
+        "vits_model": {
+          "title": "Vits Model",
+          "type": "string"
+        },
+        "vits_lexicon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vits Lexicon"
+        },
+        "vits_tokens": {
+          "title": "Vits Tokens",
+          "type": "string"
+        },
+        "vits_data_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vits Data Dir"
+        },
+        "vits_dict_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vits Dict Dir"
+        },
+        "tts_rule_fsts": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tts Rule Fsts"
+        },
+        "max_num_sentences": {
+          "default": 2,
+          "title": "Max Num Sentences",
+          "type": "integer"
+        },
+        "sid": {
+          "default": 1,
+          "title": "Sid",
+          "type": "integer"
+        },
+        "provider": {
+          "default": "cpu",
+          "enum": [
+            "cpu",
+            "cuda",
+            "coreml"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "num_threads": {
+          "default": 1,
+          "title": "Num Threads",
+          "type": "integer"
+        },
+        "speed": {
+          "default": 1.0,
+          "title": "Speed",
+          "type": "number"
+        },
+        "debug": {
+          "default": false,
+          "title": "Debug",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "vits_model",
+        "vits_tokens"
+      ],
+      "title": "SherpaOnnxTTSConfig",
+      "type": "object"
+    },
+    "SileroVADConfig": {
+      "description": "Configuration for Silero VAD service.",
+      "properties": {
+        "orig_sr": {
+          "title": "Orig Sr",
+          "type": "integer"
+        },
+        "target_sr": {
+          "title": "Target Sr",
+          "type": "integer"
+        },
+        "prob_threshold": {
+          "title": "Prob Threshold",
+          "type": "number"
+        },
+        "db_threshold": {
+          "title": "Db Threshold",
+          "type": "integer"
+        },
+        "required_hits": {
+          "title": "Required Hits",
+          "type": "integer"
+        },
+        "required_misses": {
+          "title": "Required Misses",
+          "type": "integer"
+        },
+        "smoothing_window": {
+          "title": "Smoothing Window",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "orig_sr",
+        "target_sr",
+        "prob_threshold",
+        "db_threshold",
+        "required_hits",
+        "required_misses",
+        "smoothing_window"
+      ],
+      "title": "SileroVADConfig",
+      "type": "object"
+    },
+    "SiliconFlowTTSConfig": {
+      "description": "Configuration for SiliconFlow TTS.",
+      "properties": {
+        "api_url": {
+          "default": "https://api.siliconflow.cn/v1/audio/speech",
+          "title": "Api Url",
+          "type": "string"
+        },
+        "api_key": {
+          "title": "Api Key",
+          "type": "string"
+        },
+        "default_model": {
+          "default": "FunAudioLLM/CosyVoice2-0.5B",
+          "title": "Default Model",
+          "type": "string"
+        },
+        "default_voice": {
+          "default": "speech:Dreamflowers:5bdstvc39i:xkqldnpasqmoqbakubom",
+          "title": "Default Voice",
+          "type": "string"
+        },
+        "sample_rate": {
+          "default": 32000,
+          "title": "Sample Rate",
+          "type": "integer"
+        },
+        "response_format": {
+          "default": "mp3",
+          "title": "Response Format",
+          "type": "string"
+        },
+        "stream": {
+          "default": true,
+          "title": "Stream",
+          "type": "boolean"
+        },
+        "speed": {
+          "default": 1,
+          "title": "Speed",
+          "type": "number"
+        },
+        "gain": {
+          "default": 0,
+          "title": "Gain",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "api_key"
+      ],
+      "title": "SiliconFlowTTSConfig",
+      "type": "object"
+    },
+    "SparkTTSConfig": {
+      "description": "Configuration for Spark TTS.",
+      "properties": {
+        "api_url": {
+          "title": "Api Url",
+          "type": "string"
+        },
+        "prompt_wav_upload": {
+          "title": "Prompt Wav Upload",
+          "type": "string"
+        },
+        "api_name": {
+          "title": "Api Name",
+          "type": "string"
+        },
+        "gender": {
+          "title": "Gender",
+          "type": "string"
+        },
+        "pitch": {
+          "title": "Pitch",
+          "type": "integer"
+        },
+        "speed": {
+          "title": "Speed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "api_url",
+        "prompt_wav_upload",
+        "api_name",
+        "gender",
+        "pitch",
+        "speed"
+      ],
+      "title": "SparkTTSConfig",
+      "type": "object"
+    },
+    "StatelessLLMConfigs": {
+      "description": "Pool of LLM provider configurations.\nThis class contains configurations for different LLM providers.",
+      "properties": {
+        "stateless_llm_with_template": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StatelessLLMWithTemplate"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "openai_compatible_llm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpenAICompatibleConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ollama_llm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OllamaConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "lmstudio_llm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LmStudioConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "openai_llm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpenAIConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "gemini_llm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GeminiConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "zhipu_llm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ZhipuConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "deepseek_llm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeepseekConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "groq_llm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GroqConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "claude_llm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClaudeConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "llama_cpp_llm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LlamaCppConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mistral_llm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MistralConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "StatelessLLMConfigs",
+      "type": "object"
+    },
+    "StatelessLLMWithTemplate": {
+      "description": "Configuration for OpenAI-compatible LLM providers.",
+      "properties": {
+        "interrupt_method": {
+          "default": "user",
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Interrupt Method",
+          "type": "string"
+        },
+        "base_url": {
+          "title": "Base Url",
+          "type": "string"
+        },
+        "llm_api_key": {
+          "title": "Llm Api Key",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "template": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Template"
+        },
+        "temperature": {
+          "default": 1.0,
+          "title": "Temperature",
+          "type": "number"
+        }
+      },
+      "required": [
+        "base_url",
+        "llm_api_key",
+        "model"
+      ],
+      "title": "StatelessLLMWithTemplate",
+      "type": "object"
+    },
+    "SystemConfig": {
+      "description": "System configuration settings.",
+      "properties": {
+        "conf_version": {
+          "title": "Conf Version",
+          "type": "string"
+        },
+        "host": {
+          "title": "Host",
+          "type": "string"
+        },
+        "port": {
+          "title": "Port",
+          "type": "integer"
+        },
+        "config_alts_dir": {
+          "title": "Config Alts Dir",
+          "type": "string"
+        },
+        "tool_prompts": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Tool Prompts",
+          "type": "object"
+        },
+        "enable_proxy": {
+          "default": false,
+          "title": "Enable Proxy",
+          "type": "boolean"
+        },
+        "player_language": {
+          "default": "",
+          "title": "Player Language",
+          "type": "string"
+        },
+        "player_prompt": {
+          "default": "",
+          "title": "Player Prompt",
+          "type": "string"
+        },
+        "default_background": {
+          "default": "",
+          "title": "Default Background",
+          "type": "string"
+        },
+        "mcp_server_enabled": {
+          "default": true,
+          "title": "Mcp Server Enabled",
+          "type": "boolean"
+        },
+        "ui_prefs": {
+          "$ref": "#/$defs/UiPrefs"
+        }
+      },
+      "required": [
+        "conf_version",
+        "host",
+        "port",
+        "config_alts_dir",
+        "tool_prompts"
+      ],
+      "title": "SystemConfig",
+      "type": "object"
+    },
+    "TTSConfig": {
+      "description": "Configuration for Text-to-Speech.",
+      "properties": {
+        "tts_model": {
+          "enum": [
+            "azure_tts",
+            "bark_tts",
+            "edge_tts",
+            "cosyvoice_tts",
+            "cosyvoice2_tts",
+            "melo_tts",
+            "coqui_tts",
+            "x_tts",
+            "gpt_sovits_tts",
+            "fish_api_tts",
+            "sherpa_onnx_tts",
+            "siliconflow_tts",
+            "openai_tts",
+            "spark_tts",
+            "minimax_tts",
+            "elevenlabs_tts",
+            "cartesia_tts",
+            "piper_tts",
+            "voicevox_tts"
+          ],
+          "title": "Tts Model",
+          "type": "string"
+        },
+        "azure_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AzureTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "bark_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BarkTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "edge_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EdgeTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cosyvoice_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CosyvoiceTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cosyvoice2_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Cosyvoice2TTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "melo_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MeloTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "coqui_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CoquiTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "x_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/XTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "gpt_sovits": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GPTSoVITSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "fish_api_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FishAPITTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sherpa_onnx_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SherpaOnnxTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "siliconflow_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SiliconFlowTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "openai_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OpenAITTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "spark_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SparkTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "minimax_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MinimaxTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "elevenlabs_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ElevenLabsTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cartesia_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CartesiaTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "piper_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PiperTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "voicevox_tts": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VoiceVoxTTSConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "tts_model"
+      ],
+      "title": "TTSConfig",
+      "type": "object"
+    },
+    "TTSPreprocessorConfig": {
+      "description": "Configuration for TTS preprocessor.",
+      "properties": {
+        "remove_special_char": {
+          "title": "Remove Special Char",
+          "type": "boolean"
+        },
+        "ignore_brackets": {
+          "default": true,
+          "title": "Ignore Brackets",
+          "type": "boolean"
+        },
+        "ignore_parentheses": {
+          "default": true,
+          "title": "Ignore Parentheses",
+          "type": "boolean"
+        },
+        "ignore_asterisks": {
+          "default": true,
+          "title": "Ignore Asterisks",
+          "type": "boolean"
+        },
+        "ignore_angle_brackets": {
+          "default": true,
+          "title": "Ignore Angle Brackets",
+          "type": "boolean"
+        },
+        "translator_config": {
+          "$ref": "#/$defs/TranslatorConfig"
+        }
+      },
+      "required": [
+        "remove_special_char",
+        "translator_config"
+      ],
+      "title": "TTSPreprocessorConfig",
+      "type": "object"
+    },
+    "TencentConfig": {
+      "description": "Configuration for tencent translation service.",
+      "properties": {
+        "secret_id": {
+          "description": "Tencent Secret ID",
+          "title": "Secret Id",
+          "type": "string"
+        },
+        "secret_key": {
+          "description": "Tencent Secret Key",
+          "title": "Secret Key",
+          "type": "string"
+        },
+        "region": {
+          "description": "Region for Tencent Service",
+          "title": "Region",
+          "type": "string"
+        },
+        "source_lang": {
+          "description": "Source language code for tencent translation",
+          "title": "Source Lang",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "Target language code for tencent translation",
+          "title": "Target Lang",
+          "type": "string"
+        }
+      },
+      "required": [
+        "secret_id",
+        "secret_key",
+        "region",
+        "source_lang",
+        "target_lang"
+      ],
+      "title": "TencentConfig",
+      "type": "object"
+    },
+    "TranslatorConfig": {
+      "description": "Configuration for translation services.",
+      "properties": {
+        "translate_audio": {
+          "title": "Translate Audio",
+          "type": "boolean"
+        },
+        "translate_provider": {
+          "enum": [
+            "deeplx",
+            "tencent",
+            "llm"
+          ],
+          "title": "Translate Provider",
+          "type": "string"
+        },
+        "translate_subtitle": {
+          "default": false,
+          "title": "Translate Subtitle",
+          "type": "boolean"
+        },
+        "subtitle_target_lang": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subtitle Target Lang"
+        },
+        "deeplx": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeepLXConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "tencent": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TencentConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "llm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LLMTranslateConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "translate_audio",
+        "translate_provider"
+      ],
+      "title": "TranslatorConfig",
+      "type": "object"
+    },
+    "UiPrefs": {
+      "description": "前端 UI 行为偏好（Phase 2：配置单一事实源收口，替代浏览器存储）。\n\n与 frontend/src/state/types.ts 的 LocalSettings（不含 theme）保持一致。\n值默认与 Phase 1 卖点默认翻转后的前端默认值一致。",
+      "properties": {
+        "screen_aware_enabled": {
+          "default": true,
+          "title": "Screen Aware Enabled",
+          "type": "boolean"
+        },
+        "screen_poll_interval_sec": {
+          "default": 5,
+          "title": "Screen Poll Interval Sec",
+          "type": "integer"
+        },
+        "proactive_enabled": {
+          "default": true,
+          "title": "Proactive Enabled",
+          "type": "boolean"
+        },
+        "proactive_idle_sec": {
+          "default": 60,
+          "title": "Proactive Idle Sec",
+          "type": "integer"
+        },
+        "auto_speak_on_idle": {
+          "default": true,
+          "title": "Auto Speak On Idle",
+          "type": "boolean"
+        }
+      },
+      "title": "UiPrefs",
+      "type": "object"
+    },
+    "VADConfig": {
+      "description": "Configuration for Automatic Speech Recognition.",
+      "properties": {
+        "vad_model": {
+          "anyOf": [
+            {
+              "const": "silero_vad",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vad Model"
+        },
+        "silero_vad": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SileroVADConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "VADConfig",
+      "type": "object"
+    },
+    "VoiceVoxTTSConfig": {
+      "description": "Configuration for local VOICEVOX TTS (Japanese, incl. ずんだもん loli voice).",
+      "properties": {
+        "base_url": {
+          "default": "http://127.0.0.1:50021",
+          "title": "Base Url",
+          "type": "string"
+        },
+        "speaker": {
+          "default": 3,
+          "title": "Speaker",
+          "type": "integer"
+        }
+      },
+      "title": "VoiceVoxTTSConfig",
+      "type": "object"
+    },
+    "WhisperCPPConfig": {
+      "description": "Configuration for WhisperCPP ASR.",
+      "properties": {
+        "model_name": {
+          "title": "Model Name",
+          "type": "string"
+        },
+        "model_dir": {
+          "title": "Model Dir",
+          "type": "string"
+        },
+        "print_realtime": {
+          "default": false,
+          "title": "Print Realtime",
+          "type": "boolean"
+        },
+        "print_progress": {
+          "default": false,
+          "title": "Print Progress",
+          "type": "boolean"
+        },
+        "language": {
+          "default": "auto",
+          "title": "Language",
+          "type": "string"
+        },
+        "prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt"
+        }
+      },
+      "required": [
+        "model_name",
+        "model_dir"
+      ],
+      "title": "WhisperCPPConfig",
+      "type": "object"
+    },
+    "WhisperConfig": {
+      "description": "Configuration for OpenAI Whisper ASR.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "download_root": {
+          "title": "Download Root",
+          "type": "string"
+        },
+        "device": {
+          "default": "cpu",
+          "enum": [
+            "cpu",
+            "cuda"
+          ],
+          "title": "Device",
+          "type": "string"
+        },
+        "prompt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt"
+        }
+      },
+      "required": [
+        "name",
+        "download_root"
+      ],
+      "title": "WhisperConfig",
+      "type": "object"
+    },
+    "XTTSConfig": {
+      "description": "Configuration for XTTS.",
+      "properties": {
+        "api_url": {
+          "title": "Api Url",
+          "type": "string"
+        },
+        "speaker_wav": {
+          "title": "Speaker Wav",
+          "type": "string"
+        },
+        "language": {
+          "title": "Language",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api_url",
+        "speaker_wav",
+        "language"
+      ],
+      "title": "XTTSConfig",
+      "type": "object"
+    },
+    "ZhipuConfig": {
+      "description": "Configuration for Zhipu API.",
+      "properties": {
+        "interrupt_method": {
+          "default": "user",
+          "enum": [
+            "system",
+            "user"
+          ],
+          "title": "Interrupt Method",
+          "type": "string"
+        },
+        "base_url": {
+          "default": "https://open.bigmodel.cn/api/paas/v4/",
+          "title": "Base Url",
+          "type": "string"
+        },
+        "llm_api_key": {
+          "title": "Llm Api Key",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "organization_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Organization Id"
+        },
+        "project_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Project Id"
+        },
+        "temperature": {
+          "default": 1.0,
+          "title": "Temperature",
+          "type": "number"
+        }
+      },
+      "required": [
+        "llm_api_key",
+        "model"
+      ],
+      "title": "ZhipuConfig",
+      "type": "object"
+    }
+  },
+  "description": "Main configuration for the application.",
+  "properties": {
+    "system_config": {
+      "$ref": "#/$defs/SystemConfig",
+      "default": null
+    },
+    "character_config": {
+      "$ref": "#/$defs/CharacterConfig"
+    },
+    "live_config": {
+      "$ref": "#/$defs/LiveConfig",
+      "default": {
+        "bilibili_live": {
+          "room_ids": [],
+          "sessdata": ""
+        }
+      }
+    }
+  },
+  "required": [
+    "character_config"
+  ],
+  "title": "Config",
+  "type": "object"
+}

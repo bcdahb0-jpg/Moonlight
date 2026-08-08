@@ -1,0 +1,26 @@
+appId: com.moonlight.pet
+productName: Moonlight
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist-electron/**/*
+  - dist/**/*
+  - package.json
+asarUnpack:
+  - node_modules/active-win/**/*
+  - node_modules/koffi/**/*
+win:
+  target:
+    - nsis
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Moonlight
+electronLanguages:
+  - en-US
+  - zh-CN
+  - zh-TW
+  - ja

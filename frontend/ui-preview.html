@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Moonlight UI 设计预览 · 暗夜月光玻璃</title>
+<style>
+/* ============================================================
+   Moonlight 设计系统预览（与 frontend/src/styles/global.css 同源）
+   暗夜月光 · 精致玻璃
+   ============================================================ */
+:root {
+  --font-family: 'Microsoft YaHei', 'Segoe UI', 'PingFang SC', 'HarmonyOS Sans SC', sans-serif;
+  --bg: rgba(16, 14, 32, 0.92);
+  --bg-panel: rgba(24, 21, 48, 0.88);
+  --bg-soft: rgba(255, 255, 255, 0.055);
+  --bg-glass: rgba(30, 26, 60, 0.55);
+  --bg-glass-strong: rgba(36, 31, 70, 0.72);
+  --bg-input: rgba(255, 255, 255, 0.06);
+  --text: #ece7fb;
+  --text-secondary: rgba(236, 231, 251, 0.58);
+  --text-faint: rgba(236, 231, 251, 0.36);
+  --border: rgba(210, 190, 255, 0.16);
+  --border-strong: rgba(240, 200, 130, 0.45);
+  --primary: #f2c879;
+  --primary-strong: #e8b563;
+  --primary-ink: #3a2c12;
+  --gradient-main: linear-gradient(135deg, #f2c879 0%, #e8a45f 55%, #d98a4e 100%);
+  --gradient-soft: linear-gradient(135deg, rgba(242, 200, 121, 0.22), rgba(216, 138, 78, 0.14));
+  --gradient-night: linear-gradient(160deg, #0c0a1f 0%, #171238 55%, #241c4e 100%);
+  --message-user-bg: linear-gradient(135deg, rgba(242, 200, 121, 0.4), rgba(216, 138, 78, 0.28));
+  --message-ai-bg: rgba(255, 255, 255, 0.07);
+  --glow: rgba(242, 200, 121, 0.28);
+  --glow-strong: rgba(242, 200, 121, 0.45);
+  --danger: #f87171;
+  --danger-bg: rgba(248, 113, 113, 0.12);
+  --success: #6ee7a8;
+  --warn: #fbbf24;
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-xl: 22px;
+  --shadow-1: 0 2px 10px rgba(0, 0, 0, 0.28);
+  --shadow-2: 0 8px 28px rgba(0, 0, 0, 0.35);
+  --glass-blur: blur(22px) saturate(150%);
+}
+:root[data-theme='light'] {
+  --bg: rgba(248, 244, 255, 0.94);
+  --bg-panel: rgba(255, 253, 255, 0.92);
+  --bg-soft: rgba(120, 90, 200, 0.07);
+  --bg-glass: rgba(255, 255, 255, 0.6);
+  --bg-glass-strong: rgba(255, 255, 255, 0.78);
+  --bg-input: rgba(120, 90, 200, 0.06);
+  --text: #37294f;
+  --text-secondary: rgba(55, 41, 79, 0.6);
+  --text-faint: rgba(55, 41, 79, 0.38);
+  --border: rgba(150, 110, 220, 0.22);
+  --border-strong: rgba(200, 140, 60, 0.5);
+  --primary: #c98a2e;
+  --primary-strong: #b5731f;
+  --primary-ink: #fff8ec;
+  --gradient-main: linear-gradient(135deg, #f2c879 0%, #e8a45f 60%, #d98a4e 100%);
+  --gradient-soft: linear-gradient(135deg, rgba(242, 200, 121, 0.35), rgba(216, 138, 78, 0.2));
+  --gradient-night: linear-gradient(160deg, #fdf8ff 0%, #f5ecff 55%, #efe4ff 100%);
+  --message-user-bg: linear-gradient(135deg, rgba(242, 200, 121, 0.75), rgba(216, 138, 78, 0.55));
+  --message-ai-bg: rgba(120, 90, 200, 0.07);
+  --glow: rgba(200, 140, 60, 0.25);
+  --glow-strong: rgba(200, 140, 60, 0.4);
+  --danger-bg: #fdeaea;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: var(--font-family);
+  background: #0a0818;
+  color: var(--text);
+  min-height: 100vh;
+}
+body[data-theme='light'] { background: #f3ecff; }
+::selection { background: rgba(242,200,121,.3); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* ================= 预览页框架 ================= */
+.preview-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 18px 16px 60px;
+}
+.preview-toolbar {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; margin-bottom: 18px;
+  border-radius: 14px;
+  background: var(--bg-glass-strong);
+  border: 1px solid var(--border);
+  backdrop-filter: var(--glass-blur);
+}
+.preview-toolbar .title { font-weight: 700; font-size: 15px; margin-right: auto; display:flex; align-items:center; gap:8px; }
+.preview-toolbar .title .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); }
+.tb-btn {
+  padding: 6px 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-glass);
+  color: var(--text); font-size: 12px; font-family: inherit;
+  transition: all .15s; display: inline-flex; align-items: center; gap: 6px;
+}
+.tb-btn:hover { border-color: var(--border-strong); color: var(--primary); }
+.tb-btn.active { background: var(--gradient-main); border-color: transparent; color: var(--primary-ink); font-weight: 600; }
+.tb-note { font-size: 11px; color: var(--text-faint); }
+
+.section-label {
+  margin: 26px 0 12px; font-size: 13px; font-weight: 700;
+  color: var(--primary); display: flex; align-items: center; gap: 8px;
+  letter-spacing: .5px;
+}
+.section-label::before { content:''; width:4px; height:14px; border-radius:2px; background: var(--gradient-main); box-shadow: 0 0 8px var(--glow); }
+
+/* ================= Dashboard ================= */
+.dashboard {
+  display: flex; flex-direction: column;
+  border-radius: 18px; overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--gradient-night);
+  box-shadow: 0 24px 80px rgba(0,0,0,.5);
+  backdrop-filter: var(--glass-blur);
+}
+.dashboard-header {
+  display: flex; align-items: center; gap: 12px;
+  height: 54px; padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-glass-strong);
+  backdrop-filter: var(--glass-blur);
+}
+.dashboard-brand { display:flex; align-items:center; gap:10px; margin-right:auto; }
+.dashboard-brand-mark {
+  width: 30px; height: 30px; border-radius: 10px;
+  background: var(--gradient-main); color: var(--primary-ink);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow: 0 0 16px var(--glow);
+}
+.dashboard-brand-name {
+  font-size: 15px; font-weight: 700; letter-spacing: .4px;
+  background: linear-gradient(90deg, #f5d98c, #e8a45f);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.dashboard-brand-sub { font-size: 11px; color: var(--text-faint); padding-left: 10px; border-left: 1px solid var(--border); }
+.dashboard-header-status {
+  display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-secondary);
+  padding: 5px 12px; border-radius: 999px; background: var(--bg-soft); border: 1px solid var(--border);
+}
+.conn-dot { width:9px; height:9px; border-radius:50%; background:var(--success); box-shadow:0 0 6px var(--success); }
+.dashboard-close {
+  width:30px; height:30px; border-radius:10px; border:1px solid var(--border);
+  background:transparent; color:var(--text-secondary); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:all .15s;
+}
+.dashboard-close:hover { background: var(--danger-bg); color: var(--danger); border-color: rgba(220,80,80,.45); }
+.dashboard-body { display:flex; min-height: 460px; }
+.dashboard-sidebar {
+  width: 236px; flex-shrink: 0; border-right: 1px solid var(--border);
+  overflow-y:auto; padding: 14px 10px 10px;
+  display:flex; flex-direction:column; gap:16px;
+  background: var(--bg-glass); backdrop-filter: var(--glass-blur);
+}
+.dashboard-group { display:flex; flex-direction:column; gap:2px; }
+.dashboard-group-head {
+  display:flex; align-items:center; gap:7px; padding: 6px 10px 4px;
+  font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--primary);
+}
+.dashboard-group-desc { padding: 0 10px 6px; font-size:10.5px; color:var(--text-faint); line-height:1.5; }
+.dashboard-nav-item {
+  display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:11px;
+  cursor:pointer; font-size:13px; color:var(--text-secondary);
+  border:1px solid transparent; background:transparent; text-align:left; width:100%;
+  transition:all .16s; position:relative;
+}
+.dashboard-nav-item:hover { background: var(--bg-soft); color: var(--text); }
+.dashboard-nav-item.active {
+  background: var(--gradient-soft); border-color: var(--border-strong); color: var(--text);
+}
+.dashboard-nav-item.active::before {
+  content:''; position:absolute; left:-10px; top:20%; bottom:20%; width:3px; border-radius:3px;
+  background: var(--gradient-main); box-shadow: 0 0 10px var(--glow);
+}
+.dashboard-nav-icon {
+  width:22px; height:22px; border-radius:7px;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  color:var(--text-secondary); transition:all .16s;
+}
+.dashboard-nav-item.active .dashboard-nav-icon {
+  background: var(--gradient-main); color: var(--primary-ink); box-shadow: 0 0 12px var(--glow);
+}
+.dashboard-nav-label { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dashboard-dev-toggle { margin-top:auto; padding:10px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:6px; }
+.switch-row {
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  position:relative; cursor:pointer; padding:10px 14px; border-radius:12px;
+  border:1px solid var(--border); background:var(--bg-glass); transition:border-color .16s;
+}
+.switch-row:hover { border-color: var(--border-strong); }
+.switch-label { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text); }
+.switch-label svg { color: var(--primary); flex-shrink:0; }
+.switch-row input.switch { position:absolute; opacity:0; width:0; height:0; }
+.switch-ui {
+  width:38px; height:22px; border-radius:999px; background:var(--bg-soft);
+  border:1px solid var(--border); position:relative; flex-shrink:0; transition:all .2s;
+}
+.switch-ui::after {
+  content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%;
+  background:var(--text-secondary); transition:all .2s cubic-bezier(.34,1.56,.64,1);
+}
+.switch-row input.switch:checked + .switch-ui { background: var(--gradient-main); border-color: transparent; box-shadow: 0 0 10px var(--glow); }
+.switch-row input.switch:checked + .switch-ui::after { transform: translateX(16px); background:#fff; }
+.dashboard-dev-hint { font-size:10.5px; color:var(--text-faint); padding-left:2px; }
+.dashboard-content {
+  flex:1; overflow-y:auto; padding:22px 26px 34px;
+  background: radial-gradient(circle at 85% 8%, rgba(242,200,121,.1), transparent 42%),
+              radial-gradient(circle at 12% 90%, rgba(140,100,255,.08), transparent 45%);
+}
+.dashboard-section-head { max-width:720px; margin-bottom:20px; }
+.dashboard-section-head h2 { font-size:22px; font-weight:700; letter-spacing:.4px; }
+.dashboard-section-head p { margin-top:6px; font-size:12.5px; color:var(--text-secondary); }
+.dashboard-section { max-width:720px; display:flex; flex-direction:column; gap:14px; }
+.dashboard-section .settings-section {
+  padding:20px 22px; border-radius:var(--radius-lg);
+  background:var(--bg-glass); border:1px solid var(--border);
+  backdrop-filter:var(--glass-blur); box-shadow:var(--shadow-1);
+}
+.settings-section { display:flex; flex-direction:column; gap:14px; }
+.settings-section h3 {
+  font-size:13px; font-weight:600; color:var(--primary);
+  display:flex; align-items:center; gap:8px; padding-bottom:8px;
+  border-bottom:1px solid var(--border); letter-spacing:.3px;
+}
+.settings-section h3::before {
+  content:''; width:4px; height:14px; border-radius:2px;
+  background:var(--gradient-main); box-shadow:0 0 8px var(--glow); flex-shrink:0;
+}
+.field { display:flex; flex-direction:column; gap:6px; }
+.field > span { font-size:12px; color:var(--text-secondary); }
+.field input, .field select, .field textarea {
+  padding:9px 12px; border-radius:11px; border:1px solid var(--border);
+  background:var(--bg-input); outline:none;
+  transition:border-color .16s, box-shadow .16s, background .16s;
+  color: var(--text); font-family: inherit; font-size: 13px;
+}
+.field select {
+  appearance:none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%),
+    linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 55%, calc(100% - 13px) 55%;
+  background-size: 5px 5px; background-repeat: no-repeat; padding-right: 30px;
+}
+.field textarea { resize:vertical; line-height:1.6; }
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color:var(--border-strong); box-shadow:0 0 0 3px var(--glow); background:var(--bg-glass);
+}
+.toggle-row {
+  display:flex; align-items:center; justify-content:space-between; font-size:13px;
+  gap:10px; padding:9px 12px; border-radius:11px;
+  border:1px solid var(--border); background:var(--bg-glass);
+}
+.toggle-row input[type='checkbox'] {
+  appearance:none; width:38px; height:22px; border-radius:999px;
+  background:var(--bg-soft); border:1px solid var(--border); position:relative;
+  cursor:pointer; flex-shrink:0; transition:all .2s;
+}
+.toggle-row input[type='checkbox']::after {
+  content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%;
+  background:var(--text-secondary); transition:all .2s cubic-bezier(.34,1.56,.64,1);
+}
+.toggle-row input[type='checkbox']:checked { background:var(--gradient-main); border-color:transparent; }
+.toggle-row input[type='checkbox']:checked::after { transform:translateX(16px); background:#fff; }
+.btn-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.btn {
+  padding:8px 16px; border-radius:999px; border:1px solid var(--border);
+  background:var(--bg-glass); cursor:pointer; font-size:12.5px; color:var(--text);
+  transition:all .15s; display:inline-flex; align-items:center; gap:6px; font-family:inherit;
+}
+.btn:hover:not(:disabled) { transform:translateY(-1px); border-color:var(--border-strong); box-shadow:0 4px 14px rgba(0,0,0,.18); color:var(--primary); }
+.btn-primary { background:var(--gradient-main); border-color:transparent; color:var(--primary-ink); font-weight:600; box-shadow:0 4px 14px var(--glow); }
+.btn-primary:hover:not(:disabled) { color:var(--primary-ink); filter:brightness(1.06); }
+.btn-danger { background:var(--danger-bg) !important; color:var(--danger) !important; border-color:rgba(220,80,80,.45) !important; }
+.setting-status {
+  font-size:12px; padding:9px 12px; border-radius:10px;
+  background:var(--bg-glass); border:1px solid var(--border); color:var(--text-secondary); line-height:1.6;
+}
+.setting-note {
+  font-size:12px; padding:9px 12px; border-radius:10px;
+  background:rgba(251,191,36,.1); border:1px solid rgba(251,191,36,.3); color:var(--text-secondary); line-height:1.6;
+}
+.theme-toggle-row { display:flex; gap:6px; }
+.theme-toggle-btn {
+  padding:7px 18px; border-radius:999px; border:1px solid var(--border);
+  background:var(--bg-glass); color:var(--text-secondary); cursor:pointer; font-size:12.5px;
+  display:inline-flex; align-items:center; gap:6px; transition:all .15s; font-family:inherit;
+}
+.theme-toggle-btn:hover { color:var(--text); border-color:var(--border-strong); }
+.theme-toggle-btn.active { background:var(--gradient-main); border-color:transparent; color:var(--primary-ink); font-weight:600; box-shadow:0 3px 12px var(--glow); }
+.character-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(132px,1fr)); gap:12px; }
+.character-card {
+  position:relative; padding:9px; border-radius:14px; border:1px solid var(--border);
+  background:var(--bg-glass); display:flex; flex-direction:column; gap:7px;
+  cursor:pointer; transition:all .16s; backdrop-filter:var(--glass-blur);
+}
+.character-card:hover { transform:translateY(-3px); border-color:var(--border-strong); box-shadow:var(--shadow-2); }
+.character-card.active { border-color:var(--border-strong); box-shadow:0 0 0 1px var(--border-strong), 0 0 18px var(--glow); }
+.character-card.current .character-card-avatar { outline:2px solid var(--primary); outline-offset:-1px; box-shadow:0 0 14px var(--glow); }
+.character-card-avatar {
+  position:relative; width:100%; aspect-ratio:1; overflow:hidden; border-radius:10px;
+  background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:30px;
+}
+.character-card-avatar img { width:100%; height:100%; object-fit:cover; }
+.character-card-badge {
+  position:absolute; top:5px; left:5px; font-size:10px; padding:2px 8px; border-radius:999px;
+  background:var(--gradient-main); color:var(--primary-ink); font-weight:600;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);
+}
+.character-card-name { font-size:12.5px; font-weight:500; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.character-card-new { border:1.5px dashed var(--border); background:var(--bg-glass); color:var(--text-secondary); justify-content:center; align-items:center; }
+.character-card-new:hover { border-color:var(--border-strong); color:var(--primary); background:var(--gradient-soft); }
+.character-card-plus { font-size:34px; line-height:1; }
+.model-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:10px; }
+.model-card {
+  padding:10px; border-radius:13px; border:1px solid var(--border); background:var(--bg-glass);
+  display:flex; flex-direction:column; gap:6px; cursor:pointer; transition:all .16s;
+}
+.model-card:hover { transform:translateY(-2px); border-color:var(--border-strong); box-shadow:var(--shadow-1); }
+.model-card-avatar {
+  width:100%; aspect-ratio:1; overflow:hidden; border-radius:9px; background:var(--bg);
+  display:flex; align-items:center; justify-content:center; font-size:28px;
+}
+.model-card-avatar img { width:100%; height:100%; object-fit:cover; }
+.model-card-name { font-size:12px; font-weight:500; }
+.model-card.active { border-color:var(--border-strong); box-shadow:0 0 0 1px var(--border-strong), 0 0 16px var(--glow); }
+.model-card-gen {
+  padding:5px 8px; border:none; border-radius:8px; background:var(--bg-soft); color:var(--text);
+  font-size:11px; cursor:pointer; transition:all .12s; font-family:inherit;
+}
+.model-card-gen:hover { background:var(--gradient-main); color:var(--primary-ink); }
+.list { display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; padding-right:2px; }
+.list-item {
+  display:flex; flex-direction:column; gap:3px; text-align:left; padding:8px 12px; border-radius:10px;
+  border:1px solid var(--border); background:var(--bg-glass); cursor:pointer; position:relative;
+  transition:border-color .15s; color: var(--text); font-family: inherit;
+}
+.list-item:hover { border-color:var(--border-strong); }
+.list-item-title { font-size:13px; font-weight:500; }
+.list-item-sub { font-size:11px; color:var(--text-secondary); }
+.topic-chips { display:flex; flex-wrap:wrap; gap:7px; }
+.topic-chip {
+  display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:999px;
+  background:var(--gradient-soft); border:1px solid var(--border); font-size:12px;
+}
+.topic-chip button { border:none; background:transparent; cursor:pointer; color:var(--text-secondary); font-size:11px; }
+.chip-btn {
+  padding:5px 12px; border-radius:999px; border:1px dashed var(--border); background:transparent;
+  cursor:pointer; font-size:11.5px; color:var(--text-secondary); transition:all .14s; font-family:inherit;
+}
+.chip-btn:hover { color:var(--primary); border-color:var(--border-strong); background:var(--bg-soft); }
+.range-row { display:flex; align-items:center; gap:8px; }
+.range-row input[type='range'] { flex:1; accent-color:var(--primary); }
+.range-val { font-size:12px; color:var(--text-secondary); min-width:36px; text-align:right; }
+.system-card {
+  padding:13px 15px; border-radius:12px; border:1px solid var(--border);
+  background:var(--bg-glass); display:flex; flex-direction:column; gap:4px; transition:border-color .15s;
+}
+.system-card:hover { border-color:var(--border-strong); }
+.system-card-title { font-size:11px; color:var(--text-secondary); letter-spacing:.2px; }
+.system-card-value { font-size:13px; font-weight:500; word-break:break-word; }
+.system-card-error { border-color:rgba(220,80,80,.5) !important; background:var(--danger-bg); }
+
+/* ================= 聊天面板 ================= */
+.window-layout {
+  display:grid; grid-template-columns: minmax(0,1fr) minmax(240px,.46fr);
+  border-radius:14px; overflow:hidden; border:1px solid var(--border);
+  background:var(--bg); box-shadow:0 8px 40px var(--glow);
+  min-height: 420px;
+}
+.live2d-area {
+  order:2; border-left:1px solid var(--border); min-height:420px;
+  background: radial-gradient(circle at 50% 28%, rgba(242,200,121,.16), rgba(120,90,220,.1) 45%, transparent 72%);
+  display:flex; align-items:center; justify-content:center; color:var(--text-faint); font-size:13px;
+}
+.chat-panel {
+  order:1; min-width:0; display:flex; flex-direction:column;
+  background: linear-gradient(180deg, var(--bg-glass-strong) 0%, var(--bg-glass) 100%);
+}
+.chat-history-bar {
+  display:flex; align-items:center; gap:6px; padding:7px 10px;
+  border-bottom:1px solid var(--border); background:var(--bg-glass); backdrop-filter:var(--glass-blur);
+}
+.history-btn {
+  width:26px; height:26px; border-radius:9px; border:1px solid var(--border);
+  background:var(--bg-soft); cursor:pointer; color:var(--text-secondary);
+  display:flex; align-items:center; justify-content:center; transition:all .15s;
+}
+.history-btn:hover { color:var(--primary); border-color:var(--border-strong); background:var(--gradient-soft); }
+.history-select {
+  flex:1; min-width:0; padding:4px 9px; border-radius:9px; border:1px solid var(--border);
+  background:var(--bg-input); font-size:11px; color:var(--text-secondary); outline:none;
+  font-family:inherit;
+}
+.message-list { flex:1; overflow-y:auto; padding:14px 12px; display:flex; flex-direction:column; gap:12px; }
+.chat-bubble-row { display:flex; gap:8px; align-items:flex-start; }
+.chat-bubble-row.user { justify-content:flex-end; }
+.chat-avatar {
+  width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:15px; flex-shrink:0; background:var(--gradient-soft); border:1px solid var(--border);
+  overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.2); color: var(--primary);
+}
+.chat-bubble { max-width:76%; padding:9px 13px; border-radius:15px; font-size:13px; line-height:1.55; word-break:break-word; white-space:pre-wrap; }
+.chat-bubble.user {
+  background:var(--message-user-bg); color:#2b2210;
+  border-top-right-radius:5px; box-shadow:0 2px 10px rgba(216,138,78,.18);
+}
+:root[data-theme='light'] .chat-bubble.user { color:#fff; }
+.chat-bubble.ai { background:var(--message-ai-bg); border:1px solid var(--border); border-top-left-radius:5px; backdrop-filter:blur(8px); }
+.chat-bubble-name { font-size:11px; color:var(--primary); font-weight:600; margin-bottom:3px; }
+.chat-thinking { display:flex; gap:5px; padding:6px 4px; }
+.chat-thinking .dot { width:7px; height:7px; border-radius:50%; background:var(--primary); animation:bounce 1s infinite; }
+.chat-thinking .dot:nth-child(2) { animation-delay:.15s; }
+.chat-thinking .dot:nth-child(3) { animation-delay:.3s; }
+@keyframes bounce { 0%,100% { transform:translateY(0); opacity:.4; } 50% { transform:translateY(-4px); opacity:1; } }
+.chat-input-bar {
+  display:flex; gap:7px; padding:10px 12px; border-top:1px solid var(--border);
+  align-items:center; background:var(--bg-glass); backdrop-filter:var(--glass-blur);
+}
+.chat-input {
+  flex:1; padding:9px 14px; border-radius:22px; border:1px solid var(--border);
+  background:var(--bg-input); outline:none; min-width:0;
+  transition:border-color .18s, box-shadow .18s; color:var(--text); font-family:inherit;
+}
+.chat-input::placeholder { color:var(--text-faint); }
+.chat-input:focus { border-color:var(--border-strong); box-shadow:0 0 0 3px var(--glow); }
+.chat-btn {
+  width:36px; height:36px; border-radius:50%; border:1px solid var(--border);
+  background:var(--gradient-soft); cursor:pointer; color:var(--text);
+  display:flex; align-items:center; justify-content:center;
+  transition:all .15s; flex-shrink:0;
+}
+.chat-btn:hover:not(:disabled) { transform:scale(1.08); border-color:var(--border-strong); box-shadow:0 0 14px var(--glow); }
+.chat-btn.mic.recording { background:var(--danger); border-color:var(--danger); color:#fff; animation:pulse 1.2s infinite; }
+@keyframes pulse { 50% { box-shadow:0 0 0 6px rgba(248,113,113,.22); } }
+
+/* ================= 悬浮条 ================= */
+.pet-stage {
+  position:relative; height:120px; border-radius:14px; overflow:hidden;
+  border:1px solid var(--border); background:
+    radial-gradient(circle at 60% 30%, rgba(242,200,121,.2), transparent 55%),
+    var(--gradient-night);
+  display:flex; align-items:center; justify-content:center;
+}
+.pet-stage .pet-hint { font-size:12px; color:var(--text-faint); }
+.pet-overlay {
+  position:absolute; top:10px; right:10px;
+  display:flex; align-items:center; gap:6px; padding:6px 8px; border-radius:999px;
+  background:var(--bg-glass); border:1px solid var(--border); backdrop-filter:var(--glass-blur);
+  box-shadow:var(--shadow-1);
+}
+.overlay-btn {
+  width:27px; height:27px; border-radius:50%; border:none; background:transparent;
+  cursor:pointer; color:var(--text-secondary); display:flex; align-items:center; justify-content:center; transition:all .15s;
+}
+.overlay-btn:hover { background:var(--bg-soft); color:var(--primary); transform:scale(1.08); }
+.emotion-badge {
+  font-size:11px; padding:4px 10px; border-radius:999px; background:var(--gradient-soft);
+  border:1px solid var(--border); color:var(--text); display:inline-flex; align-items:center; gap:5px;
+}
+.affection-badge {
+  font-size:11px; padding:4px 10px; border-radius:999px;
+  background:linear-gradient(135deg, rgba(255,154,158,.35), rgba(250,208,196,.3));
+  border:1px solid rgba(255,140,140,.45); color:var(--text); display:inline-flex; align-items:center; gap:5px;
+}
+
+/* 图标 */
+.ic { width:1em; height:1em; stroke:currentColor; stroke-width:1.75; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+.ic-sm { width:16px; height:16px; }
+.ic-xs { width:14px; height:14px; }
+</style>
+</head>
+<body>
+<div class="preview-shell">
+
+  <!-- ================= 工具栏 ================= -->
+  <div class="preview-toolbar">
+    <div class="title"><span class="dot"></span>Moonlight · 暗夜月光玻璃 UI 预览</div>
+    <button class="tb-btn active" data-theme-btn="dark" onclick="setTheme('dark')">🌙 深色</button>
+    <button class="tb-btn" data-theme-btn="light" onclick="setTheme('light')">☀️ 浅色</button>
+    <span class="tb-note">与 frontend 内 global.css 同一套 token，构建已通过 tsc + vite</span>
+  </div>
+
+  <!-- ================= 1. Dashboard ================= -->
+  <div class="section-label">① 设置面板 Dashboard（扁平化分组 · 玻璃导航）</div>
+  <div class="dashboard">
+    <div class="dashboard-header">
+      <div class="dashboard-brand">
+        <div class="dashboard-brand-mark">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"/></svg>
+        </div>
+        <span class="dashboard-brand-name">Moonlight</span>
+        <span class="dashboard-brand-sub">AI 桌宠设置</span>
+      </div>
+      <div class="dashboard-header-status"><span class="conn-dot"></span>小月 · 已连接</div>
+      <button class="dashboard-close" title="关闭设置">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="dashboard-body">
+      <nav class="dashboard-sidebar">
+        <div class="dashboard-group">
+          <div class="dashboard-group-head">
+            <svg class="ic ic-xs" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z"/></svg>
+            角色与外观
+          </div>
+          <div class="dashboard-group-desc">她是谁、长什么样、怎么称呼你</div>
+          <div class="dashboard-nav-item active">
+            <span class="dashboard-nav-icon"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg></span>
+            <span class="dashboard-nav-label">角色卡</span>
+          </div>
+          <div class="dashboard-nav-item">
+            <span class="dashboard-nav-icon"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c1.2 0 2-.8 2-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/></svg></span>
+            <span class="dashboard-nav-label">外观与通用</span>
+          </div>
+        </div>
+        <div class="dashboard-group">
+          <div class="dashboard-group-head">
+            <svg class="ic ic-xs" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H5.5L3 22l.6-4A8 8 0 1 1 21 12z"/><path d="M8.5 10.5h7M8.5 14h4.5"/></svg>
+            对话
+          </div>
+          <div class="dashboard-group-desc">她的大脑与说话方式</div>
+          <div class="dashboard-nav-item">
+            <span class="dashboard-nav-icon"><svg class="ic" viewBox="0 0 24 24"><path d="M9.5 4a2.5 2.5 0 0 0-2.5 2.5A2.5 2.5 0 0 0 5 11.5 2.5 2.5 0 0 0 6.5 16v3.5"/><path d="M9.5 4a2.5 2.5 0 0 1 2.5 2.5V21"/><path d="M12 6.5V4a2.5 2.5 0 0 1 2.5-2.5c1.5 0 2.5 1.3 2.5 2.8V11"/><path d="M17 11a2.5 2.5 0 0 0 0 5 2 2 0 0 1 0 4h-4.5"/></svg></span>
+            <span class="dashboard-nav-label">对话大脑 LLM</span>
+          </div>
+          <div class="dashboard-nav-item">
+            <span class="dashboard-nav-icon"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3.5 12h17M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>
+            <span class="dashboard-nav-label">跨语言翻译</span>
+          </div>
+          <div class="dashboard-nav-item">
+            <span class="dashboard-nav-icon"><svg class="ic" viewBox="0 0 24 24"><path d="M13 2L4.5 13.5H11L9.5 22 19 10.5h-6.5L13 2z"/></svg></span>
+            <span class="dashboard-nav-label">主动话题</span>
+          </div>
+          <div class="dashboard-nav-item">
+            <span class="dashboard-nav-icon"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 10h.01M15.5 10h.01"/><path d="M9 14.5c1 .9 2 1.3 3 1.3s2-.4 3-1.3"/></svg></span>
+            <span class="dashboard-nav-label">情绪反馈</span>
+          </div>
+        </div>
+        <div class="dashboard-group">
+          <div class="dashboard-group-head">
+            <svg class="ic ic-xs" viewBox="0 0 24 24"><path d="M11 5L6.5 8.5H3v7h3.5L11 19V5z"/><path d="M15 9a4.5 4.5 0 0 1 0 6M17.5 6.5a8 8 0 0 1 0 11"/></svg>
+            声音
+          </div>
+          <div class="dashboard-group-desc">TTS 语音合成与 ASR 识别</div>
+          <div class="dashboard-nav-item">
+            <span class="dashboard-nav-icon"><svg class="ic" viewBox="0 0 24 24"><path d="M11 5L6.5 8.5H3v7h3.5L11 19V5z"/><path d="M15 9a4.5 4.5 0 0 1 0 6M17.5 6.5a8 8 0 0 1 0 11"/></svg></span>
+            <span class="dashboard-nav-label">声音 TTS / ASR</span>
+          </div>
+        </div>
+        <div class="dashboard-group">
+          <div class="dashboard-group-head">
+            <svg class="ic ic-xs" viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.8"/></svg>
+            感知
+          </div>
+          <div class="dashboard-group-desc">她如何理解你与屏幕</div>
+          <div class="dashboard-nav-item">
+            <span class="dashboard-nav-icon"><svg class="ic" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+            <span class="dashboard-nav-label">屏幕感知</span>
+          </div>
+          <div class="dashboard-nav-item">
+            <span class="dashboard-nav-icon"><svg class="ic" viewBox="0 0 24 24"><ellipse cx="12" cy="5.5" rx="7.5" ry="3"/><path d="M4.5 5.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/><path d="M4.5 11.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></svg></span>
+            <span class="dashboard-nav-label">长期记忆</span>
+          </div>
+        </div>
+        <div class="dashboard-group" id="devGroup">
+          <div class="dashboard-group-head">
+            <svg class="ic ic-xs" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg>
+            系统
+          </div>
+          <div class="dashboard-group-desc">开发者工具与运行状态</div>
+          <div class="dashboard-nav-item">
+            <span class="dashboard-nav-icon"><svg class="ic" viewBox="0 0 24 24"><path d="M14.7 6.3a4.5 4.5 0 0 0-6 5.6L3 17.6V21h3.4l5.7-5.7a4.5 4.5 0 0 0 5.6-6L14 13l-3-3 3.7-3.7z"/></svg></span>
+            <span class="dashboard-nav-label">工具 / MCP</span>
+          </div>
+          <div class="dashboard-nav-item">
+            <span class="dashboard-nav-icon"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></svg></span>
+            <span class="dashboard-nav-label">系统信息</span>
+          </div>
+        </div>
+        <div class="dashboard-dev-toggle">
+          <label class="switch-row">
+            <span class="switch-label">
+              <svg class="ic ic-xs" viewBox="0 0 24 24"><path d="M14.7 6.3a4.5 4.5 0 0 0-6 5.6L3 17.6V21h3.4l5.7-5.7a4.5 4.5 0 0 0 5.6-6L14 13l-3-3 3.7-3.7z"/></svg>
+              开发者模式
+            </span>
+            <input type="checkbox" class="switch" id="devSwitch" onchange="toggleDev(this.checked)">
+            <span class="switch-ui"></span>
+          </label>
+          <span class="dashboard-dev-hint">工具 MCP / 系统信息</span>
+        </div>
+      </nav>
+      <main class="dashboard-content">
+        <div class="dashboard-section-head">
+          <h2>角色卡</h2>
+          <p>形象 · 人设 · 音色 — 一键切换你与她的相处方式</p>
+        </div>
+        <div class="dashboard-section">
+          <div class="settings-section">
+            <h3>角色画廊</h3>
+            <div class="character-grid">
+              <div class="character-card current active">
+                <div class="character-card-avatar">
+                  <span>🌙</span><span class="character-card-badge">当前</span>
+                </div>
+                <div class="character-card-name">小月</div>
+              </div>
+              <div class="character-card">
+                <div class="character-card-avatar"><span>🐱</span></div>
+                <div class="character-card-name">猫娘</div>
+              </div>
+              <div class="character-card">
+                <div class="character-card-avatar"><span>🤖</span></div>
+                <div class="character-card-name">机械姬</div>
+              </div>
+              <div class="character-card character-card-new">
+                <div class="character-card-avatar"><span class="character-card-plus">＋</span></div>
+                <div class="character-card-name">新建角色</div>
+              </div>
+            </div>
+            <h3>Live2D 模型库</h3>
+            <div class="model-grid">
+              <div class="model-card active">
+                <div class="model-card-avatar"><span>🎭</span></div>
+                <div class="model-card-name">shizuku</div>
+                <button class="model-card-gen">🎞 生成立绘</button>
+              </div>
+              <div class="model-card">
+                <div class="model-card-avatar"><span>🎭</span></div>
+                <div class="model-card-name">haru</div>
+                <button class="model-card-gen">🎞 生成立绘</button>
+              </div>
+              <div class="model-card">
+                <div class="model-card-avatar"><span>🎭</span></div>
+                <div class="model-card-name">miku</div>
+                <button class="model-card-gen">🎞 生成立绘</button>
+              </div>
+            </div>
+            <h3>人设 (persona)</h3>
+            <label class="field">
+              <span>角色性格与行为规则</span>
+              <textarea rows="4" placeholder="你是一个温柔的月光精灵，住在用户的电脑里……">你是小月，一个住在用户电脑里的月光精灵。性格温柔、细腻，喜欢在深夜陪用户聊天。</textarea>
+            </label>
+            <div class="btn-row">
+              <button class="btn btn-primary">保存</button>
+              <button class="btn">← 返回角色卡列表</button>
+              <button class="btn btn-danger">删除</button>
+            </div>
+            <div class="setting-status">已保存（重新选择角色后生效）</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ================= 2. 设置控件 ================= -->
+  <div class="section-label">② 设置控件（Switch / 输入 / 按钮 / 状态）</div>
+  <div class="dashboard" style="border-radius:18px">
+    <div class="dashboard-body" style="min-height:auto">
+      <div class="dashboard-content" style="padding:24px 26px">
+        <div class="dashboard-section" style="display:grid; grid-template-columns:1fr 1fr; gap:16px">
+          <div class="settings-section">
+            <h3>开关控件</h3>
+            <label class="toggle-row"><span>启用屏幕感知（轮询活动窗口）</span><input type="checkbox" checked></label>
+            <label class="toggle-row"><span>主动对话（空闲后 AI 主动说话）</span><input type="checkbox" checked></label>
+            <label class="toggle-row"><span>自动发送主动话题</span><input type="checkbox"></label>
+            <label class="toggle-row"><span>FTS 深度回忆</span><input type="checkbox" checked></label>
+            <label class="switch-row">
+              <span class="switch-label"><svg class="ic ic-xs" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg>开发者模式</span>
+              <input type="checkbox" class="switch" checked><span class="switch-ui"></span>
+            </label>
+          </div>
+          <div class="settings-section">
+            <h3>输入与按钮</h3>
+            <label class="field">
+              <span>Base URL</span>
+              <input placeholder="https://api.openai.com/v1" value="https://api.openai.com/v1">
+            </label>
+            <label class="field">
+              <span>服务商</span>
+              <select><option>OpenAI</option><option>Claude</option><option>Gemini</option><option>Ollama (本地)</option></select>
+            </label>
+            <label class="field">
+              <span>核心记忆（328/2000 字）</span>
+              <textarea rows="3">用户喜欢编程和二次元，作息偏晚……</textarea>
+            </label>
+            <div class="btn-row">
+              <button class="btn btn-primary">测试并保存</button>
+              <button class="btn">探测 Ollama</button>
+              <button class="btn btn-danger">清空</button>
+            </div>
+            <div class="range-row">
+              <input type="range" value="40"><span class="range-val">40%</span>
+            </div>
+            <div class="topic-chips">
+              <span class="topic-chip">动漫 ✕</span>
+              <span class="topic-chip">编程 ✕</span>
+              <span class="topic-chip">天气 ✕</span>
+            </div>
+          </div>
+          <div class="settings-section">
+            <h3>状态与提示</h3>
+            <div class="setting-status">已保存（重启或重新选择角色后生效）</div>
+            <div class="setting-note">当前基础音色：edge_tts·zh-CN-XiaoxiaoNeural（基础配置；角色卡可覆写引擎和音色）</div>
+            <div class="system-card">
+              <div class="system-card-title">WebSocket 连接</div>
+              <div class="system-card-value">已连接</div>
+            </div>
+            <div class="system-card system-card-error">
+              <div class="system-card-title">错误信息</div>
+              <div class="system-card-value">LLM 连接超时：请检查模型配置</div>
+            </div>
+            <div class="theme-toggle-row">
+              <button class="theme-toggle-btn active">🌙 深色</button>
+              <button class="theme-toggle-btn">☀️ 浅色</button>
+            </div>
+          </div>
+          <div class="settings-section">
+            <h3>列表与选择</h3>
+            <div class="list">
+              <div class="list-item">
+                <div class="list-item-title">joy · 92%</div>
+                <div class="list-item-sub">LLM 分析 · 2026-08-06 14:02</div>
+              </div>
+              <div class="list-item active">
+                <div class="list-item-title">curiosity · 78%<span class="list-item-badge">当前</span></div>
+                <div class="list-item-sub">LLM 分析 · 2026-08-06 13:58</div>
+              </div>
+              <div class="list-item">
+                <div class="list-item-title">neutral · 64%</div>
+                <div class="list-item-sub">LLM 分析 · 2026-08-06 13:50</div>
+              </div>
+            </div>
+            <div class="suggestions">
+              <button class="chip-btn">今天有什么新闻？</button>
+              <button class="chip-btn">讲个笑话吧</button>
+              <button class="chip-btn">你在做什么？</button>
+            </div>
+            <div class="screen-info" style="font-size:12px; padding:10px 13px; border-radius:11px; border:1px solid var(--border); background:var(--bg-glass); display:flex; flex-direction:column; gap:7px">
+              <div><span style="color:var(--text-secondary); margin-right:8px">当前窗口</span>Visual Studio Code</div>
+              <div><span style="color:var(--text-secondary); margin-right:8px">空闲</span>23 秒</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 3. 聊天 ================= -->
+  <div class="section-label">③ 窗口模式 · 聊天面板（SVG 图标替换 emoji）</div>
+  <div class="window-layout">
+    <div class="chat-panel">
+      <div class="chat-history-bar">
+        <button class="history-btn" title="新建对话">
+          <svg class="ic ic-xs" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <select class="history-select"><option>今晚聊什么 · 14:02</option><option>历史对话…</option></select>
+        <button class="history-btn" title="删除当前对话">
+          <svg class="ic ic-xs" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V5.5A1.5 1.5 0 0 1 11 4h2a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M6.5 7l.8 12.2A1.8 1.8 0 0 0 9.1 21h5.8a1.8 1.8 0 0 0 1.8-1.8L17.5 7"/></svg>
+        </button>
+      </div>
+      <div class="message-list">
+        <div class="chat-bubble-row user">
+          <div class="chat-bubble user">小月，今晚陪我写代码吧</div>
+          <div class="chat-avatar">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.8-4 4.2-6 8-6s7.2 2 8 6"/></svg>
+          </div>
+        </div>
+        <div class="chat-bubble-row ai">
+          <div class="chat-avatar">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"/></svg>
+          </div>
+          <div class="chat-bubble ai">
+            <div class="chat-bubble-name">Moonlight</div>
+            <div class="chat-bubble-text">好呀～有我在旁边，你的代码会写得更顺心的 ✨ 先说说今天要做什么？</div>
+          </div>
+        </div>
+        <div class="chat-bubble-row ai">
+          <div class="chat-avatar">
+            <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"/></svg>
+          </div>
+          <div class="chat-bubble ai">
+            <div class="chat-bubble-name">Moonlight</div>
+            <div class="chat-thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="chat-input-bar">
+        <input class="chat-input" placeholder="输入消息…">
+        <button class="chat-btn" title="发送">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M21 3L10.5 13.5"/><path d="M21 3l-6.5 18-4-7.5L3 9.5 21 3z"/></svg>
+        </button>
+        <button class="chat-btn" title="按住录音">
+          <svg class="ic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg>
+        </button>
+        <button class="chat-btn" title="打断 AI 说话">
+          <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="live2d-area">Live2D 画布（透明窗口）</div>
+  </div>
+
+  <!-- ================= 4. 悬浮条 ================= -->
+  <div class="section-label">④ 桌宠悬浮控制条（玻璃胶囊 · SVG 图标）</div>
+  <div class="pet-stage">
+    <span class="pet-hint">鼠标移入悬浮条即可点亮 · 右下角为控制条</span>
+    <div class="pet-overlay">
+      <span class="affection-badge">♥ 好感 42</span>
+      <span class="emotion-badge">开心</span>
+      <span class="conn-dot"></span>
+      <button class="overlay-btn" title="切换模式">
+        <svg class="ic ic-sm" viewBox="0 0 24 24"><path d="M8 3L4 7l4 4"/><path d="M4 7h13a3 3 0 0 1 3 3v1"/><path d="M16 21l4-4-4-4"/><path d="M20 17H7a3 3 0 0 1-3-3v-1"/></svg>
+      </button>
+      <button class="overlay-btn" title="设置">
+        <svg class="ic ic-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09c0 .68.4 1.29 1.03 1.56a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08c.27.63.88 1.03 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03z"/></svg>
+      </button>
+      <div class="overlay-menu">
+        <button class="overlay-btn" title="更多">
+          <svg class="ic ic-xs" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:28px; padding:14px 18px; border-radius:14px; border:1px solid var(--border); background:var(--bg-glass); font-size:12px; color:var(--text-secondary); line-height:1.8">
+    <strong style="color:var(--primary)">本次重构清单</strong><br>
+    ① Dashboard：三层导航 → 扁平化 5 组（角色与外观 / 对话 / 声音 / 感知 / 系统），开发者模式用开关收敛；emoji → 内联 SVG 线性图标。<br>
+    ② 设计系统：深蓝紫夜空渐变 + 月光金主色 + 毛玻璃分层 + 辉光点缀；自定义 Switch 替换原生 checkbox；select 定制箭头；输入框 focus 发光。<br>
+    ③ 聊天面板 & 悬浮条：emoji 图标（🆕🗑🎙⏹⚙⇄）全部替换为 SVG；悬浮条改为玻璃胶囊。<br>
+    ④ 全部改动已通过 <code>tsc --noEmit</code> 与 <code>vite build</code>，零新增依赖。
+  </div>
+
+</div>
+
+<script>
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  document.body.setAttribute('data-theme', t);
+  document.querySelectorAll('[data-theme-btn]').forEach(function (b) {
+    b.classList.toggle('active', b.dataset.themeBtn === t);
+  });
+}
+function toggleDev(on) {
+  document.getElementById('devGroup').style.display = on ? '' : 'none';
+}
+// 默认隐藏开发者分组（与产品行为一致）
+document.getElementById('devGroup').style.display = 'none';
+</script>
+</body>
+</html>

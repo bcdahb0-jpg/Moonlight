@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moonlight · 任务模式 UI 交互原型</title>
+<style>
+  :root{
+    --bg-0:#080b16; --bg-1:#0c1120; --bg-2:#121830;
+    --glass:rgba(255,255,255,.045); --glass-strong:rgba(255,255,255,.08);
+    --line:rgba(255,255,255,.09); --line-strong:rgba(255,255,255,.16);
+    --text:#e9e7f4; --text-2:#a9a6c2; --text-3:#6f6c8a;
+    --gold:#e8c877; --gold-deep:#c9a34f; --gold-soft:rgba(232,200,119,.14);
+    --violet:#9d8cf0; --green:#6fd3a0; --red:#e06a6a; --amber:#e8b45e; --blue:#7fb8f0;
+    --mono:'JetBrains Mono','Cascadia Code',Consolas,monospace;
+    --sans:'Segoe UI','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+    --r-lg:16px; --r-md:12px; --r-sm:8px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:var(--sans); background:
+      radial-gradient(1200px 700px at 15% -10%, rgba(157,140,240,.10), transparent 60%),
+      radial-gradient(1000px 600px at 110% 110%, rgba(232,200,119,.07), transparent 55%),
+      linear-gradient(160deg,var(--bg-0),var(--bg-1) 55%,var(--bg-2));
+    min-height:100vh; color:var(--text); display:flex; align-items:center; justify-content:center;
+    padding:28px; -webkit-font-smoothing:antialiased;
+  }
+  /* ===== 窗口 ===== */
+  .app{
+    width:min(1180px,100%); height:min(760px,calc(100vh - 56px));
+    border-radius:var(--r-lg); border:1px solid var(--line-strong);
+    background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01)),var(--bg-1);
+    display:flex; flex-direction:column; overflow:hidden; position:relative;
+    box-shadow:0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.02) inset;
+  }
+  /* ===== 标题栏 ===== */
+  .titlebar{
+    height:46px; flex:none; display:flex; align-items:center; gap:12px; padding:0 16px;
+    border-bottom:1px solid var(--line); background:rgba(255,255,255,.02); user-select:none;
+  }
+  .tb-logo{display:flex;align-items:center;gap:8px;font-weight:600;letter-spacing:.4px}
+  .tb-logo .dot{width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe9a8,var(--gold-deep));box-shadow:0 0 12px rgba(232,200,119,.7)}
+  .tb-logo span{font-size:13px;color:var(--text-2)}
+  .tb-spacer{flex:1}
+  .tb-tag{font-size:11px;color:var(--text-3);border:1px solid var(--line);padding:3px 10px;border-radius:99px;display:flex;align-items:center;gap:6px}
+  .tb-tag .pulse{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.8s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .tb-reset{
+    font-size:12px;color:var(--text-2);background:var(--glass);border:1px solid var(--line);
+    padding:5px 12px;border-radius:var(--r-sm);cursor:pointer;transition:.15s
+  }
+  .tb-reset:hover{color:var(--text);border-color:var(--line-strong)}
+  .tb-win{display:flex;gap:6px}
+  .tb-win i{width:34px;height:26px;border-radius:6px;background:transparent;cursor:pointer;transition:.15s;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:12px;color:var(--text-3)}
+  .tb-win i:hover{background:var(--glass);color:var(--text)}
+  .tb-win i.close:hover{background:#d94949;color:#fff}
+  /* ===== 主体 ===== */
+  .main{flex:1;display:grid;grid-template-columns:230px 1fr;min-height:0}
+  /* 角色栏 */
+  .char-col{
+    border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;
+    padding:22px 14px 14px;gap:14px;background:radial-gradient(600px 300px at 50% -20%,rgba(157,140,240,.08),transparent 70%);
+  }
+  .avatar-wrap{position:relative;width:150px;height:150px}
+  .avatar-ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,var(--gold-soft),var(--violet),var(--gold-soft));filter:blur(1px);animation:spin 9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .avatar{position:absolute;inset:4px;border-radius:50%;overflow:hidden;background:linear-gradient(160deg,#2a2440,#171227)}
+  .avatar svg{width:100%;height:100%}
+  .char-name{margin-top:2px;font-size:15px;font-weight:600;letter-spacing:1px}
+  .char-role{font-size:11px;color:var(--text-3)}
+  .char-chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+  .chip{font-size:10.5px;padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--text-2);background:var(--glass)}
+  .chip.hl{border-color:rgba(111,211,160,.4);color:var(--green)}
+  .char-col .hint{margin-top:auto;font-size:10.5px;color:var(--text-3);text-align:center;line-height:1.7;border-top:1px dashed var(--line);padding-top:10px;width:100%}
+  /* 聊天区 */
+  .chat-col{display:flex;flex-direction:column;min-width:0}
+  .msg-list{flex:1;overflow-y:auto;padding:20px 22px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
+  .msg-list::-webkit-scrollbar{width:8px}
+  .msg-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:4px}
+  .msg-list::-webkit-scrollbar-track{background:transparent}
+  .msg{display:flex;gap:10px;max-width:82%;animation:rise .28s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .msg.user{align-self:flex-end;flex-direction:row-reverse}
+  .avatar-s{margin-top:2px;width:30px;height:30px;border-radius:50%;flex:none;background:linear-gradient(160deg,#3a3158,#221b3a);border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;font-size:12px}
+  .bubble{
+    padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.65;
+    border:1px solid var(--line);background:var(--glass);position:relative
+  }
+  .msg.user .bubble{background:linear-gradient(160deg,rgba(232,200,119,.16),rgba(232,200,119,.07));border-color:rgba(232,200,119,.28);color:var(--text)}
+  .msg.shell .bubble{border-radius:4px 14px 14px 14px}
+  .voice-line{display:inline-flex;align-items:flex-end;gap:2px;height:12px;margin-left:8px;vertical-align:middle}
+  .voice-line i{width:2.5px;border-radius:2px;background:var(--gold);animation:wave 1s ease-in-out infinite}
+  .voice-line i:nth-child(1){height:5px;animation-delay:0s}
+  .voice-line i:nth-child(2){height:11px;animation-delay:.15s}
+  .voice-line i:nth-child(3){height:8px;animation-delay:.3s}
+  .voice-line i:nth-child(4){height:12px;animation-delay:.45s}
+  .voice-line i:nth-child(5){height:6px;animation-delay:.6s}
+  @keyframes wave{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.15)}}
+  .bubble .who{font-size:10.5px;color:var(--text-3);margin-bottom:3px;letter-spacing:.5px}
+  /* 澄清选项 */
+  .clarify-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .opt{
+    font-size:12px;color:var(--gold);background:var(--gold-soft);border:1px solid rgba(232,200,119,.35);
+    padding:6px 13px;border-radius:99px;cursor:pointer;transition:.15s
+  }
+  .opt:hover{background:rgba(232,200,119,.24);transform:translateY(-1px)}
+  /* 任务执行记录卡片 */
+  .run-card{
+    align-self:stretch;max-width:100%;border:1px solid var(--line);border-radius:var(--r-md);
+    background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));
+    overflow:hidden;animation:rise .3s ease both
+  }
+  .run-head{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none;transition:.15s}
+  .run-head:hover{background:rgba(255,255,255,.02)}
+  .run-state{width:8px;height:8px;border-radius:50%;flex:none}
+  .run-state.running{background:var(--amber);box-shadow:0 0 8px rgba(232,180,94,.8);animation:pulse 1.2s ease-in-out infinite}
+  .run-state.done{background:var(--green)}
+  .run-title{font-size:12.5px;font-weight:600;color:var(--text-2);letter-spacing:.3px}
+  .run-title b{color:var(--text);font-weight:600}
+  .run-meta{font-size:10.5px;color:var(--text-3);font-family:var(--mono)}
+  .run-arrow{margin-left:auto;font-size:11px;color:var(--text-3);transition:.2s}
+  .run-card.open .run-arrow{transform:rotate(180deg)}
+  .run-body{display:none;padding:4px 14px 14px;gap:6px;flex-direction:column}
+  .run-card.open .run-body{display:flex}
+  .tool-row{
+    border:1px solid var(--line);border-radius:var(--r-sm);background:var(--glass);overflow:hidden
+  }
+  .tool-row-head{display:flex;align-items:center;gap:8px;padding:7px 11px;cursor:pointer;transition:.15s}
+  .tool-row-head:hover{background:rgba(255,255,255,.03)}
+  .tool-badge{
+    font-size:10px;font-weight:600;padding:2px 8px;border-radius:5px;flex:none;letter-spacing:.4px
+  }
+  .tool-badge.bash{background:rgba(127,184,240,.14);color:var(--blue)}
+  .tool-badge.read{background:rgba(157,140,240,.14);color:var(--violet)}
+  .tool-badge.write{background:rgba(232,200,119,.14);color:var(--gold)}
+  .tool-badge.grep{background:rgba(111,211,160,.12);color:var(--green)}
+  .tool-cmd{font-family:var(--mono);font-size:11.5px;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tool-status{margin-left:auto;font-size:10px;color:var(--text-3);font-family:var(--mono)}
+  .tool-status.ok{color:var(--green)}
+  .tool-status.run{color:var(--amber);animation:pulse 1.2s infinite}
+  .tool-body{display:none;padding:9px 11px;border-top:1px dashed var(--line);font-family:var(--mono);font-size:11px;color:var(--text-2);line-height:1.6;white-space:pre-wrap;max-height:130px;overflow:auto;background:rgba(0,0,0,.22)}
+  .tool-row.open .tool-body{display:block}
+  .run-summary{padding:4px 14px 12px;display:flex;gap:8px;flex-wrap:wrap}
+  .s-chip{font-size:10.5px;padding:3px 9px;border-radius:99px;border:1px solid rgba(111,211,160,.35);color:var(--green);background:rgba(111,211,160,.08)}
+  /* ===== 输入区 ===== */
+  .input-bar{
+    flex:none;border-top:1px solid var(--line);padding:12px 16px 14px;
+    background:rgba(255,255,255,.015);display:flex;flex-direction:column;gap:9px
+  }
+  .input-toolbar{display:flex;align-items:center;gap:6px;padding:6px 10px 8px;position:relative}
+  .mode-anchor{position:relative}
+  .mode-btn{
+    display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-2);
+    background:transparent;border:1px solid transparent;border-radius:8px;padding:5px 10px;
+    cursor:pointer;transition:.15s;font-family:var(--sans)
+  }
+  .mode-btn:hover{background:var(--glass);border-color:var(--line)}
+  .mode-btn .caret{font-size:9px;color:var(--text-3);margin-left:2px}
+  .mode-btn.task{color:var(--gold);background:var(--gold-soft);border-color:rgba(232,200,119,.3)}
+  .mode-menu{
+    position:absolute;bottom:calc(100% + 8px);left:0;width:236px;
+    background:linear-gradient(180deg,#1a2140,#11162b);border:1px solid var(--line-strong);
+    border-radius:12px;padding:6px;box-shadow:0 16px 40px rgba(0,0,0,.55);display:none;z-index:40
+  }
+  .mode-menu.open{display:block;animation:pop .16s ease both}
+  .mode-item{
+    display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;
+    font-size:13px;color:var(--text-2);transition:.12s
+  }
+  .mode-item:hover{background:rgba(255,255,255,.05);color:var(--text)}
+  .mode-item.sel{background:rgba(232,200,119,.12);color:var(--gold)}
+  .mode-item .mi-ic{width:18px;text-align:center;flex:none;font-size:13px}
+  .mode-item .mi-name{flex:1;display:flex;flex-direction:column;line-height:1.3}
+  .mode-item .mi-sub{font-size:10px;color:var(--text-3)}
+  .mode-item .mi-info{font-size:11px;color:var(--text-3);flex:none}
+  .mode-item .mi-check{color:var(--gold);font-size:12px;flex:none}
+  .mode-item .mi-arrow{color:var(--text-3);flex:none;font-size:13px}
+  .mode-item .mi-avatar{
+    width:24px;height:24px;border-radius:50%;flex:none;
+    background:linear-gradient(160deg,#3a3158,#221b3a);border:1px solid var(--line-strong);
+    display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text)
+  }
+  .mode-sep{height:1px;background:var(--line);margin:5px 8px}
+  .tool-ic{
+    width:30px;height:30px;border-radius:8px;border:none;background:transparent;color:var(--text-3);
+    cursor:pointer;font-size:14px;transition:.15s;display:flex;align-items:center;justify-content:center
+  }
+  .tool-ic:hover{background:var(--glass);color:var(--text)}
+  .dir-chip{
+    display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-2);
+    border:1px dashed var(--line-strong);border-radius:99px;padding:5px 12px;cursor:pointer;
+    background:var(--glass);transition:.18s;font-family:var(--mono)
+  }
+  .dir-chip:hover{border-color:var(--gold-deep);color:var(--gold)}
+  .dir-chip .f{color:var(--text-3)}
+  .input-wrap{
+    background:var(--glass);border:1px solid var(--line);border-radius:14px;transition:.18s;position:relative
+  }
+  .input-wrap:focus-within{border-color:var(--gold-deep);box-shadow:0 0 0 3px rgba(232,200,119,.12)}
+  .input-box{
+    width:100%;min-height:40px;max-height:110px;background:transparent;border:none;outline:none;
+    padding:12px 14px 4px;font-size:13.5px;color:var(--text);
+    font-family:var(--sans);resize:none;line-height:1.5;display:block
+  }
+  .input-box::placeholder{color:var(--text-3)}
+  .send{
+    flex:none;width:42px;height:42px;border-radius:12px;border:none;cursor:pointer;
+    background:linear-gradient(160deg,var(--gold),var(--gold-deep));color:#1a1406;font-size:15px;
+    transition:.18s;display:flex;align-items:center;justify-content:center
+  }
+  .send:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(232,200,119,.35)}
+  .send.interrupt{background:linear-gradient(160deg,#e06a6a,#b94545);color:#fff;box-shadow:0 6px 18px rgba(224,106,106,.3)}
+  .send:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+  .input-hint{font-size:10.5px;color:var(--text-3);padding-left:2px;display:flex;gap:14px;flex-wrap:wrap}
+  .input-hint .k{color:var(--gold-deep)}
+  /* ===== Modal ===== */
+  .mask{position:fixed;inset:0;background:rgba(4,6,12,.66);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:50;animation:fade .2s ease}
+  .mask.open{display:flex}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .modal{
+    width:min(520px,92vw);border-radius:var(--r-lg);border:1px solid var(--line-strong);
+    background:linear-gradient(180deg,#151b33,#0e1324);padding:20px;box-shadow:0 30px 70px rgba(0,0,0,.6);
+    animation:pop .22s cubic-bezier(.2,.9,.3,1.2) both
+  }
+  @keyframes pop{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+  .m-title{font-size:15px;font-weight:600;margin-bottom:4px}
+  .m-sub{font-size:11.5px;color:var(--text-3);margin-bottom:16px}
+  .m-field{margin-bottom:12px}
+  .m-label{font-size:11.5px;color:var(--text-2);margin-bottom:6px;display:block}
+  .m-input,.m-textarea{
+    width:100%;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:var(--r-sm);
+    padding:9px 12px;font-size:13px;color:var(--text);outline:none;transition:.15s;font-family:var(--sans)
+  }
+  .m-textarea{resize:vertical;min-height:64px}
+  .m-input:focus,.m-textarea:focus{border-color:var(--gold-deep);box-shadow:0 0 0 3px rgba(232,200,119,.12)}
+  .m-tabs{display:flex;gap:6px;margin-bottom:10px}
+  .m-tab{
+    flex:1;text-align:center;font-size:12px;padding:8px;border-radius:var(--r-sm);cursor:pointer;
+    border:1px solid var(--line);color:var(--text-3);transition:.15s;background:transparent
+  }
+  .m-tab.active{border-color:rgba(232,200,119,.4);color:var(--gold);background:var(--gold-soft)}
+  .m-path{font-family:var(--mono);font-size:11.5px;color:var(--text-2);background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 11px;display:flex;align-items:center;gap:8px}
+  .m-path .ok{color:var(--green);font-size:10px;margin-left:auto;flex:none}
+  .dir-tree{max-height:180px;overflow:auto;border:1px solid var(--line);border-radius:var(--r-sm);padding:6px;background:rgba(0,0,0,.25)}
+  .dir-item{font-size:12px;padding:6px 9px;border-radius:6px;cursor:pointer;color:var(--text-2);font-family:var(--mono);display:flex;gap:7px;align-items:center;transition:.12s}
+  .dir-item:hover{background:rgba(255,255,255,.05);color:var(--text)}
+  .dir-item.sel{background:var(--gold-soft);color:var(--gold)}
+  .dir-item .ic{color:var(--text-3);flex:none}
+  .dir-item.dim{opacity:.55;padding-left:22px}
+  .m-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+  .m-btn{
+    font-size:12.5px;padding:8px 18px;border-radius:var(--r-sm);cursor:pointer;border:1px solid var(--line);
+    background:var(--glass);color:var(--text-2);transition:.15s;font-family:var(--sans)
+  }
+  .m-btn:hover{color:var(--text);border-color:var(--line-strong)}
+  .m-btn.primary{background:linear-gradient(160deg,var(--gold),var(--gold-deep));color:#1a1406;border:none;font-weight:600}
+  .m-btn.primary:hover{box-shadow:0 6px 16px rgba(232,200,119,.3)}
+  /* 状态条 */
+  .run-ticker{
+    flex:none;display:none;align-items:center;gap:10px;padding:8px 16px;border-top:1px solid var(--line);
+    background:rgba(232,180,94,.05);font-size:11.5px;color:var(--amber)
+  }
+  .run-ticker.on{display:flex;animation:fade .3s}
+  .ticker-spin{width:11px;height:11px;border-radius:50%;border:2px solid rgba(232,180,94,.3);border-top-color:var(--amber);animation:rot .8s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none!important;transition:none!important}
+  }
+</style>
+</head>
+<body>
+<div class="app" role="dialog" aria-label="Moonlight 窗口模式 · 任务模式交互原型">
+  <!-- 标题栏 -->
+  <div class="titlebar">
+    <div class="tb-logo"><span class="dot"></span><span>Moonlight</span></div>
+    <div class="tb-tag"><span class="pulse"></span>本地运行 · 小月</div>
+    <div class="tb-spacer"></div>
+    <button class="tb-reset" onclick="resetDemo()">↺ 重置演示</button>
+    <div class="tb-win"><i title="最小化">─</i><i title="最大化">□</i><i class="close" title="关闭">✕</i></div>
+  </div>
+
+  <div class="main">
+    <!-- 角色栏 -->
+    <aside class="char-col">
+      <div class="avatar-wrap">
+        <div class="avatar-ring"></div>
+        <div class="avatar">
+          <svg viewBox="0 0 120 120"><defs><linearGradient id="hair" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a4d8a"/><stop offset="1" stop-color="#3a3158"/></linearGradient></defs>
+            <path d="M22 92c0-40 12-68 38-68s38 28 38 68z" fill="url(#hair)"/>
+            <circle cx="60" cy="52" r="26" fill="#f2d5b8"/>
+            <path d="M42 40c-4-2-6 2-2 4 4 2 10 2 12-1 2-3 0-4-2-4z" fill="#5a4d8a"/>
+            <path d="M78 40c4-2 6 2 2 4-4 2-10 2-12-1-2-3 0-4 2-4z" fill="#5a4d8a"/>
+            <circle cx="52" cy="54" r="2.4" fill="#3a3158"/><circle cx="68" cy="54" r="2.4" fill="#3a3158"/>
+            <path d="M54 62c4 3 8 3 12 0" stroke="#c98a7a" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <circle cx="60" cy="98" r="4" fill="#e8c877"/>
+          </svg>
+        </div>
+      </div>
+      <div class="char-name">小月</div>
+      <div class="char-role">Live2D · 温柔型 · 声线 VOICEVOX</div>
+      <div class="char-chips">
+        <span class="chip">心情 88</span><span class="chip">好感 62</span><span class="chip hl">● 在线</span>
+      </div>
+      <div class="hint">聊天模式：人设语音回复<br>任务模式：仅两端语音汇报<br>执行过程静默（不打扰）</div>
+    </aside>
+
+    <!-- 聊天区 -->
+    <section class="chat-col">
+      <div class="msg-list" id="msgList">
+        <div class="msg shell">
+          <div class="avatar-s">月</div>
+          <div class="bubble"><div class="who">小月</div>哥哥晚上好呀～今天想聊天，还是让我帮你办点什么事？<span class="voice-line"><i></i><i></i><i></i><i></i><i></i></span></div>
+        </div>
+      </div>
+
+      <!-- 运行状态条 -->
+      <div class="run-ticker" id="ticker"><span class="ticker-spin"></span><span id="tickerText">任务执行中：重构 module.py 接口…</span></div>
+
+      <!-- 输入区 -->
+      <div class="input-bar">
+        <div class="input-wrap">
+          <textarea class="input-box" id="inputBox" rows="1" placeholder="和小月聊天… 按 Enter 发送" oninput="autoGrow(this)"></textarea>
+          <div class="input-toolbar">
+            <div class="mode-anchor">
+              <button class="mode-btn" id="modeBtn" onclick="toggleModeMenu()" aria-haspopup="menu" aria-expanded="false">
+                <span id="modeIcon">💬</span><span id="modeLabel">聊天</span><span class="caret">▾</span>
+              </button>
+              <div class="mode-menu" id="modeMenu" role="menu">
+                <div class="mode-item sel" id="miChat" onclick="setMode('chat')" role="menuitem">
+                  <span class="mi-ic">💬</span><span class="mi-name">聊天</span>
+                  <span class="mi-info" title="人设语音回复">ⓘ</span>
+                </div>
+                <div class="mode-item" id="miTask" onclick="setMode('task')" role="menuitem">
+                  <span class="mi-ic">🛠</span><span class="mi-name">任务</span>
+                  <span class="mi-info" title="内核零人设执行，仅两端语音汇报">ⓘ</span>
+                </div>
+                <div class="mode-sep"></div>
+                <div class="mode-item role" onclick="closeModeMenu()" role="menuitem">
+                  <span class="mi-avatar">月</span>
+                  <span class="mi-name">小月<span class="mi-sub">当前角色卡</span></span>
+                  <span class="mi-check">✓</span><span class="mi-arrow">›</span>
+                </div>
+              </div>
+            </div>
+            <button class="dir-chip" id="dirChip" style="display:none" onclick="openModal('dir')"><span class="f">📁</span><span id="dirPath">backend/tasks/task-3f2a</span></button>
+            <div class="tb-spacer"></div>
+            <button class="tool-ic" title="附件">＋</button>
+            <button class="tool-ic" title="提示词库">✨</button>
+            <button class="tool-ic" title="语音输入">🎤</button>
+            <button class="send" id="sendBtn" onclick="onSend()" title="发送">➤</button>
+          </div>
+        </div>
+        <div class="input-hint" id="inputHint"><span><span class="k">Enter</span> 发送</span><span id="modeHint">当前：聊天模式 · 人设语音回复</span></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- 目录选择 Modal -->
+<div class="mask" id="maskDir">
+  <div class="modal">
+    <div class="m-title">工作目录</div>
+    <div class="m-sub">任务智能体只在这个文件夹内读写文件、执行命令（路径白名单）</div>
+    <div class="m-tabs">
+      <div class="m-tab active" onclick="switchTab('default',this)">默认路径</div>
+      <div class="m-tab" onclick="switchTab('existing',this)">选择已有文件夹</div>
+    </div>
+    <div id="tabDefault">
+      <div class="m-path">backend/tasks/task-3f2a <span class="ok">✓ 将自动创建</span></div>
+    </div>
+    <div id="tabExisting" style="display:none">
+      <div class="dir-tree">
+        <div class="dir-item" onclick="pickDir(this)"><span class="ic">📁</span> C:\Projects</div>
+        <div class="dir-item dim" onclick="pickDir(this)">└─ my-app</div>
+        <div class="dir-item" onclick="pickDir(this)"><span class="ic">📁</span> D:\Code</div>
+        <div class="dir-item dim" onclick="pickDir(this)">└─ backend</div>
+        <div class="dir-item dim" onclick="pickDir(this)">└─ frontend</div>
+        <div class="dir-item" onclick="pickDir(this)"><span class="ic">📁</span> Desktop\notes</div>
+      </div>
+    </div>
+    <div class="m-actions">
+      <button class="m-btn" onclick="closeModal()">取消</button>
+      <button class="m-btn primary" onclick="confirmDir()">确定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var mode = 'chat', playing = false, stepTimer = null, seq = 0;
+  var $ = function(id){ return document.getElementById(id); };
+  var list = $('msgList'), input = $('inputBox'), ticker = $('ticker'), tickerText = $('tickerText');
+
+  /* ---------- 模式切换（下拉菜单式） ---------- */
+  function setMode(m){
+    mode = m;
+    $('modeIcon').textContent = m === 'task' ? '🛠' : '💬';
+    $('modeLabel').textContent = m === 'task' ? '任务' : '聊天';
+    $('modeBtn').classList.toggle('task', m === 'task');
+    $('miChat').classList.toggle('sel', m === 'chat');
+    $('miTask').classList.toggle('sel', m === 'task');
+    $('dirChip').style.display = m === 'task' ? 'inline-flex' : 'none';
+    input.placeholder = m === 'task' ? '输入任务目标，回车让任务智能体执行…' : '和小月聊天… 按 Enter 发送';
+    $('modeHint').textContent = m === 'task' ? '当前：任务模式 · 内核零人设执行，仅两端语音汇报' : '当前：聊天模式 · 人设语音回复';
+    closeModeMenu();
+  }
+  function toggleModeMenu(){
+    var m = $('modeMenu');
+    var opening = !m.classList.contains('open');
+    m.classList.toggle('open');
+    $('modeBtn').setAttribute('aria-expanded', opening ? 'true' : 'false');
+  }
+  function closeModeMenu(){
+    $('modeMenu').classList.remove('open');
+    $('modeBtn').setAttribute('aria-expanded', 'false');
+  }
+  document.addEventListener('click', function(e){
+    if (!$('modeMenu').classList.contains('open')) return;
+    if (e.target.closest('.mode-anchor')) return;
+    closeModeMenu();
+  });
+
+  /* ---------- 消息与卡片 ---------- */
+  function addMsg(role, html){
+    var d = document.createElement('div');
+    d.className = 'msg ' + role;
+    d.innerHTML = role === 'shell'
+      ? '<div class="avatar-s">月</div><div class="bubble"><div class="who">小月</div>' + html + '</div>'
+      : '<div class="avatar-s">我</div><div class="bubble">' + html + '</div>';
+    list.appendChild(d); list.scrollTop = list.scrollHeight;
+  }
+  function shellSay(text, voice){
+    addMsg('shell', text + (voice ? '<span class="voice-line"><i></i><i></i><i></i><i></i><i></i></span>' : ''));
+  }
+  function addRunCard(){
+    var card = document.createElement('div');
+    card.className = 'run-card open';
+    card.innerHTML =
+      '<div class="run-head" onclick="toggleCard(this)">' +
+        '<span class="run-state running" id="runState"></span>' +
+        '<span class="run-title">任务执行记录 · <b id="runTitle">重构 module.py 接口</b></span>' +
+        '<span class="run-meta" id="runMeta">task-3f2a · run-9</span>' +
+        '<span class="run-arrow">▾</span>' +
+      '</div><div class="run-body" id="runBody"></div>';
+    list.appendChild(card); list.scrollTop = list.scrollHeight;
+    return card;
+  }
+  function toggleCard(head){ head.parentElement.classList.toggle('open'); }
+
+  function addTool(badge, name, cmd, bodyText, status){
+    var row = document.createElement('div');
+    row.className = 'tool-row';
+    row.innerHTML =
+      '<div class="tool-row-head" onclick="toggleTool(this)">' +
+        '<span class="tool-badge ' + badge + '">' + name + '</span>' +
+        '<span class="tool-cmd">' + cmd + '</span>' +
+        '<span class="tool-status run" id="ts_' + seq + '">执行中…</span>' +
+      '</div><div class="tool-body">' + (bodyText || '') + '</div>';
+    $('runBody').appendChild(row);
+    list.scrollTop = list.scrollHeight;
+    var ts = row.querySelector('.tool-status');
+    return { el: row, status: ts, body: row.querySelector('.tool-body'), id: 'ts_' + seq++ };
+  }
+  function toggleTool(head){ head.parentElement.classList.toggle('open'); }
+  function finishTool(t, out, lines){
+    t.status.className = 'tool-status ok'; t.status.textContent = '✓ ' + (out || 'ok');
+    t.body.textContent = lines || '';
+    list.scrollTop = list.scrollHeight;
+  }
+  function finishRunCard(){
+    var s = $('runState'); s.className = 'run-state done';
+    var body = $('runBody');
+    var sum = document.createElement('div');
+    sum.className = 'run-summary';
+    sum.innerHTML = '<span class="s-chip">✓ 3 个文件改动</span><span class="s-chip">✓ 测试全绿</span><span class="s-chip">⏱ 42s</span>';
+    body.appendChild(sum);
+  }
+  function setTicker(text, on){
+    tickerText.textContent = text;
+    ticker.classList.toggle('on', !!on);
+  }
+
+  /* ---------- 任务演示剧本 ---------- */
+  function onSend(){
+    if (playing){ interrupt(); return; }
+    var text = input.value.trim();
+    if (mode === 'task'){
+      if (!text){
+        // 无文本：演示用预填
+        input.value = '帮我重构这个模块的接口，改动不大，但要保证测试全过';
+        text = input.value;
+      }
+      playDemo(text);
+    } else if (text){
+      addMsg('user', text); input.value = '';
+      setTimeout(function(){ shellSay('嗯嗯～' + (text.slice(0, 14)) + '……好呀，陪你聊聊～', true); }, 600);
+    }
+  }
+  function playDemo(text){
+    playing = true;
+    var btn = $('sendBtn');
+    btn.textContent = '■'; btn.classList.add('interrupt'); btn.title = '打断任务执行';
+    addMsg('user', text); input.value = '';
+    var steps = [
+      function(){ shellSay('好嘞哥哥～我先去看一眼 <b>module.py</b> 的结构，马上开工～', true); },
+      function(){
+        addRunCard(); setTicker('任务执行中：重构 module.py 接口…', true);
+      },
+      function(){ finishTool(addTool('bash','bash','ls -la backend/src/core/',null),'ok','total 9\ndrwxr-xr-x  module.py    12KB\n-rw-r--r--  api.py        8KB\n-rw-r--r--  models.py     6KB'); },
+      function(){ finishTool(addTool('read','read_file','backend/src/core/module.py',null),'ok 324 行','# 现有实现\nclass LegacyAPI:\n    def __init__(self, cfg):\n        ...'); },
+      function(){ finishTool(addTool('grep','grep','"def api" backend/src/core/',null),'2 处','module.py:118  def api(self, req)\nmodule.py:201  def api_v2(self, req)'); },
+      function(){ finishTool(addTool('write','write_file','backend/src/core/module.py（重构版）',null),'ok 218 行','class RefactoredAPI:\n    """拆分后的接口：单一职责"""\n    def list(self, req): ...\n    def create(self, req): ...'); },
+      function(){ shellSay('哥哥，主体重构完啦～顺手把测试跑一遍确认一下？', true);
+        var opts = document.createElement('div');
+        opts.className = 'clarify-options';
+        opts.innerHTML = '<button class="opt" onclick="clarifyAnswer()">✅ 全量测试</button><button class="opt" onclick="clarifyAnswer()">⚡ 只跑单测</button><button class="opt" onclick="clarifyAnswer()">跳过</button>';
+        list.lastChild.querySelector('.bubble').appendChild(opts);
+      }
+    ];
+    /* 澄清后继续 */
+    window.clarifyAnswer = function(){
+      var opts = list.querySelector('.clarify-options'); if (opts) opts.remove();
+      finishTool(addTool('bash','bash','pytest tests/ -x',null),'ok 12 passed','=========== 12 passed in 6.3s ===========');
+      setTimeout(function(){
+        setTicker('', false);
+        finishRunCard();
+        shellSay('办妥啦哥哥～接口重构完成，3 个文件改动，测试全绿，细节都在上面的执行记录里～', true);
+        resetSendBtn();
+      }, 700);
+    };
+    var i = 0;
+    (function next(){
+      if (i < steps.length){
+        var fn = steps[i++];
+        setTimeout(function(){ fn(); next(); }, i === 1 ? 0 : (i === 2 ? 1500 : 950));
+      }
+    })();
+  }
+  function resetSendBtn(){
+    playing = false;
+    var b = $('sendBtn');
+    b.textContent = '➤'; b.classList.remove('interrupt'); b.title = '发送';
+  }
+  function interrupt(){
+    setTicker('', false);
+    shellSay('好的，我先停下来了。已经改动的部分都在任务目录里，随时可以继续～', true);
+    resetSendBtn();
+  }
+  function resetDemo(){
+    clearTimeout(stepTimer);
+    playing = false; resetSendBtn();
+    list.innerHTML = '';
+    addMsg('shell','哥哥晚上好呀～今天想聊天，还是让我帮你办点什么事？<span class="voice-line"><i></i><i></i><i></i><i></i><i></i></span>');
+    setTicker('', false);
+    setMode('chat'); input.value = ''; input.rows = 1;
+  }
+
+  /* ---------- Modal ---------- */
+  function openModal(which){ $('maskDir').classList.add('open'); }
+  function closeModal(){ $('maskDir').classList.remove('open'); }
+  function switchTab(tab, el){
+    var tabs = document.querySelectorAll('.m-tab');
+    for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+    el.classList.add('active');
+    $('tabDefault').style.display = tab === 'default' ? 'block' : 'none';
+    $('tabExisting').style.display = tab === 'existing' ? 'block' : 'none';
+  }
+  function pickDir(el){
+    var items = document.querySelectorAll('.dir-item');
+    for (var i = 0; i < items.length; i++) items[i].classList.remove('sel');
+    el.classList.add('sel');
+  }
+  function confirmDir(){
+    var sel = document.querySelector('.dir-item.sel');
+    if (sel){ $('dirPath').textContent = sel.textContent.trim(); }
+    closeModal();
+  }
+
+  /* ---------- 杂项 ---------- */
+  function autoGrow(el){ el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+  input.addEventListener('keydown', function(e){ if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); onSend(); } });
+  $('maskDir').addEventListener('click', function(e){ if (e.target === this) closeModal(); });
+</script>
+</body>
+</html>

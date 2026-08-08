@@ -1,0 +1,11 @@
+{
+  "topics": [
+    "AI",
+    "科技"
+  ],
+  "news": {
+    "enabled": true,
+    "interval_hours": 6
+  },
+  "last_news_refresh": "2026-08-07T23:39:02+08:00"
+}

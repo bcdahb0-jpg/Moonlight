@@ -1,0 +1,742 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/settings/CharacterSettings.tsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=0b4c063c"; const Fragment = __vite__cjsImport0_react_jsxDevRuntime["Fragment"]; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import * as RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.$RefreshReg$) {
+    throw new Error(
+      "@vitejs/plugin-react can't detect preamble. Something is wrong."
+    );
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = RefreshRuntime.getRefreshReg("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx");
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=0b4c063c"; const useCallback = __vite__cjsImport3_react["useCallback"]; const useEffect = __vite__cjsImport3_react["useEffect"]; const useState = __vite__cjsImport3_react["useState"];
+import {
+  characterApi,
+  voiceApi,
+  live2dApi,
+  ttsApi,
+  engineApi,
+  ApiError,
+  API_BASE
+} from "/src/api/rest.ts?t=1786069147655";
+import { useAppState } from "/src/state/AppStateContext.tsx";
+import { renderModelToPng } from "/src/live2d/captureThumbnail.ts";
+import { SettingStatus } from "/src/settings/SettingStatus.tsx";
+export function CharacterSettings({ ws }) {
+  _s();
+  const { state } = useAppState();
+  const [characters, setCharacters] = useState([]);
+  const [skins, setSkins] = useState([]);
+  const [selectedFile, setSelectedFile] = useState("");
+  const [form, setForm] = useState({ conf_name: "", persona: "", skin: "", voice: "", tts_engine: "" });
+  const [status, setStatus] = useState("");
+  const [ttsEngines, setTtsEngines] = useState([]);
+  const [voiceCatalog, setVoiceCatalog] = useState(null);
+  const [voiceLoading, setVoiceLoading] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [models, setModels] = useState([]);
+  const [generating, setGenerating] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const previewVoice = async () => {
+    if (!form.voice) {
+      setStatus("请先选择一个音色");
+      return;
+    }
+    try {
+      setPreviewing(true);
+      const url = await voiceApi.sample(form.tts_engine || "edge_tts", form.voice);
+      const audio = new Audio(url);
+      audio.onended = () => URL.revokeObjectURL(url);
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        setStatus("试听失败（引擎不可用或未配置密钥）");
+      };
+      void audio.play();
+    } catch (err) {
+      setStatus(errorMessage(err));
+    } finally {
+      setPreviewing(false);
+    }
+  };
+  const load = useCallback(async () => {
+    try {
+      const [chars, skinRes, modelRes, engRes] = await Promise.all(
+        [
+          characterApi.list(),
+          characterApi.skins(),
+          live2dApi.info(),
+          engineApi.configured("tts")
+        ]
+      );
+      setTtsEngines(engRes.engines);
+      setModels(modelRes.characters);
+      setCharacters(chars.characters);
+      setSkins(skinRes.skins);
+    } catch (err) {
+      setStatus(errorMessage(err));
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  const loadVoiceCatalog = async (engine) => {
+    setVoiceLoading(true);
+    setVoiceCatalog(null);
+    try {
+      if (!engine) return;
+      setVoiceCatalog(await ttsApi.listVoices(engine));
+    } catch (err) {
+      setStatus(errorMessage(err));
+    } finally {
+      setVoiceLoading(false);
+    }
+  };
+  const handleEngineChange = (engine) => {
+    setForm((f) => ({ ...f, tts_engine: engine, voice: "" }));
+    void loadVoiceCatalog(engine);
+  };
+  const selectCharacter = (c) => {
+    setSelectedFile(c.filename);
+    setForm({
+      conf_name: c.conf_name ?? "",
+      persona: c.persona_prompt ?? "",
+      skin: c.live2d_model_name ?? "",
+      voice: c.voice ?? "",
+      tts_engine: c.tts_model ?? ""
+    });
+    setEditing(true);
+    void loadVoiceCatalog(c.tts_model ?? "");
+  };
+  const isActiveFile = (file) => {
+    const c = characters.find((x) => x.filename === file);
+    return c != null && c.conf_uid === state.confUid;
+  };
+  const applyCharacter = (file) => {
+    const client = ws?.();
+    if (!client) {
+      setStatus("未连接到后端，无法立即切换（WebSocket 未建立）");
+      return;
+    }
+    client.sendSwitchConfig(file);
+    setStatus(isActiveFile(file) ? "已重新加载该角色，修改已生效" : `正在切换到「${file === "conf.yaml" ? "基础角色" : file}」…`);
+  };
+  const removeSelected = async () => {
+    if (!selectedFile || selectedFile === "conf.yaml") return;
+    const c = characters.find((x) => x.filename === selectedFile);
+    if (!c) return;
+    if (!window.confirm(`确定删除角色「${c.conf_name ?? c.filename}」？`)) return;
+    const wasActive = c.conf_uid === state.confUid;
+    try {
+      await characterApi.remove(selectedFile);
+      setEditing(false);
+      setSelectedFile("");
+      await load();
+      if (wasActive) {
+        applyCharacter("conf.yaml");
+        setStatus("已删除，并已自动切回基础角色");
+      } else {
+        setStatus("已删除");
+      }
+    } catch (err) {
+      setStatus(errorMessage(err));
+    }
+  };
+  const save = async () => {
+    const body = {
+      conf_name: form.conf_name,
+      persona_prompt: form.persona,
+      live2d_model_name: form.skin,
+      voice: form.voice
+    };
+    if (form.tts_engine) body.tts_model = form.tts_engine;
+    try {
+      let savedFile;
+      if (selectedFile === "conf.yaml") {
+        await characterApi.update("conf.yaml", body);
+        savedFile = "conf.yaml";
+      } else if (selectedFile) {
+        await characterApi.update(selectedFile, body);
+        savedFile = selectedFile;
+      } else {
+        const created = await characterApi.create(body);
+        setSelectedFile(created.filename);
+        savedFile = created.filename;
+      }
+      await load();
+      if (savedFile && isActiveFile(savedFile)) {
+        applyCharacter(savedFile);
+      } else {
+        setStatus(savedFile ? "已保存，点击「启用」立即切换" : "已创建，点击「启用」立即切换");
+      }
+      return savedFile;
+    } catch (err) {
+      setStatus(errorMessage(err));
+      return null;
+    }
+  };
+  const saveAndApply = async () => {
+    const file = await save();
+    if (!file) return;
+    applyCharacter(file);
+    setEditing(false);
+    setSelectedFile("");
+    setStatus(`已保存并启用「${file === "conf.yaml" ? "基础角色" : file.replace(/\.yaml$/, "")}」，修改已生效`);
+  };
+  const startNew = () => {
+    setSelectedFile("");
+    setForm({ conf_name: "", persona: "", skin: "", voice: "", tts_engine: "" });
+    setStatus("填写下方信息，点击「保存」即可创建新角色卡");
+    setEditing(true);
+  };
+  const resolveAvatar = (avatar) => {
+    if (!avatar) return null;
+    if (/^https?:\/\//.test(avatar)) return avatar;
+    return `${API_BASE}/${avatar.replace(/^\/+/, "")}`;
+  };
+  const modelAvatar = (modelName) => {
+    const m = models.find((x) => x.name === modelName);
+    return resolveAvatar(m?.avatar ?? null);
+  };
+  const generateThumbnail = async (m) => {
+    if (generating) return;
+    setGenerating(m.name);
+    setStatus("");
+    try {
+      const url = `${API_BASE}/${m.model_path.replace(/^\/+/, "")}`;
+      const png = await renderModelToPng(url);
+      await live2dApi.saveThumbnail(m.name, png);
+      await load();
+      setStatus(`已生成「${m.name}」立绘缩略图`);
+    } catch (err) {
+      setStatus(errorMessage(err));
+    } finally {
+      setGenerating(null);
+    }
+  };
+  return /* @__PURE__ */ jsxDEV("div", { className: "settings-section", children: [
+    /* @__PURE__ */ jsxDEV("h3", { children: "角色卡" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+      lineNumber: 268,
+      columnNumber: 7
+    }, this),
+    !editing ? /* @__PURE__ */ jsxDEV("div", { className: "character-grid", children: [
+      characters.map((c) => {
+        const avatar = modelAvatar(c.live2d_model_name ?? "");
+        const isCurrent = c.conf_uid === state.confUid;
+        return /* @__PURE__ */ jsxDEV(
+          "div",
+          {
+            className: `character-card ${isCurrent ? "current" : ""}`,
+            onClick: () => selectCharacter(c),
+            title: isCurrent ? "当前角色（点击编辑）" : "点击编辑此角色",
+            children: [
+              /* @__PURE__ */ jsxDEV("div", { className: "character-card-avatar", children: [
+                avatar ? /* @__PURE__ */ jsxDEV("img", { src: avatar, alt: c.conf_name ?? c.filename }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                  lineNumber: 283,
+                  columnNumber: 17
+                }, this) : /* @__PURE__ */ jsxDEV("span", { children: "🎭" }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                  lineNumber: 285,
+                  columnNumber: 17
+                }, this),
+                isCurrent ? /* @__PURE__ */ jsxDEV("span", { className: "character-card-badge", children: "当前" }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                  lineNumber: 287,
+                  columnNumber: 32
+                }, this) : null
+              ] }, void 0, true, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                lineNumber: 281,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { className: "character-card-name", children: c.conf_name ?? c.filename }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                lineNumber: 289,
+                columnNumber: 17
+              }, this),
+              !isCurrent ? /* @__PURE__ */ jsxDEV(
+                "button",
+                {
+                  className: "character-card-enable",
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    applyCharacter(c.filename);
+                  },
+                  title: `切换到「${c.conf_name ?? c.filename}」，立即生效`,
+                  children: "启用"
+                },
+                void 0,
+                false,
+                {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                  lineNumber: 291,
+                  columnNumber: 15
+                },
+                this
+              ) : /* @__PURE__ */ jsxDEV(
+                "button",
+                {
+                  className: "character-card-enable current",
+                  onClick: (e) => {
+                    e.stopPropagation();
+                    applyCharacter(c.filename);
+                  },
+                  title: "重新加载当前角色（修改后立即生效）",
+                  children: "重新加载"
+                },
+                void 0,
+                false,
+                {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                  lineNumber: 302,
+                  columnNumber: 15
+                },
+                this
+              )
+            ]
+          },
+          c.filename,
+          true,
+          {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+            lineNumber: 275,
+            columnNumber: 13
+          },
+          this
+        );
+      }),
+      /* @__PURE__ */ jsxDEV(
+        "div",
+        {
+          className: "character-card character-card-new",
+          onClick: startNew,
+          title: "创建新角色卡",
+          children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "character-card-avatar", children: /* @__PURE__ */ jsxDEV("span", { className: "character-card-plus", children: "＋" }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+              lineNumber: 322,
+              columnNumber: 15
+            }, this) }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+              lineNumber: 321,
+              columnNumber: 13
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "character-card-name", children: "新建角色" }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+              lineNumber: 324,
+              columnNumber: 13
+            }, this)
+          ]
+        },
+        void 0,
+        true,
+        {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 316,
+          columnNumber: 11
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+      lineNumber: 270,
+      columnNumber: 7
+    }, this) : /* @__PURE__ */ jsxDEV(Fragment, { children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "btn-row", children: /* @__PURE__ */ jsxDEV("button", { className: "btn", onClick: () => setEditing(false), children: "← 返回角色卡列表" }, void 0, false, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+        lineNumber: 330,
+        columnNumber: 13
+      }, this) }, void 0, false, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+        lineNumber: 329,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+        /* @__PURE__ */ jsxDEV("span", { children: "显示名称" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 335,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("input", { value: form.conf_name, onChange: (e) => setForm({ ...form, conf_name: e.target.value }) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 336,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+        lineNumber: 334,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+        /* @__PURE__ */ jsxDEV("span", { children: "Live2D 模型" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 339,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("select", { value: form.skin, onChange: (e) => setForm({ ...form, skin: e.target.value }), children: [
+          /* @__PURE__ */ jsxDEV("option", { value: "", children: "选择模型…" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+            lineNumber: 341,
+            columnNumber: 15
+          }, this),
+          skins.map(
+            (s) => /* @__PURE__ */ jsxDEV("option", { value: s.name, children: s.name }, s.name, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+              lineNumber: 343,
+              columnNumber: 13
+            }, this)
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 340,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+        lineNumber: 338,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "model-picker", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "model-picker-label", children: "模型库（点击选用）" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 350,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "model-grid", children: [
+          models.map(
+            (m) => /* @__PURE__ */ jsxDEV(
+              "div",
+              {
+                className: `model-card ${form.skin === m.name ? "active" : ""}`,
+                onClick: () => setForm({ ...form, skin: m.name }),
+                children: [
+                  /* @__PURE__ */ jsxDEV("div", { className: "model-card-avatar", children: resolveAvatar(m.avatar) ? /* @__PURE__ */ jsxDEV("img", { src: resolveAvatar(m.avatar) ?? void 0, alt: m.name }, void 0, false, {
+                    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                    lineNumber: 360,
+                    columnNumber: 17
+                  }, this) : /* @__PURE__ */ jsxDEV("span", { children: "🎭" }, void 0, false, {
+                    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                    lineNumber: 362,
+                    columnNumber: 17
+                  }, this) }, void 0, false, {
+                    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                    lineNumber: 358,
+                    columnNumber: 19
+                  }, this),
+                  /* @__PURE__ */ jsxDEV("div", { className: "model-card-name", children: m.name }, void 0, false, {
+                    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                    lineNumber: 365,
+                    columnNumber: 19
+                  }, this),
+                  /* @__PURE__ */ jsxDEV(
+                    "button",
+                    {
+                      className: "model-card-gen",
+                      onClick: (e) => {
+                        e.stopPropagation();
+                        void generateThumbnail(m);
+                      },
+                      disabled: generating !== null,
+                      title: "渲染模型并生成立绘缩略图",
+                      children: generating === m.name ? "生成中…" : "🎞 生成立绘"
+                    },
+                    void 0,
+                    false,
+                    {
+                      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                      lineNumber: 366,
+                      columnNumber: 19
+                    },
+                    this
+                  )
+                ]
+              },
+              m.name,
+              true,
+              {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                lineNumber: 353,
+                columnNumber: 13
+              },
+              this
+            )
+          ),
+          models.length === 0 && /* @__PURE__ */ jsxDEV("div", { className: "setting-status", children: "没有可用的 Live2D 模型。" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+            lineNumber: 380,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 351,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+        lineNumber: 349,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+        /* @__PURE__ */ jsxDEV("span", { children: "TTS 引擎" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 385,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("select", { value: form.tts_engine, onChange: (e) => handleEngineChange(e.target.value), children: [
+          /* @__PURE__ */ jsxDEV("option", { value: "", children: "继承默认（基础配置）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+            lineNumber: 387,
+            columnNumber: 15
+          }, this),
+          ttsEngines.map(
+            (e) => /* @__PURE__ */ jsxDEV("option", { value: e.key, children: e.zh }, e.key, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+              lineNumber: 389,
+              columnNumber: 13
+            }, this)
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 386,
+          columnNumber: 13
+        }, this),
+        ttsEngines.length === 0 && /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: "暂无已配置可用的 TTS 引擎 —— 请到「声音 TTS / ASR」设置里配置（如填 API Key）后，引擎会自动出现在这里。" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 395,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+        lineNumber: 384,
+        columnNumber: 11
+      }, this),
+      form.tts_engine ? /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+        voiceCatalog?.mode === "input" ? /* @__PURE__ */ jsxDEV(Fragment, { children: [
+          /* @__PURE__ */ jsxDEV("span", { children: [
+            "音色 · ",
+            voiceCatalog.input?.label
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+            lineNumber: 404,
+            columnNumber: 19
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "voice-row", children: [
+            /* @__PURE__ */ jsxDEV(
+              "input",
+              {
+                value: form.voice,
+                placeholder: voiceCatalog.input?.hint,
+                onChange: (e) => setForm({ ...form, voice: e.target.value })
+              },
+              void 0,
+              false,
+              {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                lineNumber: 406,
+                columnNumber: 21
+              },
+              this
+            ),
+            voiceCatalog?.previewable && form.voice ? /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                type: "button",
+                className: "btn",
+                onClick: () => void previewVoice(),
+                disabled: previewing,
+                title: voiceCatalog.previewNote || "用真实引擎合成试听",
+                children: previewing ? "播放中…" : "🎧 试听"
+              },
+              void 0,
+              false,
+              {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                lineNumber: 412,
+                columnNumber: 15
+              },
+              this
+            ) : null
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+            lineNumber: 405,
+            columnNumber: 19
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 403,
+          columnNumber: 11
+        }, this) : /* @__PURE__ */ jsxDEV(Fragment, { children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "音色" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+            lineNumber: 426,
+            columnNumber: 19
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "voice-row", children: [
+            /* @__PURE__ */ jsxDEV("select", { value: form.voice, onChange: (e) => setForm({ ...form, voice: e.target.value }), children: [
+              /* @__PURE__ */ jsxDEV("option", { value: "", children: "继承默认" }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                lineNumber: 429,
+                columnNumber: 23
+              }, this),
+              (voiceCatalog?.voices ?? []).map(
+                (v) => /* @__PURE__ */ jsxDEV("option", { value: v.value, children: v.label }, v.value, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                  lineNumber: 431,
+                  columnNumber: 17
+                }, this)
+              )
+            ] }, void 0, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+              lineNumber: 428,
+              columnNumber: 21
+            }, this),
+            voiceCatalog?.previewable && form.voice ? /* @__PURE__ */ jsxDEV(
+              "button",
+              {
+                type: "button",
+                className: "btn",
+                onClick: () => void previewVoice(),
+                disabled: previewing,
+                title: voiceCatalog.previewNote || "用真实引擎合成试听",
+                children: previewing ? "播放中…" : "🎧 试听"
+              },
+              void 0,
+              false,
+              {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+                lineNumber: 437,
+                columnNumber: 15
+              },
+              this
+            ) : null
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+            lineNumber: 427,
+            columnNumber: 19
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 425,
+          columnNumber: 11
+        }, this),
+        voiceCatalog && !voiceCatalog.previewable && voiceCatalog.previewNote ? /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: voiceCatalog.previewNote }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 451,
+          columnNumber: 11
+        }, this) : null,
+        voiceLoading && /* @__PURE__ */ jsxDEV("div", { className: "setting-status", children: "加载音色列表…" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 453,
+          columnNumber: 32
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+        lineNumber: 401,
+        columnNumber: 9
+      }, this) : null,
+      /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+        /* @__PURE__ */ jsxDEV("span", { children: "人设 (persona)" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 457,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "textarea",
+          {
+            rows: 5,
+            value: form.persona,
+            onChange: (e) => setForm({ ...form, persona: e.target.value })
+          },
+          void 0,
+          false,
+          {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+            lineNumber: 458,
+            columnNumber: 13
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+        lineNumber: 456,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "btn-row", children: [
+        /* @__PURE__ */ jsxDEV("button", { className: "btn btn-primary", onClick: () => void save(), children: "保存" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 465,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("button", { className: "btn", onClick: () => void saveAndApply(), children: "保存并启用" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 468,
+          columnNumber: 13
+        }, this),
+        selectedFile && selectedFile !== "conf.yaml" ? /* @__PURE__ */ jsxDEV("button", { className: "btn btn-danger", onClick: () => void removeSelected(), children: "删除" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+          lineNumber: 472,
+          columnNumber: 11
+        }, this) : null
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+        lineNumber: 464,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "restart-notice", children: [
+        "保存修改后会自动热重载当前角色（Live2D / 人设 / 音色立即生效，无需重启）。「保存并启用」用于编辑",
+        selectedFile ? "非当前角色" : "新角色",
+        "时立即切换过去。"
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+        lineNumber: 477,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV(SettingStatus, { message: status }, void 0, false, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+        lineNumber: 481,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+      lineNumber: 328,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx",
+    lineNumber: 267,
+    columnNumber: 5
+  }, this);
+}
+_s(CharacterSettings, "jVS+gP84yB2lwBa8gBtMkPRKl3s=", false, function() {
+  return [useAppState];
+});
+_c = CharacterSettings;
+function errorMessage(err) {
+  if (err instanceof ApiError) return err.message;
+  return err instanceof Error ? err.message : "发生未知错误";
+}
+var _c;
+$RefreshReg$(_c, "CharacterSettings");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/CharacterSettings.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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O0FBQUEsZUFFQTtBQUFBLFFBQ0EsdUJBQUMsWUFBTyxXQUFVLE9BQU0sU0FBUyxNQUFNLEtBQUtNLGFBQWEsR0FBRSxxQkFBM0Q7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQUVBO0FBQUEsUUFDQy9FLGdCQUFnQkEsaUJBQWlCLGNBQ2hDLHVCQUFDLFlBQU8sV0FBVSxrQkFBaUIsU0FBUyxNQUFNLEtBQUtvRSxlQUFlLEdBQUUsa0JBQXhFO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFFQSxJQUNFO0FBQUEsV0FYTjtBQUFBO0FBQUE7QUFBQTtBQUFBLGFBWUE7QUFBQSxNQUNBLHVCQUFDLFNBQUksV0FBVSxrQkFBZ0I7QUFBQTtBQUFBLFFBRTVCcEUsZUFBZSxVQUFVO0FBQUEsUUFBTTtBQUFBLFdBRmxDO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFHQTtBQUFBLE1BQ0EsdUJBQUMsaUJBQWMsU0FBU1MsVUFBeEI7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQUErQjtBQUFBLFNBekpqQztBQUFBO0FBQUE7QUFBQTtBQUFBLFdBMEpBO0FBQUEsT0F2Tko7QUFBQTtBQUFBO0FBQUE7QUFBQSxTQXlOQTtBQUVKO0FBQUNmLEdBemJlRixtQkFBaUI7QUFBQSxVQUNiSCxXQUFXO0FBQUE7QUFBQSxLQURmRztBQTJiaEIsU0FBUzRDLGFBQWFELEtBQXNCO0FBQzFDLE1BQUlBLGVBQWVoRCxTQUFVLFFBQU9nRCxJQUFJNkU7QUFDeEMsU0FBTzdFLGVBQWU4RSxRQUFROUUsSUFBSTZFLFVBQVU7QUFDOUM7QUFBQyxJQUFBRTtBQUFBLGFBQUFBLElBQUEiLCJuYW1lcyI6WyJ1c2VDYWxsYmFjayIsInVzZUVmZmVjdCIsInVzZVN0YXRlIiwiY2hhcmFjdGVyQXBpIiwidm9pY2VBcGkiLCJsaXZlMmRBcGkiLCJ0dHNBcGkiLCJlbmdpbmVBcGkiLCJBcGlFcnJvciIsIkFQSV9CQVNFIiwidXNlQXBwU3RhdGUiLCJyZW5kZXJNb2RlbFRvUG5nIiwiU2V0dGluZ1N0YXR1cyIsIkNoYXJhY3RlclNldHRpbmdzIiwid3MiLCJfcyIsInN0YXRlIiwiY2hhcmFjdGVycyIsInNldENoYXJhY3RlcnMiLCJza2lucyIsInNldFNraW5zIiwic2VsZWN0ZWRGaWxlIiwic2V0U2VsZWN0ZWRGaWxlIiwiZm9ybSIsInNldEZvcm0iLCJjb25mX25hbWUiLCJwZXJzb25hIiwic2tpbiIsInZvaWNlIiwidHRzX2VuZ2luZSIsInN0YXR1cyIsInNldFN0YXR1cyIsInR0c0VuZ2luZXMiLCJzZXRUdHNFbmdpbmVzIiwidm9pY2VDYXRhbG9nIiwic2V0Vm9pY2VDYXRhbG9nIiwidm9pY2VMb2FkaW5nIiwic2V0Vm9pY2VMb2FkaW5nIiwicHJldmlld2luZyIsInNldFByZXZpZXdpbmciLCJtb2RlbHMiLCJzZXRNb2RlbHMiLCJnZW5lcmF0aW5nIiwic2V0R2VuZXJhdGluZyIsImVkaXRpbmciLCJzZXRFZGl0aW5nIiwicHJldmlld1ZvaWNlIiwidXJsIiwic2FtcGxlIiwiYXVkaW8iLCJBdWRpbyIsIm9uZW5kZWQiLCJVUkwiLCJyZXZva2VPYmplY3RVUkwiLCJvbmVycm9yIiwicGxheSIsImVyciIsImVycm9yTWVzc2FnZSIsImxvYWQiLCJjaGFycyIsInNraW5SZXMiLCJtb2RlbFJlcyIsImVuZ1JlcyIsIlByb21pc2UiLCJhbGwiLCJsaXN0IiwiaW5mbyIsImNvbmZpZ3VyZWQiLCJlbmdpbmVzIiwibG9hZFZvaWNlQ2F0YWxvZyIsImVuZ2luZSIsImxpc3RWb2ljZXMiLCJoYW5kbGVFbmdpbmVDaGFuZ2UiLCJmIiwic2VsZWN0Q2hhcmFjdGVyIiwiYyIsImZpbGVuYW1lIiwicGVyc29uYV9wcm9tcHQiLCJsaXZlMmRfbW9kZWxfbmFtZSIsInR0c19tb2RlbCIsImlzQWN0aXZlRmlsZSIsImZpbGUiLCJmaW5kIiwieCIsImNvbmZfdWlkIiwiY29uZlVpZCIsImFwcGx5Q2hhcmFjdGVyIiwiY2xpZW50Iiwic2VuZFN3aXRjaENvbmZpZyIsInJlbW92ZVNlbGVjdGVkIiwid2luZG93IiwiY29uZmlybSIsIndhc0FjdGl2ZSIsInJlbW92ZSIsInNhdmUiLCJib2R5Iiwic2F2ZWRGaWxlIiwidXBkYXRlIiwiY3JlYXRlZCIsImNyZWF0ZSIsInNhdmVBbmRBcHBseSIsInJlcGxhY2UiLCJzdGFydE5ldyIsInJlc29sdmVBdmF0YXIiLCJhdmF0YXIiLCJ0ZXN0IiwibW9kZWxBdmF0YXIiLCJtb2RlbE5hbWUiLCJtIiwibmFtZSIsImdlbmVyYXRlVGh1bWJuYWlsIiwibW9kZWxfcGF0aCIsInBuZyIsInNhdmVUaHVtYm5haWwiLCJtYXAiLCJpc0N1cnJlbnQiLCJlIiwic3RvcFByb3BhZ2F0aW9uIiwidGFyZ2V0IiwidmFsdWUiLCJzIiwidW5kZWZpbmVkIiwibGVuZ3RoIiwia2V5IiwiemgiLCJtb2RlIiwiaW5wdXQiLCJsYWJlbCIsImhpbnQiLCJwcmV2aWV3YWJsZSIsInByZXZpZXdOb3RlIiwidm9pY2VzIiwidiIsIm1lc3NhZ2UiLCJFcnJvciIsIl9jIl0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIkNoYXJhY3RlclNldHRpbmdzLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyB1c2VDYWxsYmFjaywgdXNlRWZmZWN0LCB1c2VTdGF0ZSwgdHlwZSBSZWFjdEVsZW1lbnQgfSBmcm9tICdyZWFjdCc7XG5pbXBvcnQge1xuICBjaGFyYWN0ZXJBcGksXG4gIHZvaWNlQXBpLFxuICBsaXZlMmRBcGksXG4gIHR0c0FwaSxcbiAgZW5naW5lQXBpLFxuICBBcGlFcnJvcixcbiAgQVBJX0JBU0UsXG4gIHR5cGUgQ2hhcmFjdGVyRmllbGQsXG4gIHR5cGUgU2tpbkluZm8sXG4gIHR5cGUgTGl2ZTJkTW9kZWxFbnRyeSxcbiAgdHlwZSBUdHNWb2ljZUNhdGFsb2dSZXN1bHQsXG4gIHR5cGUgRW5naW5lSW5mbyxcbn0gZnJvbSAnQC9hcGkvcmVzdCc7XG5pbXBvcnQgeyB1c2VBcHBTdGF0ZSB9IGZyb20gJ0Avc3RhdGUvQXBwU3RhdGVDb250ZXh0JztcbmltcG9ydCB7IHJlbmRlck1vZGVsVG9QbmcgfSBmcm9tICdAL2xpdmUyZC9jYXB0dXJlVGh1bWJuYWlsJztcbmltcG9ydCB7IFNldHRpbmdTdGF0dXMgfSBmcm9tICcuL1NldHRpbmdTdGF0dXMnO1xuaW1wb3J0IHR5cGUgeyBXU0NsaWVudCB9IGZyb20gJ0AvYXBpL3dzQ2xpZW50JztcblxuZXhwb3J0IGludGVyZmFjZSBDaGFyYWN0ZXJTZXR0aW5nc1Byb3BzIHtcbiAgLyoqIOW9k+WJjSBXUyDov57mjqXvvJvnlKjkuo7jgIzlkK/nlKjop5LoibLjgI0vIOS/neWtmOWQjueDremHjei9ve+8iHNlbmRTd2l0Y2hDb25maWfvvInjgIIgKi9cbiAgd3M/OiAoKSA9PiBXU0NsaWVudCB8IG51bGw7XG59XG5cbmV4cG9ydCBmdW5jdGlvbiBDaGFyYWN0ZXJTZXR0aW5ncyh7IHdzIH06IENoYXJhY3RlclNldHRpbmdzUHJvcHMpOiBSZWFjdEVsZW1lbnQge1xuICBjb25zdCB7IHN0YXRlIH0gPSB1c2VBcHBTdGF0ZSgpO1xuICBjb25zdCBbY2hhcmFjdGVycywgc2V0Q2hhcmFjdGVyc10gPSB1c2VTdGF0ZTxDaGFyYWN0ZXJGaWVsZFtdPihbXSk7XG4gIGNvbnN0IFtza2lucywgc2V0U2tpbnNdID0gdXNlU3RhdGU8U2tpbkluZm9bXT4oW10pO1xuICBjb25zdCBbc2VsZWN0ZWRGaWxlLCBzZXRTZWxlY3RlZEZpbGVdID0gdXNlU3RhdGUoJycpO1xuICBjb25zdCBbZm9ybSwgc2V0Rm9ybV0gPSB1c2VTdGF0ZSh7IGNvbmZfbmFtZTogJycsIHBlcnNvbmE6ICcnLCBza2luOiAnJywgdm9pY2U6ICcnLCB0dHNfZW5naW5lOiAnJyB9KTtcbiAgY29uc3QgW3N0YXR1cywgc2V0U3RhdHVzXSA9IHVzZVN0YXRlKCcnKTtcbiAgLyoqIOW3sumFjee9ruWPr+eUqOeahCBUVFMg5byV5pOO77yI6KeS6Imy5Y2h5Y+q5pi+56S66L+Z5Lqb77yM5Lit5paH5ZCN77yJ44CCICovXG4gIGNvbnN0IFt0dHNFbmdpbmVzLCBzZXRUdHNFbmdpbmVzXSA9IHVzZVN0YXRlPEVuZ2luZUluZm9bXT4oW10pO1xuICAvKiog5b2T5YmN5byV5pOO55qE6Z+z6Imy55uu5b2V77yIbGlzdD3kuIvmi4kgLyBpbnB1dD3miYvloavvvInjgIIgKi9cbiAgY29uc3QgW3ZvaWNlQ2F0YWxvZywgc2V0Vm9pY2VDYXRhbG9nXSA9IHVzZVN0YXRlPFR0c1ZvaWNlQ2F0YWxvZ1Jlc3VsdCB8IG51bGw+KG51bGwpO1xuICBjb25zdCBbdm9pY2VMb2FkaW5nLCBzZXRWb2ljZUxvYWRpbmddID0gdXNlU3RhdGUoZmFsc2UpO1xuICBjb25zdCBbcHJldmlld2luZywgc2V0UHJldmlld2luZ10gPSB1c2VTdGF0ZShmYWxzZSk7XG4gIGNvbnN0IFttb2RlbHMsIHNldE1vZGVsc10gPSB1c2VTdGF0ZTxMaXZlMmRNb2RlbEVudHJ5W10+KFtdKTtcbiAgY29uc3QgW2dlbmVyYXRpbmcsIHNldEdlbmVyYXRpbmddID0gdXNlU3RhdGU8c3RyaW5nIHwgbnVsbD4obnVsbCk7XG4gIGNvbnN0IFtlZGl0aW5nLCBzZXRFZGl0aW5nXSA9IHVzZVN0YXRlKGZhbHNlKTtcblxuICBjb25zdCBwcmV2aWV3Vm9pY2UgPSBhc3luYyAoKTogUHJvbWlzZTx2b2lkPiA9PiB7ICAgIGlmICghZm9ybS52b2ljZSkge1xuICAgICAgc2V0U3RhdHVzKCfor7flhYjpgInmi6nkuIDkuKrpn7PoibInKTtcbiAgICAgIHJldHVybjtcbiAgICB9XG4gICAgdHJ5IHtcbiAgICAgIHNldFByZXZpZXdpbmcodHJ1ZSk7XG4gICAgICAvLyDnlKjnnJ/lrp7lvJXmk44gKyDmjIflrprpn7PoibLlkIjmiJDvvIhlZGdlL3ZvaWNldm94L+S6keerr+WPr+eUqO+8m+WFi+mahuW8leaTjumcgOacjeWKoeWcqOe6v++8iVxuICAgICAgY29uc3QgdXJsID0gYXdhaXQgdm9pY2VBcGkuc2FtcGxlKGZvcm0udHRzX2VuZ2luZSB8fCAnZWRnZV90dHMnLCBmb3JtLnZvaWNlKTtcbiAgICAgIGNvbnN0IGF1ZGlvID0gbmV3IEF1ZGlvKHVybCk7XG4gICAgICBhdWRpby5vbmVuZGVkID0gKCkgPT4gVVJMLnJldm9rZU9iamVjdFVSTCh1cmwpO1xuICAgICAgYXVkaW8ub25lcnJvciA9ICgpID0+IHtcbiAgICAgICAgVVJMLnJldm9rZU9iamVjdFVSTCh1cmwpO1xuICAgICAgICBzZXRTdGF0dXMoJ+ivleWQrOWksei0pe+8iOW8leaTjuS4jeWPr+eUqOaIluacqumFjee9ruWvhumSpe+8iScpO1xuICAgICAgfTtcbiAgICAgIHZvaWQgYXVkaW8ucGxheSgpO1xuICAgIH0gY2F0Y2ggKGVycikge1xuICAgICAgc2V0U3RhdHVzKGVycm9yTWVzc2FnZShlcnIpKTtcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0UHJldmlld2luZyhmYWxzZSk7XG4gICAgfVxuICB9O1xuXG4gIGNvbnN0IGxvYWQgPSB1c2VDYWxsYmFjayhhc3luYyAoKTogUHJvbWlzZTx2b2lkPiA9PiB7XG4gICAgdHJ5IHtcbiAgICAgIGNvbnN0IFtjaGFycywgc2tpblJlcywgbW9kZWxSZXMsIGVuZ1Jlc10gPSBhd2FpdCBQcm9taXNlLmFsbChbXG4gICAgICAgIGNoYXJhY3RlckFwaS5saXN0KCksXG4gICAgICAgIGNoYXJhY3RlckFwaS5za2lucygpLFxuICAgICAgICBsaXZlMmRBcGkuaW5mbygpLFxuICAgICAgICBlbmdpbmVBcGkuY29uZmlndXJlZCgndHRzJyksXG4gICAgICBdKTtcbiAgICAgIHNldFR0c0VuZ2luZXMoZW5nUmVzLmVuZ2luZXMpO1xuICAgICAgc2V0TW9kZWxzKG1vZGVsUmVzLmNoYXJhY3RlcnMpO1xuICAgICAgc2V0Q2hhcmFjdGVycyhjaGFycy5jaGFyYWN0ZXJzKTtcbiAgICAgIHNldFNraW5zKHNraW5SZXMuc2tpbnMpO1xuICAgIH0gY2F0Y2ggKGVycikge1xuICAgICAgc2V0U3RhdHVzKGVycm9yTWVzc2FnZShlcnIpKTtcbiAgICB9XG4gIH0sIFtdKTtcblxuICB1c2VFZmZlY3QoKCkgPT4ge1xuICAgIHZvaWQgbG9hZCgpO1xuICB9LCBbbG9hZF0pO1xuXG4gIC8qKiDmi4nlj5bmn5DlvJXmk47nmoTpn7PoibLnm67lvZXvvIhsaXN0PeS4i+aLiSAvIGlucHV0PeaJi+Whq++8ieOAgiAqL1xuICBjb25zdCBsb2FkVm9pY2VDYXRhbG9nID0gYXN5bmMgKGVuZ2luZTogc3RyaW5nKTogUHJvbWlzZTx2b2lkPiA9PiB7XG4gICAgc2V0Vm9pY2VMb2FkaW5nKHRydWUpO1xuICAgIHNldFZvaWNlQ2F0YWxvZyhudWxsKTtcbiAgICB0cnkge1xuICAgICAgaWYgKCFlbmdpbmUpIHJldHVybjtcbiAgICAgIHNldFZvaWNlQ2F0YWxvZyhhd2FpdCB0dHNBcGkubGlzdFZvaWNlcyhlbmdpbmUpKTtcbiAgICB9IGNhdGNoIChlcnIpIHtcbiAgICAgIHNldFN0YXR1cyhlcnJvck1lc3NhZ2UoZXJyKSk7XG4gICAgfSBmaW5hbGx5IHtcbiAgICAgIHNldFZvaWNlTG9hZGluZyhmYWxzZSk7XG4gICAgfVxuICB9O1xuXG4gIGNvbnN0IGhhbmRsZUVuZ2luZUNoYW5nZSA9IChlbmdpbmU6IHN0cmluZyk6IHZvaWQgPT4ge1xuICAgIHNldEZvcm0oKGYpID0+ICh7IC4uLmYsIHR0c19lbmdpbmU6IGVuZ2luZSwgdm9pY2U6ICcnIH0pKTtcbiAgICB2b2lkIGxvYWRWb2ljZUNhdGFsb2coZW5naW5lKTtcbiAgfTtcblxuICBjb25zdCBzZWxlY3RDaGFyYWN0ZXIgPSAoYzogQ2hhcmFjdGVyRmllbGQpOiB2b2lkID0+IHtcbiAgICBzZXRTZWxlY3RlZEZpbGUoYy5maWxlbmFtZSk7XG4gICAgc2V0Rm9ybSh7XG4gICAgICBjb25mX25hbWU6IGMuY29uZl9uYW1lID8/ICcnLFxuICAgICAgcGVyc29uYTogYy5wZXJzb25hX3Byb21wdCA/PyAnJyxcbiAgICAgIHNraW46IGMubGl2ZTJkX21vZGVsX25hbWUgPz8gJycsXG4gICAgICB2b2ljZTogYy52b2ljZSA/PyAnJyxcbiAgICAgIHR0c19lbmdpbmU6IGMudHRzX21vZGVsID8/ICcnLFxuICAgIH0pO1xuICAgIHNldEVkaXRpbmcodHJ1ZSk7XG4gICAgdm9pZCBsb2FkVm9pY2VDYXRhbG9nKGMudHRzX21vZGVsID8/ICcnKTtcbiAgfTtcblxuICAvKiog5p+Q6KeS6Imy5paH5Lu25piv5ZCm5bCx5piv5b2T5YmN5r+A5rS76KeS6Imy77yI5oyJIGNvbmZfdWlkIOWIpOWumu+8ieOAgiAqL1xuICBjb25zdCBpc0FjdGl2ZUZpbGUgPSAoZmlsZTogc3RyaW5nKTogYm9vbGVhbiA9PiB7XG4gICAgY29uc3QgYyA9IGNoYXJhY3RlcnMuZmluZCgoeCkgPT4geC5maWxlbmFtZSA9PT0gZmlsZSk7XG4gICAgcmV0dXJuIGMgIT0gbnVsbCAmJiBjLmNvbmZfdWlkID09PSBzdGF0ZS5jb25mVWlkO1xuICB9O1xuXG4gIC8qKlxuICAgKiDpgJrov4cgV1Mgc3dpdGNoLWNvbmZpZyDng63liIfmjaLop5LoibLvvJrlkI7nq6/ph43mlrDor7vnm5ggKyBsb2FkX2Zyb21fY29uZmln77yMXG4gICAqIExpdmUyRCAvIHBlcnNvbmEgLyBUVFMgLyBBU1Ig56uL5Y2z55Sf5pWI77yM5peg6ZyA6YeN5ZCv44CCXG4gICAqL1xuICBjb25zdCBhcHBseUNoYXJhY3RlciA9IChmaWxlOiBzdHJpbmcpOiB2b2lkID0+IHtcbiAgICBjb25zdCBjbGllbnQgPSB3cz8uKCk7XG4gICAgaWYgKCFjbGllbnQpIHtcbiAgICAgIHNldFN0YXR1cygn5pyq6L+e5o6l5Yiw5ZCO56uv77yM5peg5rOV56uL5Y2z5YiH5o2i77yIV2ViU29ja2V0IOacquW7uueri++8iScpO1xuICAgICAgcmV0dXJuO1xuICAgIH1cbiAgICBjbGllbnQuc2VuZFN3aXRjaENvbmZpZyhmaWxlKTtcbiAgICBzZXRTdGF0dXMoaXNBY3RpdmVGaWxlKGZpbGUpID8gJ+W3sumHjeaWsOWKoOi9veivpeinkuiJsu+8jOS/ruaUueW3sueUn+aViCcgOiBg5q2j5Zyo5YiH5o2i5Yiw44CMJHtmaWxlID09PSAnY29uZi55YW1sJyA/ICfln7rnoYDop5LoibInIDogZmlsZX3jgI3igKZgKTtcbiAgfTtcblxuICAvKiog5Yig6Zmk5b2T5YmN57yW6L6R5Lit55qE6KeS6Imy5Y2h77yI6Z2e5Z+656GA5Y2h77yJ44CCICovXG4gIGNvbnN0IHJlbW92ZVNlbGVjdGVkID0gYXN5bmMgKCk6IFByb21pc2U8dm9pZD4gPT4ge1xuICAgIGlmICghc2VsZWN0ZWRGaWxlIHx8IHNlbGVjdGVkRmlsZSA9PT0gJ2NvbmYueWFtbCcpIHJldHVybjtcbiAgICBjb25zdCBjID0gY2hhcmFjdGVycy5maW5kKCh4KSA9PiB4LmZpbGVuYW1lID09PSBzZWxlY3RlZEZpbGUpO1xuICAgIGlmICghYykgcmV0dXJuO1xuICAgIGlmICghd2luZG93LmNvbmZpcm0oYOehruWumuWIoOmZpOinkuiJsuOAjCR7Yy5jb25mX25hbWUgPz8gYy5maWxlbmFtZX3jgI3vvJ9gKSkgcmV0dXJuO1xuICAgIGNvbnN0IHdhc0FjdGl2ZSA9IGMuY29uZl91aWQgPT09IHN0YXRlLmNvbmZVaWQ7XG4gICAgdHJ5IHtcbiAgICAgIGF3YWl0IGNoYXJhY3RlckFwaS5yZW1vdmUoc2VsZWN0ZWRGaWxlKTtcbiAgICAgIHNldEVkaXRpbmcoZmFsc2UpO1xuICAgICAgc2V0U2VsZWN0ZWRGaWxlKCcnKTtcbiAgICAgIGF3YWl0IGxvYWQoKTtcbiAgICAgIGlmICh3YXNBY3RpdmUpIHtcbiAgICAgICAgLy8g5Yig5o6J5LqG5b2T5YmN5r+A5rS76KeS6ImyIOKGkiDoh6rliqjliIflm57ln7rnoYDop5LoibLvvIzpgb/lhY3mgqznqbrphY3nva7jgIJcbiAgICAgICAgYXBwbHlDaGFyYWN0ZXIoJ2NvbmYueWFtbCcpO1xuICAgICAgICBzZXRTdGF0dXMoJ+W3suWIoOmZpO+8jOW5tuW3suiHquWKqOWIh+WbnuWfuuehgOinkuiJsicpO1xuICAgICAgfSBlbHNlIHtcbiAgICAgICAgc2V0U3RhdHVzKCflt7LliKDpmaQnKTtcbiAgICAgIH1cbiAgICB9IGNhdGNoIChlcnIpIHtcbiAgICAgIHNldFN0YXR1cyhlcnJvck1lc3NhZ2UoZXJyKSk7XG4gICAgfVxuICB9O1xuXG4gIC8qKiDkv53lrZjop5LoibLljaHvvJvov5Tlm57kv53lrZgv5paw5bu65Yiw55qE5paH5Lu25ZCN77yI5aSx6LSl5oiW5pyq6L+b5YWl57yW6L6R6L+U5ZueIG51bGzvvInjgIIgKi9cbiAgY29uc3Qgc2F2ZSA9IGFzeW5jICgpOiBQcm9taXNlPHN0cmluZyB8IG51bGw+ID0+IHtcbiAgICBjb25zdCBib2R5OiBSZWNvcmQ8c3RyaW5nLCB1bmtub3duPiA9IHtcbiAgICAgIGNvbmZfbmFtZTogZm9ybS5jb25mX25hbWUsXG4gICAgICBwZXJzb25hX3Byb21wdDogZm9ybS5wZXJzb25hLFxuICAgICAgbGl2ZTJkX21vZGVsX25hbWU6IGZvcm0uc2tpbixcbiAgICAgIHZvaWNlOiBmb3JtLnZvaWNlLFxuICAgIH07XG4gICAgaWYgKGZvcm0udHRzX2VuZ2luZSkgYm9keS50dHNfbW9kZWwgPSBmb3JtLnR0c19lbmdpbmU7XG4gICAgdHJ5IHtcbiAgICAgIGxldCBzYXZlZEZpbGU6IHN0cmluZztcbiAgICAgIGlmIChzZWxlY3RlZEZpbGUgPT09ICdjb25mLnlhbWwnKSB7XG4gICAgICAgIGF3YWl0IGNoYXJhY3RlckFwaS51cGRhdGUoJ2NvbmYueWFtbCcsIGJvZHkpO1xuICAgICAgICBzYXZlZEZpbGUgPSAnY29uZi55YW1sJztcbiAgICAgIH0gZWxzZSBpZiAoc2VsZWN0ZWRGaWxlKSB7XG4gICAgICAgIGF3YWl0IGNoYXJhY3RlckFwaS51cGRhdGUoc2VsZWN0ZWRGaWxlLCBib2R5KTtcbiAgICAgICAgc2F2ZWRGaWxlID0gc2VsZWN0ZWRGaWxlO1xuICAgICAgfSBlbHNlIHtcbiAgICAgICAgY29uc3QgY3JlYXRlZCA9IGF3YWl0IGNoYXJhY3RlckFwaS5jcmVhdGUoYm9keSk7XG4gICAgICAgIHNldFNlbGVjdGVkRmlsZShjcmVhdGVkLmZpbGVuYW1lKTtcbiAgICAgICAgc2F2ZWRGaWxlID0gY3JlYXRlZC5maWxlbmFtZTtcbiAgICAgIH1cbiAgICAgIGF3YWl0IGxvYWQoKTtcbiAgICAgIC8vIOS/ruaUueeahOaYr+W9k+WJjea/gOa0u+inkuiJsiDihpIg6Ieq5Yqo54Ot6YeN6L2977yM56uL5Y2z55Sf5pWI77yI5peg6ZyA6YeN5ZCvIC8g6YeN5paw6YCJ5oup77yJ44CCXG4gICAgICBpZiAoc2F2ZWRGaWxlICYmIGlzQWN0aXZlRmlsZShzYXZlZEZpbGUpKSB7XG4gICAgICAgIGFwcGx5Q2hhcmFjdGVyKHNhdmVkRmlsZSk7XG4gICAgICB9IGVsc2Uge1xuICAgICAgICBzZXRTdGF0dXMoc2F2ZWRGaWxlID8gJ+W3suS/neWtmO+8jOeCueWHu+OAjOWQr+eUqOOAjeeri+WNs+WIh+aNoicgOiAn5bey5Yib5bu677yM54K55Ye744CM5ZCv55So44CN56uL5Y2z5YiH5o2iJyk7XG4gICAgICB9XG4gICAgICByZXR1cm4gc2F2ZWRGaWxlO1xuICAgIH0gY2F0Y2ggKGVycikge1xuICAgICAgc2V0U3RhdHVzKGVycm9yTWVzc2FnZShlcnIpKTtcbiAgICAgIHJldHVybiBudWxsO1xuICAgIH1cbiAgfTtcblxuICAvKiog5L+d5a2YICsg56uL5Y2z5YiH5o2i5Yiw6K+l6KeS6Imy77yM5oiQ5Yqf5ZCO6Lez5Zue6KeS6Imy5Y2h5YiX6KGo77yI5paw5bu6IC8g6Z2e5b2T5YmN6KeS6Imy5Lmf5by65Yi255Sf5pWI77yJ44CCICovXG4gIGNvbnN0IHNhdmVBbmRBcHBseSA9IGFzeW5jICgpOiBQcm9taXNlPHZvaWQ+ID0+IHtcbiAgICBjb25zdCBmaWxlID0gYXdhaXQgc2F2ZSgpO1xuICAgIGlmICghZmlsZSkgcmV0dXJuO1xuICAgIGFwcGx5Q2hhcmFjdGVyKGZpbGUpO1xuICAgIHNldEVkaXRpbmcoZmFsc2UpO1xuICAgIHNldFNlbGVjdGVkRmlsZSgnJyk7XG4gICAgc2V0U3RhdHVzKGDlt7Lkv53lrZjlubblkK/nlKjjgIwke2ZpbGUgPT09ICdjb25mLnlhbWwnID8gJ+WfuuehgOinkuiJsicgOiBmaWxlLnJlcGxhY2UoL1xcLnlhbWwkLywgJycpfeOAje+8jOS/ruaUueW3sueUn+aViGApO1xuICB9O1xuXG4gIC8qKiDlvIDlp4vmlrDlu7rop5LoibLljaHvvIjmuIXnqbrooajljZXvvIzov5vlhaXnvJbovpHop4blm77vvInjgIIgKi9cbiAgY29uc3Qgc3RhcnROZXcgPSAoKTogdm9pZCA9PiB7XG4gICAgc2V0U2VsZWN0ZWRGaWxlKCcnKTtcbiAgICBzZXRGb3JtKHsgY29uZl9uYW1lOiAnJywgcGVyc29uYTogJycsIHNraW46ICcnLCB2b2ljZTogJycsIHR0c19lbmdpbmU6ICcnIH0pO1xuICAgIHNldFN0YXR1cygn5aGr5YaZ5LiL5pa55L+h5oGv77yM54K55Ye744CM5L+d5a2Y44CN5Y2z5Y+v5Yib5bu65paw6KeS6Imy5Y2hJyk7XG4gICAgc2V0RWRpdGluZyh0cnVlKTtcbiAgfTtcblxuICAvKiog6KGl5YWo5ZCO56uv6Z2Z5oCB6LWE5rqQ55qE55u45a+56Lev5b6E77yIbGl2ZTJkLW1vZGVscy8uLi4g562J77yJ44CCICovXG4gIGNvbnN0IHJlc29sdmVBdmF0YXIgPSAoYXZhdGFyOiBzdHJpbmcgfCBudWxsKTogc3RyaW5nIHwgbnVsbCA9PiB7XG4gICAgaWYgKCFhdmF0YXIpIHJldHVybiBudWxsO1xuICAgIGlmICgvXmh0dHBzPzpcXC9cXC8vLnRlc3QoYXZhdGFyKSkgcmV0dXJuIGF2YXRhcjtcbiAgICByZXR1cm4gYCR7QVBJX0JBU0V9LyR7YXZhdGFyLnJlcGxhY2UoL15cXC8rLywgJycpfWA7XG4gIH07XG5cbiAgLyoqIOWPluafkCBMaXZlMkQg5qih5Z6L55qE57yp55Wl5Zu+IFVSTOOAgiAqL1xuICBjb25zdCBtb2RlbEF2YXRhciA9IChtb2RlbE5hbWU6IHN0cmluZyk6IHN0cmluZyB8IG51bGwgPT4ge1xuICAgIGNvbnN0IG0gPSBtb2RlbHMuZmluZCgoeCkgPT4geC5uYW1lID09PSBtb2RlbE5hbWUpO1xuICAgIHJldHVybiByZXNvbHZlQXZhdGFyKG0/LmF2YXRhciA/PyBudWxsKTtcbiAgfTtcblxuICAvKiog5riy5p+T5qih5Z6L55Sf5oiQ5a6M5pW056uL57uY57yp55Wl5Zu+5bm25L+d5a2Y5Yiw5qih5Z6L5paH5Lu25aS544CCICovXG4gIGNvbnN0IGdlbmVyYXRlVGh1bWJuYWlsID0gYXN5bmMgKG06IExpdmUyZE1vZGVsRW50cnkpOiBQcm9taXNlPHZvaWQ+ID0+IHtcbiAgICBpZiAoZ2VuZXJhdGluZykgcmV0dXJuO1xuICAgIHNldEdlbmVyYXRpbmcobS5uYW1lKTtcbiAgICBzZXRTdGF0dXMoJycpO1xuICAgIHRyeSB7XG4gICAgICBjb25zdCB1cmwgPSBgJHtBUElfQkFTRX0vJHttLm1vZGVsX3BhdGgucmVwbGFjZSgvXlxcLysvLCAnJyl9YDtcbiAgICAgIGNvbnN0IHBuZyA9IGF3YWl0IHJlbmRlck1vZGVsVG9QbmcodXJsKTtcbiAgICAgIGF3YWl0IGxpdmUyZEFwaS5zYXZlVGh1bWJuYWlsKG0ubmFtZSwgcG5nKTtcbiAgICAgIGF3YWl0IGxvYWQoKTtcbiAgICAgIHNldFN0YXR1cyhg5bey55Sf5oiQ44CMJHttLm5hbWV944CN56uL57uY57yp55Wl5Zu+YCk7XG4gICAgfSBjYXRjaCAoZXJyKSB7XG4gICAgICBzZXRTdGF0dXMoZXJyb3JNZXNzYWdlKGVycikpO1xuICAgIH0gZmluYWxseSB7XG4gICAgICBzZXRHZW5lcmF0aW5nKG51bGwpO1xuICAgIH1cbiAgfTtcblxuICByZXR1cm4gKFxuICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZ3Mtc2VjdGlvblwiPlxuICAgICAgPGgzPuinkuiJsuWNoTwvaDM+XG4gICAgICB7IWVkaXRpbmcgPyAoXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiY2hhcmFjdGVyLWdyaWRcIj5cbiAgICAgICAgICB7Y2hhcmFjdGVycy5tYXAoKGMpID0+IHtcbiAgICAgICAgICAgIGNvbnN0IGF2YXRhciA9IG1vZGVsQXZhdGFyKGMubGl2ZTJkX21vZGVsX25hbWUgPz8gJycpO1xuICAgICAgICAgICAgY29uc3QgaXNDdXJyZW50ID0gYy5jb25mX3VpZCA9PT0gc3RhdGUuY29uZlVpZDtcbiAgICAgICAgICAgIHJldHVybiAoXG4gICAgICAgICAgICAgIDxkaXZcbiAgICAgICAgICAgICAgICBrZXk9e2MuZmlsZW5hbWV9XG4gICAgICAgICAgICAgICAgY2xhc3NOYW1lPXtgY2hhcmFjdGVyLWNhcmQgJHtpc0N1cnJlbnQgPyAnY3VycmVudCcgOiAnJ31gfVxuICAgICAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHNlbGVjdENoYXJhY3RlcihjKX1cbiAgICAgICAgICAgICAgICB0aXRsZT17aXNDdXJyZW50ID8gJ+W9k+WJjeinkuiJsu+8iOeCueWHu+e8lui+ke+8iScgOiAn54K55Ye757yW6L6R5q2k6KeS6ImyJ31cbiAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiY2hhcmFjdGVyLWNhcmQtYXZhdGFyXCI+XG4gICAgICAgICAgICAgICAgICB7YXZhdGFyID8gKFxuICAgICAgICAgICAgICAgICAgICA8aW1nIHNyYz17YXZhdGFyfSBhbHQ9e2MuY29uZl9uYW1lID8/IGMuZmlsZW5hbWV9IC8+XG4gICAgICAgICAgICAgICAgICApIDogKFxuICAgICAgICAgICAgICAgICAgICA8c3Bhbj7wn46tPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgICAgICAgIHtpc0N1cnJlbnQgPyA8c3BhbiBjbGFzc05hbWU9XCJjaGFyYWN0ZXItY2FyZC1iYWRnZVwiPuW9k+WJjTwvc3Bhbj4gOiBudWxsfVxuICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiY2hhcmFjdGVyLWNhcmQtbmFtZVwiPntjLmNvbmZfbmFtZSA/PyBjLmZpbGVuYW1lfTwvZGl2PlxuICAgICAgICAgICAgICAgIHshaXNDdXJyZW50ID8gKFxuICAgICAgICAgICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJjaGFyYWN0ZXItY2FyZC1lbmFibGVcIlxuICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoZSkgPT4ge1xuICAgICAgICAgICAgICAgICAgICAgIGUuc3RvcFByb3BhZ2F0aW9uKCk7XG4gICAgICAgICAgICAgICAgICAgICAgYXBwbHlDaGFyYWN0ZXIoYy5maWxlbmFtZSk7XG4gICAgICAgICAgICAgICAgICAgIH19XG4gICAgICAgICAgICAgICAgICAgIHRpdGxlPXtg5YiH5o2i5Yiw44CMJHtjLmNvbmZfbmFtZSA/PyBjLmZpbGVuYW1lfeOAje+8jOeri+WNs+eUn+aViGB9XG4gICAgICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgICAgIOWQr+eUqFxuICAgICAgICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgICAgICAgKSA6IChcbiAgICAgICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiY2hhcmFjdGVyLWNhcmQtZW5hYmxlIGN1cnJlbnRcIlxuICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoZSkgPT4ge1xuICAgICAgICAgICAgICAgICAgICAgIGUuc3RvcFByb3BhZ2F0aW9uKCk7XG4gICAgICAgICAgICAgICAgICAgICAgYXBwbHlDaGFyYWN0ZXIoYy5maWxlbmFtZSk7XG4gICAgICAgICAgICAgICAgICAgIH19XG4gICAgICAgICAgICAgICAgICAgIHRpdGxlPVwi6YeN5paw5Yqg6L295b2T5YmN6KeS6Imy77yI5L+u5pS55ZCO56uL5Y2z55Sf5pWI77yJXCJcbiAgICAgICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICAgICAg6YeN5paw5Yqg6L29XG4gICAgICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgICAgICApfVxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICk7XG4gICAgICAgICAgfSl9XG4gICAgICAgICAgPGRpdlxuICAgICAgICAgICAgY2xhc3NOYW1lPVwiY2hhcmFjdGVyLWNhcmQgY2hhcmFjdGVyLWNhcmQtbmV3XCJcbiAgICAgICAgICAgIG9uQ2xpY2s9e3N0YXJ0TmV3fVxuICAgICAgICAgICAgdGl0bGU9XCLliJvlu7rmlrDop5LoibLljaFcIlxuICAgICAgICAgID5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiY2hhcmFjdGVyLWNhcmQtYXZhdGFyXCI+XG4gICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImNoYXJhY3Rlci1jYXJkLXBsdXNcIj7vvIs8L3NwYW4+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiY2hhcmFjdGVyLWNhcmQtbmFtZVwiPuaWsOW7uuinkuiJsjwvZGl2PlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgICkgOiAoXG4gICAgICAgIDw+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJidG4tcm93XCI+XG4gICAgICAgICAgICA8YnV0dG9uIGNsYXNzTmFtZT1cImJ0blwiIG9uQ2xpY2s9eygpID0+IHNldEVkaXRpbmcoZmFsc2UpfT5cbiAgICAgICAgICAgICAg4oaQIOi/lOWbnuinkuiJsuWNoeWIl+ihqFxuICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZpZWxkXCI+XG4gICAgICAgICAgICA8c3Bhbj7mmL7npLrlkI3np7A8L3NwYW4+XG4gICAgICAgICAgICA8aW5wdXQgdmFsdWU9e2Zvcm0uY29uZl9uYW1lfSBvbkNoYW5nZT17KGUpID0+IHNldEZvcm0oeyAuLi5mb3JtLCBjb25mX25hbWU6IGUudGFyZ2V0LnZhbHVlIH0pfSAvPlxuICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZpZWxkXCI+XG4gICAgICAgICAgICA8c3Bhbj5MaXZlMkQg5qih5Z6LPC9zcGFuPlxuICAgICAgICAgICAgPHNlbGVjdCB2YWx1ZT17Zm9ybS5za2lufSBvbkNoYW5nZT17KGUpID0+IHNldEZvcm0oeyAuLi5mb3JtLCBza2luOiBlLnRhcmdldC52YWx1ZSB9KX0+XG4gICAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJcIj7pgInmi6nmqKHlnovigKY8L29wdGlvbj5cbiAgICAgICAgICAgICAge3NraW5zLm1hcCgocykgPT4gKFxuICAgICAgICAgICAgICAgIDxvcHRpb24ga2V5PXtzLm5hbWV9IHZhbHVlPXtzLm5hbWV9PlxuICAgICAgICAgICAgICAgICAge3MubmFtZX1cbiAgICAgICAgICAgICAgICA8L29wdGlvbj5cbiAgICAgICAgICAgICAgKSl9XG4gICAgICAgICAgICA8L3NlbGVjdD5cbiAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibW9kZWwtcGlja2VyXCI+XG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1vZGVsLXBpY2tlci1sYWJlbFwiPuaooeWei+W6k++8iOeCueWHu+mAieeUqO+8iTwvZGl2PlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtb2RlbC1ncmlkXCI+XG4gICAgICAgICAgICAgIHttb2RlbHMubWFwKChtKSA9PiAoXG4gICAgICAgICAgICAgICAgPGRpdlxuICAgICAgICAgICAgICAgICAga2V5PXttLm5hbWV9XG4gICAgICAgICAgICAgICAgICBjbGFzc05hbWU9e2Btb2RlbC1jYXJkICR7Zm9ybS5za2luID09PSBtLm5hbWUgPyAnYWN0aXZlJyA6ICcnfWB9XG4gICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoKSA9PiBzZXRGb3JtKHsgLi4uZm9ybSwgc2tpbjogbS5uYW1lIH0pfVxuICAgICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibW9kZWwtY2FyZC1hdmF0YXJcIj5cbiAgICAgICAgICAgICAgICAgICAge3Jlc29sdmVBdmF0YXIobS5hdmF0YXIpID8gKFxuICAgICAgICAgICAgICAgICAgICAgIDxpbWcgc3JjPXtyZXNvbHZlQXZhdGFyKG0uYXZhdGFyKSA/PyB1bmRlZmluZWR9IGFsdD17bS5uYW1lfSAvPlxuICAgICAgICAgICAgICAgICAgICApIDogKFxuICAgICAgICAgICAgICAgICAgICAgIDxzcGFuPvCfjq08L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgICl9XG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibW9kZWwtY2FyZC1uYW1lXCI+e20ubmFtZX08L2Rpdj5cbiAgICAgICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwibW9kZWwtY2FyZC1nZW5cIlxuICAgICAgICAgICAgICAgICAgICBvbkNsaWNrPXsoZSkgPT4ge1xuICAgICAgICAgICAgICAgICAgICAgIGUuc3RvcFByb3BhZ2F0aW9uKCk7XG4gICAgICAgICAgICAgICAgICAgICAgdm9pZCBnZW5lcmF0ZVRodW1ibmFpbChtKTtcbiAgICAgICAgICAgICAgICAgICAgfX1cbiAgICAgICAgICAgICAgICAgICAgZGlzYWJsZWQ9e2dlbmVyYXRpbmcgIT09IG51bGx9XG4gICAgICAgICAgICAgICAgICAgIHRpdGxlPVwi5riy5p+T5qih5Z6L5bm255Sf5oiQ56uL57uY57yp55Wl5Zu+XCJcbiAgICAgICAgICAgICAgICAgID5cbiAgICAgICAgICAgICAgICAgICAge2dlbmVyYXRpbmcgPT09IG0ubmFtZSA/ICfnlJ/miJDkuK3igKYnIDogJ/Cfjp4g55Sf5oiQ56uL57uYJ31cbiAgICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICApKX1cbiAgICAgICAgICAgICAge21vZGVscy5sZW5ndGggPT09IDAgJiYgKFxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZy1zdGF0dXNcIj7msqHmnInlj6/nlKjnmoQgTGl2ZTJEIOaooeWei+OAgjwvZGl2PlxuICAgICAgICAgICAgICApfVxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZpZWxkXCI+XG4gICAgICAgICAgICA8c3Bhbj5UVFMg5byV5pOOPC9zcGFuPlxuICAgICAgICAgICAgPHNlbGVjdCB2YWx1ZT17Zm9ybS50dHNfZW5naW5lfSBvbkNoYW5nZT17KGUpID0+IGhhbmRsZUVuZ2luZUNoYW5nZShlLnRhcmdldC52YWx1ZSl9PlxuICAgICAgICAgICAgICA8b3B0aW9uIHZhbHVlPVwiXCI+57un5om/6buY6K6k77yI5Z+656GA6YWN572u77yJPC9vcHRpb24+XG4gICAgICAgICAgICAgIHt0dHNFbmdpbmVzLm1hcCgoZSkgPT4gKFxuICAgICAgICAgICAgICAgIDxvcHRpb24ga2V5PXtlLmtleX0gdmFsdWU9e2Uua2V5fT5cbiAgICAgICAgICAgICAgICAgIHtlLnpofVxuICAgICAgICAgICAgICAgIDwvb3B0aW9uPlxuICAgICAgICAgICAgICApKX1cbiAgICAgICAgICAgIDwvc2VsZWN0PlxuICAgICAgICAgICAge3R0c0VuZ2luZXMubGVuZ3RoID09PSAwICYmIChcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5nLW5vdGVcIj5cbiAgICAgICAgICAgICAgICDmmoLml6Dlt7LphY3nva7lj6/nlKjnmoQgVFRTIOW8leaTjiDigJTigJQg6K+35Yiw44CM5aOw6Z+zIFRUUyAvIEFTUuOAjeiuvue9rumHjOmFjee9ru+8iOWmguWhqyBBUEkgS2V577yJ5ZCO77yM5byV5pOO5Lya6Ieq5Yqo5Ye6546w5Zyo6L+Z6YeM44CCXG4gICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgKX1cbiAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgIHtmb3JtLnR0c19lbmdpbmUgPyAoXG4gICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZmllbGRcIj5cbiAgICAgICAgICAgICAge3ZvaWNlQ2F0YWxvZz8ubW9kZSA9PT0gJ2lucHV0JyA/IChcbiAgICAgICAgICAgICAgICA8PlxuICAgICAgICAgICAgICAgICAgPHNwYW4+6Z+z6ImyIMK3IHt2b2ljZUNhdGFsb2cuaW5wdXQ/LmxhYmVsfTwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidm9pY2Utcm93XCI+XG4gICAgICAgICAgICAgICAgICAgIDxpbnB1dFxuICAgICAgICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtLnZvaWNlfVxuICAgICAgICAgICAgICAgICAgICAgIHBsYWNlaG9sZGVyPXt2b2ljZUNhdGFsb2cuaW5wdXQ/LmhpbnR9XG4gICAgICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtKHsgLi4uZm9ybSwgdm9pY2U6IGUudGFyZ2V0LnZhbHVlIH0pfVxuICAgICAgICAgICAgICAgICAgICAvPlxuICAgICAgICAgICAgICAgICAgICB7dm9pY2VDYXRhbG9nPy5wcmV2aWV3YWJsZSAmJiBmb3JtLnZvaWNlID8gKFxuICAgICAgICAgICAgICAgICAgICAgIDxidXR0b25cbiAgICAgICAgICAgICAgICAgICAgICAgIHR5cGU9XCJidXR0b25cIlxuICAgICAgICAgICAgICAgICAgICAgICAgY2xhc3NOYW1lPVwiYnRuXCJcbiAgICAgICAgICAgICAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHZvaWQgcHJldmlld1ZvaWNlKCl9XG4gICAgICAgICAgICAgICAgICAgICAgICBkaXNhYmxlZD17cHJldmlld2luZ31cbiAgICAgICAgICAgICAgICAgICAgICAgIHRpdGxlPXt2b2ljZUNhdGFsb2cucHJldmlld05vdGUgfHwgJ+eUqOecn+WunuW8leaTjuWQiOaIkOivleWQrCd9XG4gICAgICAgICAgICAgICAgICAgICAgPlxuICAgICAgICAgICAgICAgICAgICAgICAge3ByZXZpZXdpbmcgPyAn5pKt5pS+5Lit4oCmJyA6ICfwn46nIOivleWQrCd9XG4gICAgICAgICAgICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgICAgICAgICAgICkgOiBudWxsfVxuICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgPC8+XG4gICAgICAgICAgICAgICkgOiAoXG4gICAgICAgICAgICAgICAgPD5cbiAgICAgICAgICAgICAgICAgIDxzcGFuPumfs+iJsjwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwidm9pY2Utcm93XCI+XG4gICAgICAgICAgICAgICAgICAgIDxzZWxlY3QgdmFsdWU9e2Zvcm0udm9pY2V9IG9uQ2hhbmdlPXsoZSkgPT4gc2V0Rm9ybSh7IC4uLmZvcm0sIHZvaWNlOiBlLnRhcmdldC52YWx1ZSB9KX0+XG4gICAgICAgICAgICAgICAgICAgICAgPG9wdGlvbiB2YWx1ZT1cIlwiPue7p+aJv+m7mOiupDwvb3B0aW9uPlxuICAgICAgICAgICAgICAgICAgICAgIHsodm9pY2VDYXRhbG9nPy52b2ljZXMgPz8gW10pLm1hcCgodikgPT4gKFxuICAgICAgICAgICAgICAgICAgICAgICAgPG9wdGlvbiBrZXk9e3YudmFsdWV9IHZhbHVlPXt2LnZhbHVlfT5cbiAgICAgICAgICAgICAgICAgICAgICAgICAge3YubGFiZWx9XG4gICAgICAgICAgICAgICAgICAgICAgICA8L29wdGlvbj5cbiAgICAgICAgICAgICAgICAgICAgICApKX1cbiAgICAgICAgICAgICAgICAgICAgPC9zZWxlY3Q+XG4gICAgICAgICAgICAgICAgICAgIHt2b2ljZUNhdGFsb2c/LnByZXZpZXdhYmxlICYmIGZvcm0udm9pY2UgPyAoXG4gICAgICAgICAgICAgICAgICAgICAgPGJ1dHRvblxuICAgICAgICAgICAgICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXG4gICAgICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJidG5cIlxuICAgICAgICAgICAgICAgICAgICAgICAgb25DbGljaz17KCkgPT4gdm9pZCBwcmV2aWV3Vm9pY2UoKX1cbiAgICAgICAgICAgICAgICAgICAgICAgIGRpc2FibGVkPXtwcmV2aWV3aW5nfVxuICAgICAgICAgICAgICAgICAgICAgICAgdGl0bGU9e3ZvaWNlQ2F0YWxvZy5wcmV2aWV3Tm90ZSB8fCAn55So55yf5a6e5byV5pOO5ZCI5oiQ6K+V5ZCsJ31cbiAgICAgICAgICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgICAgICAgICB7cHJldmlld2luZyA/ICfmkq3mlL7kuK3igKYnIDogJ/Cfjqcg6K+V5ZCsJ31cbiAgICAgICAgICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgICAgICAgICAgKSA6IG51bGx9XG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICA8Lz5cbiAgICAgICAgICAgICAgKX1cbiAgICAgICAgICAgICAge3ZvaWNlQ2F0YWxvZyAmJiAhdm9pY2VDYXRhbG9nLnByZXZpZXdhYmxlICYmIHZvaWNlQ2F0YWxvZy5wcmV2aWV3Tm90ZSA/IChcbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmctbm90ZVwiPnt2b2ljZUNhdGFsb2cucHJldmlld05vdGV9PC9kaXY+XG4gICAgICAgICAgICAgICkgOiBudWxsfVxuICAgICAgICAgICAgICB7dm9pY2VMb2FkaW5nICYmIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZy1zdGF0dXNcIj7liqDovb3pn7PoibLliJfooajigKY8L2Rpdj59XG4gICAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgICkgOiBudWxsfVxuICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmaWVsZFwiPlxuICAgICAgICAgICAgPHNwYW4+5Lq66K6+IChwZXJzb25hKTwvc3Bhbj5cbiAgICAgICAgICAgIDx0ZXh0YXJlYVxuICAgICAgICAgICAgICByb3dzPXs1fVxuICAgICAgICAgICAgICB2YWx1ZT17Zm9ybS5wZXJzb25hfVxuICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldEZvcm0oeyAuLi5mb3JtLCBwZXJzb25hOiBlLnRhcmdldC52YWx1ZSB9KX1cbiAgICAgICAgICAgIC8+XG4gICAgICAgICAgPC9sYWJlbD5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImJ0bi1yb3dcIj5cbiAgICAgICAgICAgIDxidXR0b24gY2xhc3NOYW1lPVwiYnRuIGJ0bi1wcmltYXJ5XCIgb25DbGljaz17KCkgPT4gdm9pZCBzYXZlKCl9PlxuICAgICAgICAgICAgICDkv53lrZhcbiAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgPGJ1dHRvbiBjbGFzc05hbWU9XCJidG5cIiBvbkNsaWNrPXsoKSA9PiB2b2lkIHNhdmVBbmRBcHBseSgpfT5cbiAgICAgICAgICAgICAg5L+d5a2Y5bm25ZCv55SoXG4gICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgIHtzZWxlY3RlZEZpbGUgJiYgc2VsZWN0ZWRGaWxlICE9PSAnY29uZi55YW1sJyA/IChcbiAgICAgICAgICAgICAgPGJ1dHRvbiBjbGFzc05hbWU9XCJidG4gYnRuLWRhbmdlclwiIG9uQ2xpY2s9eygpID0+IHZvaWQgcmVtb3ZlU2VsZWN0ZWQoKX0+XG4gICAgICAgICAgICAgICAg5Yig6ZmkXG4gICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgKSA6IG51bGx9XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJyZXN0YXJ0LW5vdGljZVwiPlxuICAgICAgICAgICAg5L+d5a2Y5L+u5pS55ZCO5Lya6Ieq5Yqo54Ot6YeN6L295b2T5YmN6KeS6Imy77yITGl2ZTJEIC8g5Lq66K6+IC8g6Z+z6Imy56uL5Y2z55Sf5pWI77yM5peg6ZyA6YeN5ZCv77yJ44CC44CM5L+d5a2Y5bm25ZCv55So44CN55So5LqO57yW6L6RXG4gICAgICAgICAgICB7c2VsZWN0ZWRGaWxlID8gJ+mdnuW9k+WJjeinkuiJsicgOiAn5paw6KeS6ImyJ33ml7bnq4vljbPliIfmjaLov4fljrvjgIJcbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8U2V0dGluZ1N0YXR1cyBtZXNzYWdlPXtzdGF0dXN9IC8+XG4gICAgICAgIDwvPlxuICAgICAgKX1cbiAgICA8L2Rpdj5cbiAgKTtcbn1cblxuZnVuY3Rpb24gZXJyb3JNZXNzYWdlKGVycjogdW5rbm93bik6IHN0cmluZyB7XG4gIGlmIChlcnIgaW5zdGFuY2VvZiBBcGlFcnJvcikgcmV0dXJuIGVyci5tZXNzYWdlO1xuICByZXR1cm4gZXJyIGluc3RhbmNlb2YgRXJyb3IgPyBlcnIubWVzc2FnZSA6ICflj5HnlJ/mnKrnn6XplJnor68nO1xufVxuIl0sImZpbGUiOiJDOi9Vc2Vycy9FbHlzaWEvRGVza3RvcC9Qcm9qZWN0L1B5Y2hhcm0vTW9vbmxpZ2h0L2Zyb250ZW5kL3NyYy9zZXR0aW5ncy9DaGFyYWN0ZXJTZXR0aW5ncy50c3gifQ==

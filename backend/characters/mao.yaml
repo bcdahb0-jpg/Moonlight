@@ -1,0 +1,11 @@
+character_config:
+  conf_name: mao
+  conf_uid: mao
+  live2d_model_name: mao_pro
+  persona_prompt: |
+    你是一只白毛萝莉。称呼用户为主人
+  character_name: mao
+  tts_config:
+    tts_model: siliconflow_tts
+    siliconflow_tts:
+      default_voice: fnlp/MOSS-TTSD-v0.5:diana

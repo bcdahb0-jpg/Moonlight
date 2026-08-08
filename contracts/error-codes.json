@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Moonlight WebSocket Error Codes",
+  "description": "结构化错误码单一事实源。后端 ErrorCode 枚举（backend/src/open_llm_vtuber/contracts.py）与前端 TS 联合类型（frontend/src/types/ws.ts）均须与此文件保持一致。",
+  "version": 1,
+  "codes": {
+    "UNKNOWN": {
+      "level": "error",
+      "zh": "未知错误",
+      "en": "Unknown error"
+    },
+    "INVALID_MESSAGE": {
+      "level": "error",
+      "zh": "消息格式非法，已被服务器拒绝",
+      "en": "Malformed message rejected by server"
+    },
+    "PROTOCOL_ERROR": {
+      "level": "error",
+      "zh": "服务器内部消息构造失败",
+      "en": "Server failed to construct a protocol message"
+    },
+    "ASR_MODEL_MISSING": {
+      "level": "error",
+      "zh": "语音识别模型未下载，首次使用需联网下载约 1GB",
+      "en": "ASR model not downloaded yet (~1GB on first run)"
+    },
+    "ASR_LOAD_FAILED": {
+      "level": "error",
+      "zh": "语音识别模型加载失败，请检查后端日志",
+      "en": "ASR model failed to load"
+    },
+    "ASR_TRANSCRIBE_FAILED": {
+      "level": "error",
+      "zh": "语音转写失败",
+      "en": "Speech transcription failed"
+    },
+    "LLM_UNREACHABLE": {
+      "level": "error",
+      "zh": "无法连接对话模型，请检查 LLM 配置或网络",
+      "en": "Cannot reach the LLM provider"
+    },
+    "LLM_INVALID_KEY": {
+      "level": "error",
+      "zh": "API Key 无效或未配置",
+      "en": "Invalid or missing API key"
+    },
+    "LLM_TIMEOUT": {
+      "level": "error",
+      "zh": "对话模型响应超时",
+      "en": "LLM request timed out"
+    },
+    "TTS_FAILED": {
+      "level": "error",
+      "zh": "语音合成失败，请检查 TTS 配置",
+      "en": "Text-to-speech failed"
+    },
+    "VAD_FAILED": {
+      "level": "error",
+      "zh": "语音活动检测器异常",
+      "en": "Voice activity detection error"
+    },
+    "MIC_PERMISSION_DENIED": {
+      "level": "error",
+      "zh": "麦克风权限被拒绝，请在系统设置中允许",
+      "en": "Microphone permission denied"
+    },
+    "MODEL_NOT_FOUND": {
+      "level": "error",
+      "zh": "Live2D 模型不存在或路径错误",
+      "en": "Live2D model not found"
+    },
+    "CONFIG_INVALID": {
+      "level": "error",
+      "zh": "配置文件校验失败，可尝试恢复默认配置",
+      "en": "Invalid configuration"
+    },
+    "MCP_SERVER_FAILED": {
+      "level": "error",
+      "zh": "MCP 服务器连接或执行失败",
+      "en": "MCP server failed"
+    },
+    "MEMORY_FAILED": {
+      "level": "error",
+      "zh": "记忆系统异常",
+      "en": "Memory subsystem error"
+    },
+    "HISTORY_FAILED": {
+      "level": "error",
+      "zh": "历史会话操作失败",
+      "en": "History operation failed"
+    },
+    "TRANSLATE_FAILED": {
+      "level": "error",
+      "zh": "翻译服务失败",
+      "en": "Translation failed"
+    },
+    "INTERNAL_ERROR": {
+      "level": "error",
+      "zh": "服务器内部错误",
+      "en": "Internal server error"
+    }
+  }
+}

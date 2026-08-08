@@ -1,0 +1,55 @@
+# ============ Moonlight .gitignore ============
+
+# ---- 敏感文件（永不提交，含 API key）----
+backend/conf.yaml
+backend/conf.yaml.backup
+backend/conf.yaml.bak
+backend/mcp_servers.json
+*.env
+.env*
+!.env.example
+
+# ---- Python / 虚拟环境 ----
+backend/.venv/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# ---- 运行时数据（后端，模型/引擎二进制勿入仓）----
+backend/models/
+backend/vendor/
+backend/logs/
+backend/chat_history/
+backend/cache/
+backend/emotion_state.json
+backend/server.log
+backend/server_run.log
+backend/bash.exe.stackdump
+backend/tasks/            # 任务工作目录（agent 平台）
+backend/task_platform.db  # 任务元数据 SQLite
+backend/*.db
+
+# ---- 前端 ----
+frontend/node_modules/
+frontend/dist/
+frontend/.pnpm-cache/
+frontend/.electron-user-data/
+frontend/dev.log
+
+# ---- 本地工具数据（WorkBuddy 记忆 / Claude Code 设置）----
+.workbuddy/
+.claude/
+
+# ---- 第三方参考仓库（只读借鉴，禁止合并；2.8G 含嵌套 .git）----
+reference/
+
+# ---- 编辑器 / 系统 ----
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+*.log
+bash.exe.stackdump
