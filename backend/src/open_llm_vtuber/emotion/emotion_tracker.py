@@ -36,6 +36,7 @@ class EmotionTracker:
         self._confidence: float = 0.5
         self._events: Deque[dict] = deque(maxlen=50)
         self._histogram: Dict[str, int] = {e: 0 for e in EMOTIONS}
+        self._llm_cache: Dict[str, dict] = {}
         self._lock = threading.Lock()
         self._load()
 
@@ -76,6 +77,33 @@ class EmotionTracker:
     def recent_events(self, limit: int = 10) -> List[dict]:
         with self._lock:
             return list(self._events)[-limit:]
+
+    # ---- LLM 慢路径缓存（Phase 1：句子流预取 → 音频 payload 消费） ----
+
+    _LLM_CACHE_TTL_SEC = 60.0
+
+    def set_llm_cache(self, fingerprint: str, emotion: str, intensity: float, duration_ms: int) -> None:
+        """写入 LLM 情绪分类缓存（带文本指纹与 TTL）。"""
+        if emotion not in EMOTIONS:
+            return
+        with self._lock:
+            self._llm_cache[fingerprint] = {
+                "emotion": emotion,
+                "intensity": max(0.0, min(1.0, float(intensity))),
+                "duration_ms": int(duration_ms),
+                "ts": time.time(),
+            }
+
+    def get_llm_cache(self, fingerprint: str) -> Optional[dict]:
+        """读取 LLM 情绪缓存；过期或不存在返回 None。"""
+        with self._lock:
+            entry = self._llm_cache.get(fingerprint)
+            if not entry:
+                return None
+            if time.time() - entry.get("ts", 0) > self._LLM_CACHE_TTL_SEC:
+                self._llm_cache.pop(fingerprint, None)
+                return None
+            return {"emotion": entry["emotion"], "intensity": entry["intensity"], "duration_ms": entry["duration_ms"]}
 
     # ---- 持久化 ----
     def _load(self) -> None:

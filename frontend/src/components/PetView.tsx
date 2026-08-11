@@ -13,6 +13,8 @@ export interface PetViewProps {
   adapterRef: React.MutableRefObject<Live2DAdapter | null>;
   onError: (error: Error) => void;
   onInteract?: (zone: string) => void;
+  /** 引擎选择结果回调（诊断：soullink / legacy）。 */
+  onEngineChange?: (engine: 'soullink' | 'legacy') => void;
 }
 
 export function PetView({
@@ -22,6 +24,7 @@ export function PetView({
   adapterRef,
   onError,
   onInteract,
+  onEngineChange,
 }: PetViewProps): ReactElement {
   const downPos = useRef<{ x: number; y: number } | null>(null);
   return (
@@ -46,6 +49,7 @@ export function PetView({
         onAdapterReady={(a) => {
           adapterRef.current = a;
         }}
+        onEngineChange={onEngineChange}
         onError={onError}
       />
     </div>

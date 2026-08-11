@@ -1,4 +1,4 @@
-import type { AppState, ChatMessage, Emotion, LocalSettings, ViewMode } from './types';
+import type { AppState, AudioReplayData, ChatMessage, Emotion, LocalSettings, ViewMode } from './types';
 import type { AffectionSummary, ErrorCode } from '@/types/ws';
 import type { ModelInfo } from '@/types/ws';
 
@@ -17,8 +17,14 @@ export type Action =
   | { type: 'APPEND_MESSAGE_TEXT'; id: string; text: string }
   | { type: 'UPDATE_MESSAGE_TEXT'; id: string; text: string; streaming?: boolean }
   | { type: 'FINALIZE_MESSAGE'; id: string; streaming?: boolean }
+  /** v6：语音到达，绑定到该 AI 气泡（streaming 结束 + audioBound 置位）。
+   *  语音合成是异步的，文本先流式上屏；audio 消息到达后按序绑定播放。
+   *  subtitle：audio 消息带的段落级字幕翻译，绑定后补到气泡（原文流式时无字幕）。
+   *  audio：语音数据快照（2026-08-10），气泡「再次播放」用（后端 wav 播完即删）。 */
+  | { type: 'BIND_AUDIO_TO_MESSAGE'; id: string; subtitle?: string; audio?: AudioReplayData }
   | { type: 'SET_THINKING'; thinking: boolean }
-  | { type: 'SET_EMOTION'; emotion: Emotion }
+  | { type: 'SET_TOOL_STATUS'; text: string | null }
+  | { type: 'SET_EMOTION'; emotion: Emotion; intensity?: number | null; source?: string | null }
   | { type: 'SET_AFFECTION'; affection: AffectionSummary | null }
   | { type: 'SET_SUBTITLE'; text: string }
   | { type: 'SET_ACTIVE_WINDOW'; info: AppState['activeWindow'] }
@@ -50,6 +56,19 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case 'ADD_MESSAGE': {
       const messages = [...state.messages, action.message];
+      // Audio replay data is large (base64 WAV). Keep a small recent window in
+      // React state so long sessions do not retain hundreds of megabytes and
+      // trigger increasingly expensive reducer copies/GC cycles.
+      const audioIndexes = messages
+        .map((m, i) => (m.audioData ? i : -1))
+        .filter((i) => i >= 0);
+      if (audioIndexes.length > 12) {
+        const drop = new Set(audioIndexes.slice(0, audioIndexes.length - 12));
+        return {
+          ...state,
+          messages: messages.map((m, i) => (drop.has(i) ? { ...m, audioData: undefined } : m)),
+        };
+      }
       return { ...state, messages };
     }
 
@@ -79,11 +98,42 @@ export function reducer(state: AppState, action: Action): AppState {
         ),
       };
 
+    case 'BIND_AUDIO_TO_MESSAGE':
+      {
+        const messages = state.messages.map((m) =>
+          m.id === action.id
+            ? {
+                ...m,
+                streaming: false,
+                audioBound: true,
+                subtitle: action.subtitle ?? m.subtitle,
+                audioData: action.audio ?? m.audioData,
+            }
+            : m,
+        );
+        const audioIndexes = messages
+          .map((m, i) => (m.audioData ? i : -1))
+          .filter((i) => i >= 0);
+        const drop = new Set(audioIndexes.slice(0, Math.max(0, audioIndexes.length - 12)));
+        return {
+          ...state,
+          messages: messages.map((m, i) => (drop.has(i) ? { ...m, audioData: undefined } : m)),
+        };
+      }
+
     case 'SET_THINKING':
       return { ...state, isThinking: action.thinking };
 
+    case 'SET_TOOL_STATUS':
+      return { ...state, toolStatus: action.text };
+
     case 'SET_EMOTION':
-      return { ...state, emotion: action.emotion };
+      return {
+        ...state,
+        emotion: action.emotion,
+        emotionIntensity: action.intensity ?? null,
+        emotionSource: action.source ?? null,
+      };
     case 'SET_AFFECTION':
       return { ...state, affection: action.affection };
 

@@ -30,6 +30,9 @@ from .topics_route import (
     start_news_refresh_task,
     stop_news_refresh_task,
 )
+from .task_platform.task_route import init_task_route
+from .task_platform.task_config_route import init_task_config_route
+from .task_platform.intent_route import init_intent_route
 from .service_context import ServiceContext
 from .config_manager.utils import Config
 
@@ -171,6 +174,50 @@ class WebSocketServer:
 
         # Moonlight 集成：情绪系统端点（localhost-only）。查询/覆盖当前情绪。
         self.app.include_router(init_emotion_route())
+
+        # 任务制智能体平台端点（localhost-only，plan §6）。任务 CRUD + 工作目录扫描
+        # （Phase 1）；Phase 2 起追加 runs/stream SSE + interrupt，Phase 3 追加 skills。
+        # 装配外壳播报（G7）：广播函数注入 task_route，TTS 引擎注入 task_platform.shell
+        # ——外壳汇报复用主对话链路（WS audio 消息），前端零改动。
+        try:
+            from .task_platform import shell as _task_shell
+
+            async def _shell_audio_broadcast(payload):
+                from .websocket_handler import get_ws_handler
+                from .contracts import send_message
+
+                handler = get_ws_handler()
+                if handler is None:
+                    return
+                for ws in list(handler.client_connections.values()):
+                    try:
+                        await send_message(ws.send_text, payload)
+                    except Exception:
+                        pass  # 单个连接失败不阻断其他连接
+
+            from .task_platform.task_route import set_shell_broadcast
+
+            set_shell_broadcast(_shell_audio_broadcast)
+            try:
+                _task_shell.set_tts_engine(
+                    getattr(self.default_context_cache, "tts_engine", None)
+                )
+            except Exception as _e:
+                from loguru import logger as _logger
+
+                _logger.warning(f"[shell] TTS 引擎注入失败（将按需自建）：{_e}")
+        except Exception as _e:
+            from loguru import logger as _logger
+
+            _logger.warning(f"[shell] 外壳播报装配失败（任务链路不受影响）：{_e}")
+        self.app.include_router(init_task_route())
+
+        # 意图路由（P1）：POST /api/intent/classify —— 聊天/任务自动分类。
+        self.app.include_router(init_intent_route())
+
+        # 任务平台配置端点（localhost-only）：设置 UI 读取/保存 task_platform 配置 +
+        # MCP 服务器管理（增删改/整体替换/测试连接）。写盘外科手术式，需重启生效。
+        self.app.include_router(init_task_config_route())
 
         # Start the in-app periodic news-refresh task on server startup, and cancel
         # it on shutdown. This replaces an OS cron: when news auto-topics are enabled

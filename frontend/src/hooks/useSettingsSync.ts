@@ -20,6 +20,9 @@ const UI_PREFS_MAP: Array<[keyof LocalSettings, string]> = [
   ['proactiveEnabled', 'proactive_enabled'],
   ['proactiveIdleSec', 'proactive_idle_sec'],
   ['autoSpeakOnIdle', 'auto_speak_on_idle'],
+  // UX 修复（2026-08-10）：与后端 UiPrefs 新增字段保持同步
+  ['proactivePetModeOnly', 'proactive_pet_mode_only'],
+  ['subtitleEnabled', 'subtitle_enabled'],
 ];
 
 const SYNC_DEBOUNCE_MS = 600;
@@ -53,6 +56,8 @@ export function useSettingsSync(): void {
           proactiveEnabled: prefs.proactive_enabled ?? cur.proactiveEnabled,
           proactiveIdleSec: prefs.proactive_idle_sec ?? cur.proactiveIdleSec,
           autoSpeakOnIdle: prefs.auto_speak_on_idle ?? cur.autoSpeakOnIdle,
+          proactivePetModeOnly: prefs.proactive_pet_mode_only ?? cur.proactivePetModeOnly,
+          subtitleEnabled: prefs.subtitle_enabled ?? cur.subtitleEnabled,
         };
         const changed = UI_PREFS_MAP.some(([localKey]) => next[localKey] !== cur[localKey]);
         if (changed) dispatch({ type: 'UPDATE_SETTINGS', settings: next });

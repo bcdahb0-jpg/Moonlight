@@ -27,9 +27,13 @@ backend/emotion_state.json
 backend/server.log
 backend/server_run.log
 backend/bash.exe.stackdump
-backend/tasks/            # 任务工作目录（agent 平台）
-backend/task_platform.db  # 任务元数据 SQLite
+# 任务工作目录（agent 平台）
+backend/tasks/
+# 任务元数据 SQLite
+backend/task_platform.db
 backend/*.db
+# pytest 临时目录（沙箱身份写 %LOCALAPPDATA%\Temp 被拒时重定向到项目内）
+backend/.pytest-tmp/
 
 # ---- 前端 ----
 frontend/node_modules/

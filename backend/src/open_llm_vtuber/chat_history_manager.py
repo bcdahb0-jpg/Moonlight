@@ -14,6 +14,11 @@ class HistoryMessage(TypedDict):
     # Optional display information for the message
     name: Optional[str]
     avatar: Optional[str]
+    # 2026-08-10：消息类别标识（"task_brief"= 任务简报；None = 普通对话）。
+    # 前端据此把简报渲染成折叠卡片而非普通气泡，避免技术长文刷屏会话。
+    kind: Optional[str]
+    # 2026-08-10：简报归属的任务 id —— 同一任务多次 run 只保留最新一条（upsert）。
+    task_id: Optional[str]
 
 
 def _is_safe_filename(filename: str) -> bool:
@@ -60,8 +65,12 @@ def _get_safe_history_path(conf_uid: str, history_uid: str) -> str:
     return full_path
 
 
-def create_new_history(conf_uid: str) -> str:
-    """Create a new history file with a unique ID and return the history_uid"""
+def create_new_history(conf_uid: str, workspace: str = "") -> str:
+    """Create a new history file with a unique ID and return the history_uid.
+
+    ``workspace``: 会话绑定的工作目录（绝对路径）。重设计 v5 起所有会话必须
+    归属一个工作目录；空字符串仅用于向后兼容的内部调用（前端不会再传空）。
+    """
     if not conf_uid:
         logger.warning("No conf_uid provided")
         return ""
@@ -74,12 +83,13 @@ def create_new_history(conf_uid: str) -> str:
     # Create history file with empty metadata
     try:
         filepath = os.path.join(conf_dir, f"{history_uid}.json")
-        initial_data = [
-            {
-                "role": "metadata",
-                "timestamp": datetime.now().isoformat(timespec="seconds"),
-            }
-        ]
+        metadata: dict = {
+            "role": "metadata",
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
+        }
+        if workspace:
+            metadata["workspace"] = workspace
+        initial_data = [metadata]
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(initial_data, f, ensure_ascii=False, indent=2)
     except Exception as e:
@@ -108,6 +118,8 @@ def store_message(
     content: str,
     name: str | None = None,
     avatar: str | None = None,
+    kind: str | None = None,
+    task_id: str | None = None,
 ):
     """Store a message in a specific history file
 
@@ -118,6 +130,8 @@ def store_message(
         content: Message content
         name: Optional display name (default None)
         avatar: Optional avatar URL (default None)
+        kind: 2026-08-10 消息类别（"task_brief" 等；None = 普通对话）
+        task_id: 2026-08-10 归属任务 id（简报消息用于去重）
     """
     if not conf_uid or not history_uid:
         if not conf_uid:
@@ -150,6 +164,10 @@ def store_message(
         new_item["name"] = name
     if avatar is not None:
         new_item["avatar"] = avatar
+    if kind is not None:
+        new_item["kind"] = kind
+    if task_id is not None:
+        new_item["task_id"] = task_id
 
     history_data.append(new_item)
 
@@ -169,6 +187,70 @@ def store_message(
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(history_data, f, ensure_ascii=False, indent=2)
     logger.debug(f"Successfully stored {role} message")
+
+
+def upsert_task_brief(
+    conf_uid: str,
+    history_uid: str,
+    task_id: str,
+    content: str,
+    name: str | None = None,
+) -> str | None:
+    """2026-08-10：任务简报「去重 upsert」——同一任务多次 run 只保留最新一条。
+
+    - 在会话历史里查找 kind=="task_brief" 且 task_id 匹配的消息：
+      * 找到 → 原地替换 content/name/timestamp（保持原消息位置，历史顺序稳定）
+      * 没找到 → 追加新消息（kind="task_brief" + task_id）
+    - 解决「同一任务 3 次 run 往会话塞 3 条长简报刷屏」问题。
+    - 返回 "updated" / "inserted"；失败（conf/uid 缺失、文件损坏）返回 None，不抛异常。
+    """
+    if not conf_uid or not history_uid or not task_id:
+        return None
+    try:
+        filepath = _get_safe_history_path(conf_uid, history_uid)
+        history_data: list[dict] = []
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    history_data = json.load(f)
+            except Exception:
+                logger.error(f"Failed to load history file: {filepath}")
+                return None
+
+        now_str = datetime.now().isoformat(timespec="seconds")
+        # 找同任务简报：kind == task_brief 且 task_id 匹配（兼容旧字段缺失）
+        target_idx = -1
+        for i, item in enumerate(history_data):
+            if item.get("kind") == "task_brief" and item.get("task_id") == task_id:
+                target_idx = i
+                break
+        if target_idx >= 0:
+            # 原地替换：保留 role/timestamp 顺序位置，仅更新内容
+            history_data[target_idx]["content"] = content
+            history_data[target_idx]["timestamp"] = now_str
+            if name is not None:
+                history_data[target_idx]["name"] = name
+            action = "updated"
+        else:
+            new_item: dict = {
+                "role": "ai",
+                "timestamp": now_str,
+                "content": content,
+                "kind": "task_brief",
+                "task_id": task_id,
+            }
+            if name is not None:
+                new_item["name"] = name
+            history_data.append(new_item)
+            action = "inserted"
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(history_data, f, ensure_ascii=False, indent=2)
+        logger.debug(f"[brief] {action} task_brief({task_id}) -> {filepath}")
+        return action
+    except Exception as e:  # fail-soft：简报去重失败静默，不阻断 run
+        logger.debug(f"[brief] upsert_task_brief 失败（静默）：{e}")
+        return None
 
 
 def get_metadata(conf_uid: str, history_uid: str) -> dict:
@@ -271,6 +353,36 @@ def delete_history(conf_uid: str, history_uid: str) -> bool:
     return False
 
 
+def clear_all_histories(conf_uid: str) -> int:
+    """删除该角色下全部会话记录（仅对话转写 json，不含 affection/quotes 等）。
+
+    用于「存量无目录会话一次性清理」。返回删除的文件数。
+    """
+    if not conf_uid:
+        return 0
+    conf_dir = _ensure_conf_dir(conf_uid)
+    removed = 0
+    try:
+        for filename in os.listdir(conf_dir):
+            if not filename.endswith(".json"):
+                continue
+            filepath = os.path.join(conf_dir, filename)
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                # 只删对话转写（JSON 数组首条 role=metadata）；其他数据文件跳过
+                if isinstance(data, list) and data and data[0].get("role") == "metadata":
+                    os.remove(filepath)
+                    removed += 1
+            except Exception:
+                continue
+    except Exception as e:
+        logger.error(f"Failed to clear histories: {e}")
+    if removed:
+        logger.info(f"Cleared {removed} history files for conf {conf_uid}")
+    return removed
+
+
 def get_history_list(conf_uid: str, keep_uid: str | None = None) -> List[dict]:
     """Get list of histories with their latest messages.
 
@@ -319,6 +431,7 @@ def get_history_list(conf_uid: str, keep_uid: str | None = None) -> List[dict]:
                 history_info = {
                     "uid": history_uid,
                     "title": metadata.get("title"),
+                    "workspace": metadata.get("workspace") or "",
                     "latest_message": latest_message,
                     "timestamp": (
                         latest_message["timestamp"] if latest_message else None

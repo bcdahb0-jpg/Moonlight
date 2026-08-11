@@ -26,7 +26,7 @@ async def handle_conversation_trigger(
     client_contexts: Dict[str, ServiceContext],
     client_connections: Dict[str, WebSocket],
     chat_group_manager: ChatGroupManager,
-    received_data_buffers: Dict[str, np.ndarray],
+    received_data_buffers: Dict[str, list[np.ndarray]],
     current_conversation_tasks: Dict[str, Optional[asyncio.Task]],
     broadcast_to_group: Callable,
 ) -> None:
@@ -85,8 +85,13 @@ async def handle_conversation_trigger(
             except Exception as _q_e:
                 logger.warning(f"[quotes] keyword trigger failed: {_q_e}")
     else:  # mic-audio-end
-        user_input = received_data_buffers[client_uid]
-        received_data_buffers[client_uid] = np.array([])
+        chunks = received_data_buffers.get(client_uid) or []
+        user_input = (
+            np.concatenate(chunks).astype(np.float32, copy=False)
+            if chunks
+            else np.array([], dtype=np.float32)
+        )
+        received_data_buffers[client_uid] = []
 
     images = data.get("images")
     session_emoji = np.random.choice(EMOJI_LIST)

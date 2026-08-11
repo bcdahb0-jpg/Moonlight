@@ -3,7 +3,7 @@ import json
 import re
 import uuid
 from datetime import datetime
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Awaitable, Callable
 from loguru import logger
 
 from ..agent.output_types import DisplayText, Actions
@@ -19,7 +19,11 @@ class TTSTaskManager:
     # 语音按「段落」聚合：累计多少个字符才合成一段音频。
     # 默认 100 字 ≈ 3~5 句，避免「逐句合成、句间停顿」造成的断断续续；
     # 一个回复通常 1~3 段，听感接近「每个气泡一口气说完」。
-    TTS_BATCH_MIN_CHARS = 100
+    # Keep the first utterance responsive. 100 chars made short replies wait
+    # until the whole LLM stream had finished before the first TTS task existed.
+    # 40 chars is large enough to avoid sentence-by-sentence choppiness while
+    # still allowing the first audio segment to overlap the remaining LLM work.
+    TTS_BATCH_MIN_CHARS = 40
 
     def __init__(self) -> None:
         self.task_list: List[asyncio.Task] = []
@@ -38,6 +42,15 @@ class TTSTaskManager:
         self._batch_subtitle = ""
         self._last_engine: Optional[TTSInterface] = None
         self._last_send: Optional[WebSocketSend] = None
+        # 整段翻译 hook（2026-08-10）：flush() 时对聚合缓冲的整段文本调一次翻译，
+        # 把「逐句 LLM 翻译」的 N 次 API 往返降到「整段 1~2 次」。由调用方注入
+        # （conversation_utils 提供，内部做 V!=R 判断 + translate_async + 日志），
+        # 本类只负责在合成前调用，保持零耦合。返回 None 表示跳过该段语音。
+        self._translate_hook: Optional[Callable[[str], Awaitable[Optional[str]]]] = None
+
+    def set_translator(self, hook: Optional[Callable[[str], Awaitable[Optional[str]]]]) -> None:
+        """注入整段翻译 hook（每次对话轮都会调用，幂等覆盖）。返回 None 表示跳过该段语音。"""
+        self._translate_hook = hook
 
     async def speak(
         self,
@@ -131,6 +144,22 @@ class TTSTaskManager:
             logger.warning("[tts] flush skipped: no engine/sender available")
             return
 
+        # 整段翻译（方案 1）：聚合缓冲里攒的整段文本调一次翻译 API（hook 内部做
+        # V != R 判断，同语言直接跳过；跨语言翻译失败返回 None）。
+        # 返回 None = 该段翻译失败，跳过语音合成（避免原文进外语 TTS 出杂音）；
+        # 文字已由 full-text 上屏，对话不中断。之前逐句翻译每句一次 API 往返
+        # （LLM 引擎 8~9s/句），4 句回复 ≈ 60s+；整段一次降到 1~2 次。
+        if self._translate_hook is not None:
+            try:
+                text = await self._translate_hook(text)
+            except Exception as _e:
+                logger.warning(f"[tts] translate hook failed: {_e}")
+            if text is None:
+                logger.warning(
+                    "[tts] translation failed for segment, skipping TTS (text already shown)"
+                )
+                return
+
         # 字幕/显示文本：整段合并（避免前端播放时字幕逐句跳动）。
         # 注意：display_text.text 必须始终是原文 R（memory/history 的唯一来源），
         # 字幕翻译只走独立的 subtitle_text 字段——若把字幕塞进 display_text，
@@ -219,7 +248,11 @@ class TTSTaskManager:
         audio_file_path = None
         try:
             audio_file_path = await self._generate_audio(tts_engine, tts_text)
-            payload = prepare_audio_payload(
+            # ffmpeg/pydub, base64 encoding and viseme analysis are synchronous
+            # CPU/IO work. Running them in the event loop stalls WebSocket,
+            # heartbeat and Live2D status messages while audio is prepared.
+            payload = await asyncio.to_thread(
+                prepare_audio_payload,
                 audio_path=audio_file_path,
                 display_text=display_text,
                 actions=actions,
@@ -233,7 +266,8 @@ class TTSTaskManager:
         except Exception as e:
             logger.error(f"Error preparing audio payload: {e}")
             # Queue silent payload for error case
-            payload = prepare_audio_payload(
+            payload = await asyncio.to_thread(
+                prepare_audio_payload,
                 audio_path=None,
                 display_text=display_text,
                 actions=actions,
@@ -256,6 +290,12 @@ class TTSTaskManager:
 
     def clear(self) -> None:
         """Clear all pending tasks and reset state"""
+        # Cancellation must reach in-flight TTS/network work. Merely dropping
+        # references leaves worker threads running after an interrupt and can
+        # produce stale audio or consume the next turn's resources.
+        for task in list(self.task_list):
+            if not task.done():
+                task.cancel()
         self.task_list.clear()
         self._batch_text = ""
         self._batch_display_text = None

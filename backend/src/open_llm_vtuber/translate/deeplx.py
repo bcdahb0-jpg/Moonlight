@@ -1,7 +1,7 @@
 import json
 import httpx
 from loguru import logger
-from .translate_interface import TranslateInterface
+from .translate_interface import TranslateInterface, TranslationError
 
 
 # --------------------------------------------------------------------------- #
@@ -120,3 +120,20 @@ class DeepLXTranslate(TranslateInterface):
             return text
 
         return res
+
+    async def translate_async(self, text: str) -> str:
+        """异步版本：本地 DeepLX 单次通常 <1s，用 AsyncClient 不阻塞事件循环。
+
+        失败时抛 TranslationError（限流/连接拒绝/解析失败），由调用方降级：
+        音频路径跨语言失败时跳过该句语音（避免原文进日语 TTS 出杂音）；
+        字幕路径回退原文。绝不在引擎内静默回退原文——那会把中文喂给外语 TTS。
+        """
+        try:
+            data = {"text": [text], "target_lang": self.target_lang}
+            async with httpx.AsyncClient(timeout=10) as client:
+                req = await client.post(url=self.api_endpoint, json=data)
+            res = json.loads(req.text)["translations"]
+            return " ".join([d["text"] for d in res])
+        except Exception as e:
+            logger.warning(f"DeepLX translate failed for '{text[:40]}': {e}")
+            raise TranslationError(str(e)) from e

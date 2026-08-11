@@ -1,0 +1,410 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/dashboard/Dashboard.tsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=b90f1a35"; const Fragment = __vite__cjsImport0_react_jsxDevRuntime["Fragment"]; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.__vite_plugin_react_preamble_installed__) {
+    throw new Error("@vitejs/plugin-react can't detect preamble. Something is wrong. See https://github.com/vitejs/vite-plugin-react/pull/11#discussion_r430879201");
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = (type, id) => {
+    RefreshRuntime.register(type, "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx " + id);
+  };
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=b90f1a35"; const useEffect = __vite__cjsImport3_react["useEffect"]; const useState = __vite__cjsImport3_react["useState"];
+import { useAppState } from "/src/state/AppStateContext.tsx";
+import { LLMSettings } from "/src/settings/LLMSettings.tsx";
+import { CharacterSettings } from "/src/settings/CharacterSettings.tsx";
+import { PlayerPromptCard } from "/src/settings/PlayerPromptCard.tsx";
+import { MemorySettings } from "/src/settings/MemorySettings.tsx";
+import { PerfSettings } from "/src/settings/PerfSettings.tsx";
+import { VoiceLanguageSettings } from "/src/settings/VoiceLanguageSettings.tsx";
+import { ScreenAwareSettings } from "/src/settings/ScreenAwareSettings.tsx";
+import { ProactiveSettings } from "/src/settings/ProactiveSettings.tsx";
+import { TaskPlatformSettings } from "/src/settings/TaskPlatformSettings.tsx";
+import { EmotionDebug } from "/src/dashboard/EmotionDebug.tsx";
+import { SystemInfo } from "/src/dashboard/SystemInfo.tsx";
+import { Icon } from "/src/ui/icons.tsx";
+const LAST_SECTION_KEY = "moonlight.settings.lastSection";
+const NAV = [
+  { id: "role", label: "角色", icon: "sparkles", keywords: "角色卡 人设 persona 音色 模型 提示词" },
+  { id: "brain", label: "大脑", icon: "brain", keywords: "llm 模型 服务商 key 密钥 ollama 预设" },
+  { id: "voice", label: "语音", icon: "volume", keywords: "asr tts 引擎 音色 语言 翻译 字幕" },
+  { id: "sense", label: "感知", icon: "eye", keywords: "屏幕 窗口 轮询 记忆 memory 画像 检索" },
+  { id: "proactive", label: "主动", icon: "zap", keywords: "话题 搭话 新闻 空闲 情绪" },
+  { id: "task", label: "任务", icon: "tool", keywords: "平台 mcp 工具 沙箱 联网 技能" },
+  { id: "system", label: "系统", icon: "cpu", keywords: "连接 状态 开发者 错误 日志 版本" }
+];
+const LEGACY = {
+  llm: "brain",
+  general: "role",
+  memory: "sense",
+  screen: "sense",
+  agent: "task",
+  voice: "voice",
+  proactive: "proactive"
+};
+function normalizeSection(s) {
+  if (s && LEGACY[s]) return LEGACY[s];
+  return NAV.some((n) => n.id === s) ? s : "role";
+}
+export function Dashboard({ onClose, initialSection, ws }) {
+  _s();
+  const { state, dispatch } = useAppState();
+  const [section, setSection] = useState(() => {
+    try {
+      const saved = localStorage.getItem(LAST_SECTION_KEY) ?? void 0;
+      if (initialSection) return normalizeSection(initialSection);
+      return normalizeSection(saved);
+    } catch {
+      return "role";
+    }
+  });
+  const [query, setQuery] = useState("");
+  const [devMode, setDevMode] = useState(() => {
+    try {
+      return localStorage.getItem("moonlight.devmode") === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(LAST_SECTION_KEY, section);
+    } catch {
+    }
+  }, [section]);
+  const toggleDevMode = () => {
+    const next = !devMode;
+    setDevMode(next);
+    try {
+      localStorage.setItem("moonlight.devmode", next ? "1" : "0");
+    } catch {
+    }
+  };
+  const toggleTheme = () => {
+    dispatch({ type: "SET_THEME", theme: state.theme === "dark" ? "light" : "dark" });
+  };
+  const q = query.trim().toLowerCase();
+  const visibleNav = NAV.filter((n) => !q || (n.label + n.keywords).toLowerCase().includes(q));
+  const current = NAV.find((n) => n.id === section);
+  return /* @__PURE__ */ jsxDEV("div", { className: "dashboard", children: [
+    /* @__PURE__ */ jsxDEV("header", { className: "dashboard-header", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "dashboard-brand", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "dashboard-brand-mark", children: /* @__PURE__ */ jsxDEV(Icon, { name: "moon", size: 18 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+          lineNumber: 124,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+          lineNumber: 123,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("span", { className: "dashboard-brand-name", children: "Moonlight" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+          lineNumber: 126,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("span", { className: "dashboard-brand-sub", children: "设置" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+          lineNumber: 127,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+        lineNumber: 122,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("label", { className: "set-search", children: [
+        /* @__PURE__ */ jsxDEV(Icon, { name: "search", size: 13 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+          lineNumber: 130,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "input",
+          {
+            value: query,
+            onChange: (e) => setQuery(e.target.value),
+            placeholder: "搜索设置项",
+            "aria-label": "搜索设置项"
+          },
+          void 0,
+          false,
+          {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 131,
+            columnNumber: 11
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+        lineNumber: 129,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "dashboard-header-actions", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "dashboard-header-status", children: [
+          /* @__PURE__ */ jsxDEV("span", { className: "conn-dot", "data-status": state.connStatus }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 140,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { children: state.confName || "未连接" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 141,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+          lineNumber: 139,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            className: "dashboard-theme-toggle",
+            onClick: toggleTheme,
+            title: state.theme === "dark" ? "切换到浅色模式" : "切换到深色模式",
+            "aria-label": state.theme === "dark" ? "切换到浅色模式" : "切换到深色模式",
+            children: /* @__PURE__ */ jsxDEV(Icon, { name: state.theme === "dark" ? "sun" : "moon", size: 16 }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+              lineNumber: 149,
+              columnNumber: 13
+            }, this)
+          },
+          void 0,
+          false,
+          {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 143,
+            columnNumber: 11
+          },
+          this
+        ),
+        /* @__PURE__ */ jsxDEV("button", { className: "dashboard-close", onClick: onClose, title: "关闭设置", children: /* @__PURE__ */ jsxDEV(Icon, { name: "x", size: 16 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+          lineNumber: 152,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+          lineNumber: 151,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+        lineNumber: 138,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+      lineNumber: 121,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "dashboard-body", children: [
+      /* @__PURE__ */ jsxDEV("nav", { className: "dashboard-sidebar", children: visibleNav.map(
+        (n) => /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            className: `dashboard-nav-item ${n.id === "task" ? "task-active" : ""} ${section === n.id ? "active" : ""}`,
+            onClick: () => setSection(n.id),
+            title: n.label,
+            children: [
+              /* @__PURE__ */ jsxDEV("span", { className: "dashboard-nav-icon", children: /* @__PURE__ */ jsxDEV(Icon, { name: n.icon, size: 18 }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+                lineNumber: 168,
+                columnNumber: 17
+              }, this) }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+                lineNumber: 167,
+                columnNumber: 15
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "dashboard-nav-label", children: n.label }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+                lineNumber: 170,
+                columnNumber: 15
+              }, this)
+            ]
+          },
+          n.id,
+          true,
+          {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 161,
+            columnNumber: 11
+          },
+          this
+        )
+      ) }, void 0, false, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+        lineNumber: 159,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("main", { className: "dashboard-content", children: [
+        current && /* @__PURE__ */ jsxDEV("div", { className: "dashboard-section-head", children: [
+          /* @__PURE__ */ jsxDEV("h2", { children: current.label }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 179,
+            columnNumber: 15
+          }, this),
+          section === "system" && /* @__PURE__ */ jsxDEV("span", { className: `dashboard-section-state ${state.connStatus === "connected" ? "ok" : state.connStatus === "disconnected" ? "err" : ""}` }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 181,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+          lineNumber: 178,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "dashboard-section", children: [
+          section === "role" && /* @__PURE__ */ jsxDEV(Fragment, { children: [
+            /* @__PURE__ */ jsxDEV(CharacterSettings, { ws }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+              lineNumber: 188,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV(PlayerPromptCard, {}, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+              lineNumber: 189,
+              columnNumber: 17
+            }, this)
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 187,
+            columnNumber: 13
+          }, this),
+          section === "brain" && /* @__PURE__ */ jsxDEV(LLMSettings, {}, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 192,
+            columnNumber: 37
+          }, this),
+          section === "voice" && /* @__PURE__ */ jsxDEV(Fragment, { children: [
+            /* @__PURE__ */ jsxDEV(VoiceLanguageSettings, {}, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+              lineNumber: 195,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV(PerfSettings, {}, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+              lineNumber: 196,
+              columnNumber: 17
+            }, this)
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 194,
+            columnNumber: 13
+          }, this),
+          section === "sense" && /* @__PURE__ */ jsxDEV(Fragment, { children: [
+            /* @__PURE__ */ jsxDEV(ScreenAwareSettings, {}, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+              lineNumber: 201,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV(MemorySettings, { confUid: state.confUid }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+              lineNumber: 202,
+              columnNumber: 17
+            }, this)
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 200,
+            columnNumber: 13
+          }, this),
+          section === "proactive" && /* @__PURE__ */ jsxDEV(ProactiveSettings, {}, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 205,
+            columnNumber: 41
+          }, this),
+          section === "task" && /* @__PURE__ */ jsxDEV(TaskPlatformSettings, {}, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 206,
+            columnNumber: 36
+          }, this),
+          section === "system" && /* @__PURE__ */ jsxDEV(Fragment, { children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "settings-card", children: /* @__PURE__ */ jsxDEV("div", { className: "settings-card-body", children: /* @__PURE__ */ jsxDEV("label", { className: "toggle-row", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: "开发者模式" }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+                lineNumber: 212,
+                columnNumber: 23
+              }, this),
+              /* @__PURE__ */ jsxDEV("input", { type: "checkbox", className: "switch", checked: devMode, onChange: toggleDevMode }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+                lineNumber: 213,
+                columnNumber: 23
+              }, this)
+            ] }, void 0, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+              lineNumber: 211,
+              columnNumber: 21
+            }, this) }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+              lineNumber: 210,
+              columnNumber: 19
+            }, this) }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+              lineNumber: 209,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV(SystemInfo, {}, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+              lineNumber: 217,
+              columnNumber: 17
+            }, this),
+            devMode && /* @__PURE__ */ jsxDEV(EmotionDebug, {}, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+              lineNumber: 218,
+              columnNumber: 29
+            }, this)
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+            lineNumber: 208,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+          lineNumber: 185,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+        lineNumber: 176,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+      lineNumber: 157,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx",
+    lineNumber: 119,
+    columnNumber: 5
+  }, this);
+}
+_s(Dashboard, "Yg7FhBjQBlAgm2BOsPQTCF4oxK0=", false, function() {
+  return [useAppState];
+});
+_c = Dashboard;
+var _c;
+$RefreshReg$(_c, "Dashboard");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/Dashboard.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QSxxQkFBVztBQUFBLGNBQ1gsdUJBQUMsV0FBTSxNQUFLLFlBQVcsV0FBVSxVQUFTLFNBQVNRLFNBQVMsVUFBVUksaUJBQXRFO0FBQUE7QUFBQTtBQUFBO0FBQUEscUJBQW9GO0FBQUEsaUJBRnRGO0FBQUE7QUFBQTtBQUFBO0FBQUEsbUJBR0EsS0FKRjtBQUFBO0FBQUE7QUFBQTtBQUFBLG1CQUtBLEtBTkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFPQTtBQUFBLFlBQ0EsdUJBQUMsZ0JBQUQ7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBVztBQUFBLFlBQ1ZKLFdBQVcsdUJBQUMsa0JBQUQ7QUFBQTtBQUFBO0FBQUE7QUFBQSxtQkFBYTtBQUFBLGVBVjNCO0FBQUE7QUFBQTtBQUFBO0FBQUEsaUJBV0E7QUFBQSxhQWxDSjtBQUFBO0FBQUE7QUFBQTtBQUFBLGVBb0NBO0FBQUEsV0E3Q0Y7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQThDQTtBQUFBLFNBakVGO0FBQUE7QUFBQTtBQUFBO0FBQUEsV0FrRUE7QUFBQSxPQXhHRjtBQUFBO0FBQUE7QUFBQTtBQUFBLFNBeUdBO0FBRUo7QUFBQ1gsR0EzSmVKLFdBQVM7QUFBQSxVQUNLL0IsV0FBVztBQUFBO0FBQUEsS0FEekIrQjtBQUFTLElBQUF1QztBQUFBLGFBQUFBLElBQUEiLCJuYW1lcyI6WyJ1c2VTdGF0ZSIsIlJlYWN0RWxlbWVudCIsInVzZUFwcFN0YXRlIiwiTExNU2V0dGluZ3MiLCJDaGFyYWN0ZXJTZXR0aW5ncyIsIlBsYXllclByb21wdENhcmQiLCJNZW1vcnlTZXR0aW5ncyIsIlBlcmZTZXR0aW5ncyIsIlZvaWNlTGFuZ3VhZ2VTZXR0aW5ncyIsIlNjcmVlbkF3YXJlU2V0dGluZ3MiLCJQcm9hY3RpdmVTZXR0aW5ncyIsIlRhc2tQbGF0Zm9ybVNldHRpbmdzIiwiRW1vdGlvbkRlYnVnIiwiU3lzdGVtSW5mbyIsIkljb24iLCJMQVNUX1NFQ1RJT05fS0VZIiwiTkFWIiwiaWQiLCJsYWJlbCIsImljb24iLCJrZXl3b3JkcyIsIkxFR0FDWSIsImxsbSIsImdlbmVyYWwiLCJtZW1vcnkiLCJzY3JlZW4iLCJhZ2VudCIsInZvaWNlIiwicHJvYWN0aXZlIiwibm9ybWFsaXplU2VjdGlvbiIsInMiLCJzb21lIiwibiIsIkRhc2hib2FyZCIsIm9uQ2xvc2UiLCJpbml0aWFsU2VjdGlvbiIsIndzIiwiX3MiLCJzdGF0ZSIsImRpc3BhdGNoIiwic2VjdGlvbiIsInNldFNlY3Rpb24iLCJzYXZlZCIsImxvY2FsU3RvcmFnZSIsImdldEl0ZW0iLCJ1bmRlZmluZWQiLCJxdWVyeSIsInNldFF1ZXJ5IiwiZGV2TW9kZSIsInNldERldk1vZGUiLCJ1c2VFZmZlY3QiLCJzZXRJdGVtIiwidG9nZ2xlRGV2TW9kZSIsIm5leHQiLCJ0b2dnbGVUaGVtZSIsInR5cGUiLCJ0aGVtZSIsInEiLCJ0cmltIiwidG9Mb3dlckNhc2UiLCJ2aXNpYmxlTmF2IiwiZmlsdGVyIiwiaW5jbHVkZXMiLCJjdXJyZW50IiwiZmluZCIsImUiLCJ0YXJnZXQiLCJ2YWx1ZSIsImNvbm5TdGF0dXMiLCJjb25mTmFtZSIsIm1hcCIsImNvbmZVaWQiLCJfYyJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJEYXNoYm9hcmQudHN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IHVzZUVmZmVjdCwgdXNlU3RhdGUsIHR5cGUgUmVhY3RFbGVtZW50IH0gZnJvbSAncmVhY3QnO1xyXG5pbXBvcnQgeyB1c2VBcHBTdGF0ZSB9IGZyb20gJ0Avc3RhdGUvQXBwU3RhdGVDb250ZXh0JztcclxuaW1wb3J0IHsgTExNU2V0dGluZ3MgfSBmcm9tICdAL3NldHRpbmdzL0xMTVNldHRpbmdzJztcclxuaW1wb3J0IHsgQ2hhcmFjdGVyU2V0dGluZ3MgfSBmcm9tICdAL3NldHRpbmdzL0NoYXJhY3RlclNldHRpbmdzJztcclxuaW1wb3J0IHsgUGxheWVyUHJvbXB0Q2FyZCB9IGZyb20gJ0Avc2V0dGluZ3MvUGxheWVyUHJvbXB0Q2FyZCc7XHJcbmltcG9ydCB7IE1lbW9yeVNldHRpbmdzIH0gZnJvbSAnQC9zZXR0aW5ncy9NZW1vcnlTZXR0aW5ncyc7XHJcbmltcG9ydCB7IFBlcmZTZXR0aW5ncyB9IGZyb20gJ0Avc2V0dGluZ3MvUGVyZlNldHRpbmdzJztcclxuaW1wb3J0IHsgVm9pY2VMYW5ndWFnZVNldHRpbmdzIH0gZnJvbSAnQC9zZXR0aW5ncy9Wb2ljZUxhbmd1YWdlU2V0dGluZ3MnO1xyXG5pbXBvcnQgeyBTY3JlZW5Bd2FyZVNldHRpbmdzIH0gZnJvbSAnQC9zZXR0aW5ncy9TY3JlZW5Bd2FyZVNldHRpbmdzJztcclxuaW1wb3J0IHsgUHJvYWN0aXZlU2V0dGluZ3MgfSBmcm9tICdAL3NldHRpbmdzL1Byb2FjdGl2ZVNldHRpbmdzJztcclxuaW1wb3J0IHsgVGFza1BsYXRmb3JtU2V0dGluZ3MgfSBmcm9tICdAL3NldHRpbmdzL1Rhc2tQbGF0Zm9ybVNldHRpbmdzJztcclxuaW1wb3J0IHsgRW1vdGlvbkRlYnVnIH0gZnJvbSAnLi9FbW90aW9uRGVidWcnO1xyXG5pbXBvcnQgeyBTeXN0ZW1JbmZvIH0gZnJvbSAnLi9TeXN0ZW1JbmZvJztcclxuaW1wb3J0IHsgSWNvbiwgdHlwZSBJY29uTmFtZSB9IGZyb20gJ0AvdWkvaWNvbnMnO1xyXG5pbXBvcnQgdHlwZSB7IFdTQ2xpZW50IH0gZnJvbSAnQC9hcGkvd3NDbGllbnQnO1xyXG5cclxuLyoqIOaJgeW5s+WIhuWMuu+8mjcg5Liq77yM5peg5YiG57uE44CB5peg5o+P6L+w77yI6YeN6K6+6K6hIHY077yJ44CCICovXHJcbnR5cGUgRGFzaGJvYXJkU2VjdGlvbiA9ICdyb2xlJyB8ICdicmFpbicgfCAndm9pY2UnIHwgJ3NlbnNlJyB8ICdwcm9hY3RpdmUnIHwgJ3Rhc2snIHwgJ3N5c3RlbSc7XHJcblxyXG5leHBvcnQgdHlwZSB7IERhc2hib2FyZFNlY3Rpb24gfTtcclxuXHJcbmludGVyZmFjZSBOYXZJdGVtIHtcclxuICBpZDogRGFzaGJvYXJkU2VjdGlvbjtcclxuICBsYWJlbDogc3RyaW5nO1xyXG4gIGljb246IEljb25OYW1lO1xyXG4gIC8qKiDmkJzntKLlhbPplK7or43vvIhsYWJlbCDkuYvlpJbnmoTliKvlkI3vvIzlpoIga2V5L+WvhumSpSDihpIgYnJhaW7vvInjgIIgKi9cclxuICBrZXl3b3Jkczogc3RyaW5nO1xyXG59XHJcblxyXG5jb25zdCBMQVNUX1NFQ1RJT05fS0VZID0gJ21vb25saWdodC5zZXR0aW5ncy5sYXN0U2VjdGlvbic7XHJcblxyXG5jb25zdCBOQVY6IE5hdkl0ZW1bXSA9IFtcclxuICB7IGlkOiAncm9sZScsIGxhYmVsOiAn6KeS6ImyJywgaWNvbjogJ3NwYXJrbGVzJywga2V5d29yZHM6ICfop5LoibLljaEg5Lq66K6+IHBlcnNvbmEg6Z+z6ImyIOaooeWeiyDmj5DnpLror40nIH0sXHJcbiAgeyBpZDogJ2JyYWluJywgbGFiZWw6ICflpKfohJEnLCBpY29uOiAnYnJhaW4nLCBrZXl3b3JkczogJ2xsbSDmqKHlnosg5pyN5Yqh5ZWGIGtleSDlr4bpkqUgb2xsYW1hIOmihOiuvicgfSxcclxuICB7IGlkOiAndm9pY2UnLCBsYWJlbDogJ+ivremfsycsIGljb246ICd2b2x1bWUnLCBrZXl3b3JkczogJ2FzciB0dHMg5byV5pOOIOmfs+iJsiDor63oqIAg57+76K+RIOWtl+W5lScgfSxcclxuICB7IGlkOiAnc2Vuc2UnLCBsYWJlbDogJ+aEn+efpScsIGljb246ICdleWUnLCBrZXl3b3JkczogJ+Wxj+W5lSDnqpflj6Mg6L2u6K+iIOiusOW/hiBtZW1vcnkg55S75YOPIOajgOe0oicgfSxcclxuICB7IGlkOiAncHJvYWN0aXZlJywgbGFiZWw6ICfkuLvliqgnLCBpY29uOiAnemFwJywga2V5d29yZHM6ICfor53popgg5pCt6K+dIOaWsOmXuyDnqbrpl7Ig5oOF57uqJyB9LFxyXG4gIHsgaWQ6ICd0YXNrJywgbGFiZWw6ICfku7vliqEnLCBpY29uOiAndG9vbCcsIGtleXdvcmRzOiAn5bmz5Y+wIG1jcCDlt6Xlhbcg5rKZ566xIOiBlOe9kSDmioDog70nIH0sXHJcbiAgeyBpZDogJ3N5c3RlbScsIGxhYmVsOiAn57O757ufJywgaWNvbjogJ2NwdScsIGtleXdvcmRzOiAn6L+e5o6lIOeKtuaAgSDlvIDlj5HogIUg6ZSZ6K+vIOaXpeW/lyDniYjmnKwnIH0sXHJcbl07XHJcblxyXG4vKiog5pen5YiG5Yy65ZCNIOKGkiDmlrDliIbljLrvvIjplJnor6/kv67lpI3ljaHku43kvKDml6flgLzvvInjgIIgKi9cclxuY29uc3QgTEVHQUNZOiBSZWNvcmQ8c3RyaW5nLCBEYXNoYm9hcmRTZWN0aW9uPiA9IHtcclxuICBsbG06ICdicmFpbicsXHJcbiAgZ2VuZXJhbDogJ3JvbGUnLFxyXG4gIG1lbW9yeTogJ3NlbnNlJyxcclxuICBzY3JlZW46ICdzZW5zZScsXHJcbiAgYWdlbnQ6ICd0YXNrJyxcclxuICB2b2ljZTogJ3ZvaWNlJyxcclxuICBwcm9hY3RpdmU6ICdwcm9hY3RpdmUnLFxyXG59O1xyXG5cclxuZnVuY3Rpb24gbm9ybWFsaXplU2VjdGlvbihzOiBzdHJpbmcgfCB1bmRlZmluZWQpOiBEYXNoYm9hcmRTZWN0aW9uIHtcclxuICBpZiAocyAmJiBMRUdBQ1lbc10pIHJldHVybiBMRUdBQ1lbc107XHJcbiAgcmV0dXJuIE5BVi5zb21lKChuKSA9PiBuLmlkID09PSBzKSA/IChzIGFzIERhc2hib2FyZFNlY3Rpb24pIDogJ3JvbGUnO1xyXG59XHJcblxyXG5leHBvcnQgaW50ZXJmYWNlIERhc2hib2FyZFByb3BzIHtcclxuICBvbkNsb3NlOiAoKSA9PiB2b2lkO1xyXG4gIC8qKiDmiZPlvIDml7blrprkvY3liLDnmoTliIbljLrvvIjplJnor6/kv67lpI3ljaHot7PovazvvInvvJvnnIHnlaXliJnorrDkvY/kuIrmrKHliIbljLrjgIIgKi9cclxuICBpbml0aWFsU2VjdGlvbj86IERhc2hib2FyZFNlY3Rpb247XHJcbiAgLyoqIOW9k+WJjSBXUyDov57mjqXvvIjop5LoibLljaHliIfmjaIgLyDnq4vljbPnlJ/mlYjnlKjvvInjgIIgKi9cclxuICB3cz86ICgpID0+IFdTQ2xpZW50IHwgbnVsbDtcclxufVxyXG5cclxuLyoqXHJcbiAqIEZ1bGwtd2luZG93IGNvbmZpZ3VyYXRpb24gZGFzaGJvYXJk77yI6YeN6K6+6K6hIHY077yJ77yaXHJcbiAqIOe6r+iJsumdouadvyArIOaJgeW5syBpY29uIHJhaWzvvIg3IOWIhuWMuu+8jOaXoOWIhue7hOaXoOaPj+i/sO+8iSsg6aG26YOo5pCc57SiICsg5YaF5a655Yy644CCXHJcbiAqIOW8gOWPkeiAheaooeW8j+W8gOWFs+W3suenu+WFpeOAjOezu+e7n+OAjemhte+8m+S4u+mimOWIh+aNouWcqCBIZWFkZXIg5Y+z5LiK6KeS44CCXHJcbiAqL1xyXG5leHBvcnQgZnVuY3Rpb24gRGFzaGJvYXJkKHsgb25DbG9zZSwgaW5pdGlhbFNlY3Rpb24sIHdzIH06IERhc2hib2FyZFByb3BzKTogUmVhY3RFbGVtZW50IHtcclxuICBjb25zdCB7IHN0YXRlLCBkaXNwYXRjaCB9ID0gdXNlQXBwU3RhdGUoKTtcclxuICBjb25zdCBbc2VjdGlvbiwgc2V0U2VjdGlvbl0gPSB1c2VTdGF0ZTxEYXNoYm9hcmRTZWN0aW9uPigoKSA9PiB7XHJcbiAgICB0cnkge1xyXG4gICAgICBjb25zdCBzYXZlZCA9IGxvY2FsU3RvcmFnZS5nZXRJdGVtKExBU1RfU0VDVElPTl9LRVkpID8/IHVuZGVmaW5lZDtcclxuICAgICAgaWYgKGluaXRpYWxTZWN0aW9uKSByZXR1cm4gbm9ybWFsaXplU2VjdGlvbihpbml0aWFsU2VjdGlvbik7XHJcbiAgICAgIHJldHVybiBub3JtYWxpemVTZWN0aW9uKHNhdmVkKTtcclxuICAgIH0gY2F0Y2gge1xyXG4gICAgICByZXR1cm4gJ3JvbGUnO1xyXG4gICAgfVxyXG4gIH0pO1xyXG4gIGNvbnN0IFtxdWVyeSwgc2V0UXVlcnldID0gdXNlU3RhdGUoJycpO1xyXG4gIGNvbnN0IFtkZXZNb2RlLCBzZXREZXZNb2RlXSA9IHVzZVN0YXRlPGJvb2xlYW4+KCgpID0+IHtcclxuICAgIHRyeSB7XHJcbiAgICAgIHJldHVybiBsb2NhbFN0b3JhZ2UuZ2V0SXRlbSgnbW9vbmxpZ2h0LmRldm1vZGUnKSA9PT0gJzEnO1xyXG4gICAgfSBjYXRjaCB7XHJcbiAgICAgIHJldHVybiBmYWxzZTtcclxuICAgIH1cclxuICB9KTtcclxuXHJcbiAgLy8g6K6w5L2P5LiK5qyh5YiG5Yy677yIUzbvvJrmm7/ku6Pmr4/mrKHpu5jorqTlm57op5LoibLljaHvvIlcclxuICB1c2VFZmZlY3QoKCkgPT4ge1xyXG4gICAgdHJ5IHtcclxuICAgICAgbG9jYWxTdG9yYWdlLnNldEl0ZW0oTEFTVF9TRUNUSU9OX0tFWSwgc2VjdGlvbik7XHJcbiAgICB9IGNhdGNoIHtcclxuICAgICAgLy8gc3RvcmFnZSDkuI3lj6/nlKjml7bpnZnpu5hcclxuICAgIH1cclxuICB9LCBbc2VjdGlvbl0pO1xyXG5cclxuICBjb25zdCB0b2dnbGVEZXZNb2RlID0gKCk6IHZvaWQgPT4ge1xyXG4gICAgY29uc3QgbmV4dCA9ICFkZXZNb2RlO1xyXG4gICAgc2V0RGV2TW9kZShuZXh0KTtcclxuICAgIHRyeSB7XHJcbiAgICAgIGxvY2FsU3RvcmFnZS5zZXRJdGVtKCdtb29ubGlnaHQuZGV2bW9kZScsIG5leHQgPyAnMScgOiAnMCcpO1xyXG4gICAgfSBjYXRjaCB7XHJcbiAgICAgIC8vIHN0b3JhZ2UgbWF5IGJlIHVuYXZhaWxhYmxlOyBpZ25vcmVcclxuICAgIH1cclxuICB9O1xyXG5cclxuICBjb25zdCB0b2dnbGVUaGVtZSA9ICgpOiB2b2lkID0+IHtcclxuICAgIGRpc3BhdGNoKHsgdHlwZTogJ1NFVF9USEVNRScsIHRoZW1lOiBzdGF0ZS50aGVtZSA9PT0gJ2RhcmsnID8gJ2xpZ2h0JyA6ICdkYXJrJyB9KTtcclxuICB9O1xyXG5cclxuICBjb25zdCBxID0gcXVlcnkudHJpbSgpLnRvTG93ZXJDYXNlKCk7XHJcbiAgY29uc3QgdmlzaWJsZU5hdiA9IE5BVi5maWx0ZXIoKG4pID0+ICFxIHx8IChuLmxhYmVsICsgbi5rZXl3b3JkcykudG9Mb3dlckNhc2UoKS5pbmNsdWRlcyhxKSk7XHJcbiAgY29uc3QgY3VycmVudCA9IE5BVi5maW5kKChuKSA9PiBuLmlkID09PSBzZWN0aW9uKTtcclxuXHJcbiAgcmV0dXJuIChcclxuICAgIDxkaXYgY2xhc3NOYW1lPVwiZGFzaGJvYXJkXCI+XHJcbiAgICAgIHsvKiDlpLTpg6jvvJrlk4HniYwgKyDmkJzntKIgKyDnirbmgIEgKyDkuLvpopggKyDlhbPpl60gKi99XHJcbiAgICAgIDxoZWFkZXIgY2xhc3NOYW1lPVwiZGFzaGJvYXJkLWhlYWRlclwiPlxyXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiZGFzaGJvYXJkLWJyYW5kXCI+XHJcbiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJkYXNoYm9hcmQtYnJhbmQtbWFya1wiPlxyXG4gICAgICAgICAgICA8SWNvbiBuYW1lPVwibW9vblwiIHNpemU9ezE4fSAvPlxyXG4gICAgICAgICAgPC9zcGFuPlxyXG4gICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwiZGFzaGJvYXJkLWJyYW5kLW5hbWVcIj5Nb29ubGlnaHQ8L3NwYW4+XHJcbiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJkYXNoYm9hcmQtYnJhbmQtc3ViXCI+6K6+572uPC9zcGFuPlxyXG4gICAgICAgIDwvZGl2PlxyXG4gICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJzZXQtc2VhcmNoXCI+XHJcbiAgICAgICAgICA8SWNvbiBuYW1lPVwic2VhcmNoXCIgc2l6ZT17MTN9IC8+XHJcbiAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgdmFsdWU9e3F1ZXJ5fVxyXG4gICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldFF1ZXJ5KGUudGFyZ2V0LnZhbHVlKX1cclxuICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCLmkJzntKLorr7nva7poblcIlxyXG4gICAgICAgICAgICBhcmlhLWxhYmVsPVwi5pCc57Si6K6+572u6aG5XCJcclxuICAgICAgICAgIC8+XHJcbiAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImRhc2hib2FyZC1oZWFkZXItYWN0aW9uc1wiPlxyXG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJkYXNoYm9hcmQtaGVhZGVyLXN0YXR1c1wiPlxyXG4gICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJjb25uLWRvdFwiIGRhdGEtc3RhdHVzPXtzdGF0ZS5jb25uU3RhdHVzfSAvPlxyXG4gICAgICAgICAgICA8c3Bhbj57c3RhdGUuY29uZk5hbWUgfHwgJ+acqui/nuaOpSd9PC9zcGFuPlxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICA8YnV0dG9uXHJcbiAgICAgICAgICAgIGNsYXNzTmFtZT1cImRhc2hib2FyZC10aGVtZS10b2dnbGVcIlxyXG4gICAgICAgICAgICBvbkNsaWNrPXt0b2dnbGVUaGVtZX1cclxuICAgICAgICAgICAgdGl0bGU9e3N0YXRlLnRoZW1lID09PSAnZGFyaycgPyAn5YiH5o2i5Yiw5rWF6Imy5qih5byPJyA6ICfliIfmjaLliLDmt7HoibLmqKHlvI8nfVxyXG4gICAgICAgICAgICBhcmlhLWxhYmVsPXtzdGF0ZS50aGVtZSA9PT0gJ2RhcmsnID8gJ+WIh+aNouWIsOa1heiJsuaooeW8jycgOiAn5YiH5o2i5Yiw5rex6Imy5qih5byPJ31cclxuICAgICAgICAgID5cclxuICAgICAgICAgICAgPEljb24gbmFtZT17c3RhdGUudGhlbWUgPT09ICdkYXJrJyA/ICdzdW4nIDogJ21vb24nfSBzaXplPXsxNn0gLz5cclxuICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgPGJ1dHRvbiBjbGFzc05hbWU9XCJkYXNoYm9hcmQtY2xvc2VcIiBvbkNsaWNrPXtvbkNsb3NlfSB0aXRsZT1cIuWFs+mXreiuvue9rlwiPlxyXG4gICAgICAgICAgICA8SWNvbiBuYW1lPVwieFwiIHNpemU9ezE2fSAvPlxyXG4gICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICAgIDwvaGVhZGVyPlxyXG5cclxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJkYXNoYm9hcmQtYm9keVwiPlxyXG4gICAgICAgIHsvKiDmiYHlubMgaWNvbiByYWlsICovfVxyXG4gICAgICAgIDxuYXYgY2xhc3NOYW1lPVwiZGFzaGJvYXJkLXNpZGViYXJcIj5cclxuICAgICAgICAgIHt2aXNpYmxlTmF2Lm1hcCgobikgPT4gKFxyXG4gICAgICAgICAgICA8YnV0dG9uXHJcbiAgICAgICAgICAgICAga2V5PXtuLmlkfVxyXG4gICAgICAgICAgICAgIGNsYXNzTmFtZT17YGRhc2hib2FyZC1uYXYtaXRlbSAke24uaWQgPT09ICd0YXNrJyA/ICd0YXNrLWFjdGl2ZScgOiAnJ30gJHtzZWN0aW9uID09PSBuLmlkID8gJ2FjdGl2ZScgOiAnJ31gfVxyXG4gICAgICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHNldFNlY3Rpb24obi5pZCl9XHJcbiAgICAgICAgICAgICAgdGl0bGU9e24ubGFiZWx9XHJcbiAgICAgICAgICAgID5cclxuICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJkYXNoYm9hcmQtbmF2LWljb25cIj5cclxuICAgICAgICAgICAgICAgIDxJY29uIG5hbWU9e24uaWNvbn0gc2l6ZT17MTh9IC8+XHJcbiAgICAgICAgICAgICAgPC9zcGFuPlxyXG4gICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cImRhc2hib2FyZC1uYXYtbGFiZWxcIj57bi5sYWJlbH08L3NwYW4+XHJcbiAgICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgICAgKSl9XHJcbiAgICAgICAgPC9uYXY+XHJcblxyXG4gICAgICAgIHsvKiDlhoXlrrnljLogKi99XHJcbiAgICAgICAgPG1haW4gY2xhc3NOYW1lPVwiZGFzaGJvYXJkLWNvbnRlbnRcIj5cclxuICAgICAgICAgIHtjdXJyZW50ICYmIChcclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJkYXNoYm9hcmQtc2VjdGlvbi1oZWFkXCI+XHJcbiAgICAgICAgICAgICAgPGgyPntjdXJyZW50LmxhYmVsfTwvaDI+XHJcbiAgICAgICAgICAgICAge3NlY3Rpb24gPT09ICdzeXN0ZW0nICYmIChcclxuICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT17YGRhc2hib2FyZC1zZWN0aW9uLXN0YXRlICR7c3RhdGUuY29ublN0YXR1cyA9PT0gJ2Nvbm5lY3RlZCcgPyAnb2snIDogc3RhdGUuY29ublN0YXR1cyA9PT0gJ2Rpc2Nvbm5lY3RlZCcgPyAnZXJyJyA6ICcnfWB9IC8+XHJcbiAgICAgICAgICAgICAgKX1cclxuICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICApfVxyXG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJkYXNoYm9hcmQtc2VjdGlvblwiPlxyXG4gICAgICAgICAgICB7c2VjdGlvbiA9PT0gJ3JvbGUnICYmIChcclxuICAgICAgICAgICAgICA8PlxyXG4gICAgICAgICAgICAgICAgPENoYXJhY3RlclNldHRpbmdzIHdzPXt3c30gLz5cclxuICAgICAgICAgICAgICAgIDxQbGF5ZXJQcm9tcHRDYXJkIC8+XHJcbiAgICAgICAgICAgICAgPC8+XHJcbiAgICAgICAgICAgICl9XHJcbiAgICAgICAgICAgIHtzZWN0aW9uID09PSAnYnJhaW4nICYmIDxMTE1TZXR0aW5ncyAvPn1cclxuICAgICAgICAgICAge3NlY3Rpb24gPT09ICd2b2ljZScgJiYgKFxyXG4gICAgICAgICAgICAgIDw+XHJcbiAgICAgICAgICAgICAgICA8Vm9pY2VMYW5ndWFnZVNldHRpbmdzIC8+XHJcbiAgICAgICAgICAgICAgICA8UGVyZlNldHRpbmdzIC8+XHJcbiAgICAgICAgICAgICAgPC8+XHJcbiAgICAgICAgICAgICl9XHJcbiAgICAgICAgICAgIHtzZWN0aW9uID09PSAnc2Vuc2UnICYmIChcclxuICAgICAgICAgICAgICA8PlxyXG4gICAgICAgICAgICAgICAgPFNjcmVlbkF3YXJlU2V0dGluZ3MgLz5cclxuICAgICAgICAgICAgICAgIDxNZW1vcnlTZXR0aW5ncyBjb25mVWlkPXtzdGF0ZS5jb25mVWlkfSAvPlxyXG4gICAgICAgICAgICAgIDwvPlxyXG4gICAgICAgICAgICApfVxyXG4gICAgICAgICAgICB7c2VjdGlvbiA9PT0gJ3Byb2FjdGl2ZScgJiYgPFByb2FjdGl2ZVNldHRpbmdzIC8+fVxyXG4gICAgICAgICAgICB7c2VjdGlvbiA9PT0gJ3Rhc2snICYmIDxUYXNrUGxhdGZvcm1TZXR0aW5ncyAvPn1cclxuICAgICAgICAgICAge3NlY3Rpb24gPT09ICdzeXN0ZW0nICYmIChcclxuICAgICAgICAgICAgICA8PlxyXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkXCI+XHJcbiAgICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC1ib2R5XCI+XHJcbiAgICAgICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRvZ2dsZS1yb3dcIj5cclxuICAgICAgICAgICAgICAgICAgICAgIDxzcGFuPuW8gOWPkeiAheaooeW8jzwvc3Bhbj5cclxuICAgICAgICAgICAgICAgICAgICAgIDxpbnB1dCB0eXBlPVwiY2hlY2tib3hcIiBjbGFzc05hbWU9XCJzd2l0Y2hcIiBjaGVja2VkPXtkZXZNb2RlfSBvbkNoYW5nZT17dG9nZ2xlRGV2TW9kZX0gLz5cclxuICAgICAgICAgICAgICAgICAgICA8L2xhYmVsPlxyXG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgICAgPFN5c3RlbUluZm8gLz5cclxuICAgICAgICAgICAgICAgIHtkZXZNb2RlICYmIDxFbW90aW9uRGVidWcgLz59XHJcbiAgICAgICAgICAgICAgPC8+XHJcbiAgICAgICAgICAgICl9XHJcbiAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICA8L21haW4+XHJcbiAgICAgIDwvZGl2PlxyXG4gICAgPC9kaXY+XHJcbiAgKTtcclxufVxyXG4iXSwiZmlsZSI6IkM6L1VzZXJzL0VseXNpYS9EZXNrdG9wL1Byb2plY3QvUHljaGFybS9Nb29ubGlnaHQvZnJvbnRlbmQvc3JjL2Rhc2hib2FyZC9EYXNoYm9hcmQudHN4In0=

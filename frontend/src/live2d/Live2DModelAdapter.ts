@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { ensureCubismCore } from './cubismCore';
-import type { Live2DAdapter } from './Live2DAdapter';
+import type { Live2DAdapter, VisemeVector } from './Live2DAdapter';
+import { HeadMotion, pickRandomMotion } from './motionUtils';
 
 /**
  * Map of backend emotion names (e.g. "joy") to expression indices used by the
@@ -29,7 +30,36 @@ interface CubismExpressionDefinition {
 
 type Live2DModelInstance = import('pixi-live2d-display/cubism4').Live2DModel;
 
-const LIP_PARAM_CANDIDATES = ['ParamMouthOpenY', 'ParamA', 'ParamMouthOpen'];
+const LIP_PARAM_CANDIDATES = ['ParamMouthOpenY', 'ParamA', 'ParamI', 'ParamU', 'ParamE', 'ParamO', 'ParamMouthOpen'];
+
+/**
+ * 副口型参数按音量比例的固定权重（仅对模型实际存在的参数生效）。
+ * Cubism 标准元音口型参数：/a/ 开口最大、/i/ 微笑、/u/ 嘟嘴、/e/ 咧嘴、/o/ 圆口。
+ * 单参数音量只能表达「嘴张多大」；叠加这些权重后能表达基础嘴型倾向，
+ * 口型观感显著提升且不依赖后端数据。
+ */
+const LIP_AUX_WEIGHTS: ReadonlyArray<readonly [string, number]> = [
+  ['ParamA', 0.35],
+  ['ParamI', 0.25],
+  ['ParamU', 0.15],
+  ['ParamE', 0.2],
+  ['ParamO', 0.3],
+];
+
+/**
+ * viseme 向量索引 → 副口型参数映射（与 LIP_AUX_WEIGHTS 顺序一致）：
+ * [a, i, u, e, o] → [ParamA, ParamI, ParamU, ParamE, ParamO]
+ */
+const VISEME_AUX_PARAMS: ReadonlyArray<string> = [
+  'ParamA',
+  'ParamI',
+  'ParamU',
+  'ParamE',
+  'ParamO',
+];
+
+/** viseme 驱动副口型参数的缩放系数（概率 0..1 → 参数 0..0.9）。 */
+const VISEME_PARAM_SCALE = 0.9;
 
 /**
  * Wraps a pixi-live2d-display model behind a small imperative API used by the
@@ -46,8 +76,15 @@ export class Live2DModelAdapter implements Live2DAdapter {
   private readonly tapMotions: TapMotions;
 
   private expressionNames: string[] = [];
+  /** 主口型参数（ParamMouthOpenY 或其别名）。 */
   private lipParamId: string | null = null;
+  /** 模型实际存在的副口型参数（ParamA/I/U/E/O 子集）。 */
+  private lipAuxParams: string[] = [];
   private lipSyncValue = 0;
+  /** 音素级口型向量（Phase 2，缺省 null = 回退固定比例口型）。 */
+  private lipViseme: VisemeVector | null = null;
+  /** 说话头部微动（Phase B2）。 */
+  private readonly headMotion = new HeadMotion();
   private resizeObserver: ResizeObserver | null = null;
   private readonly frameListener: () => void;
 
@@ -88,7 +125,7 @@ export class Live2DModelAdapter implements Live2DAdapter {
     this.app.stage.addChild(this.model);
 
     this.expressionNames = this.readExpressionNames(this.model);
-    this.resolveLipParam(this.model);
+    this.resolveLipParams(this.model);
     this.fitModel();
 
     this.app.ticker.add(this.frameListener);
@@ -103,7 +140,7 @@ export class Live2DModelAdapter implements Live2DAdapter {
   // Public control API
   // ------------------------------------------------------------------ //
 
-  setExpression(input: string | number | undefined | null): void {
+  setExpression(input: string | number | undefined | null, _confidence?: number | null): void {
     if (!this.model) return;
     const name = this.resolveExpressionName(input);
     if (!name) {
@@ -139,8 +176,22 @@ export class Live2DModelAdapter implements Live2DAdapter {
     void this.model.motion('Idle', 0, 3).catch(() => undefined);
   }
 
-  setLipSync(value: number): void {
+  playRandomMotion(mode: 'idle' | 'speaking'): boolean {
+    if (!this.model) return false;
+    const picked = pickRandomMotion(this.model, mode);
+    if (!picked) return false;
+    try {
+      // priority 2 (NORMAL)：不打断 FORCE 级的关键动作
+      void this.model.motion(picked.group, picked.index, 2).catch(() => undefined);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  setLipSync(value: number, viseme?: VisemeVector | null): void {
     this.lipSyncValue = value;
+    this.lipViseme = viseme ?? null;
   }
 
   /** 捕获当前渲染帧为 PNG data URL（用于生成模型缩略图）。 */
@@ -223,30 +274,83 @@ export class Live2DModelAdapter implements Live2DAdapter {
     return fuzzy ?? null;
   }
 
-  private resolveLipParam(model: Live2DModelInstance): void {
+  private resolveLipParams(model: Live2DModelInstance): void {
     try {
       const core = model.internalModel.coreModel as {
         getParameterIndex(id: string): number;
       };
+      this.lipParamId = null;
       for (const id of LIP_PARAM_CANDIDATES) {
         if (core.getParameterIndex(id) >= 0) {
           this.lipParamId = id;
           break;
         }
       }
+      // 收集模型实际存在的副口型参数（多参数口型，Phase 1）
+      this.lipAuxParams = [];
+      for (const [id] of LIP_AUX_WEIGHTS) {
+        if (core.getParameterIndex(id) >= 0) this.lipAuxParams.push(id);
+      }
     } catch {
       this.lipParamId = null;
+      this.lipAuxParams = [];
     }
   }
 
   private applyFrameParams(): void {
     if (!this.model || !this.app) return;
+
+    const core = this.model.internalModel.coreModel as {
+      getParameterIndex(id: string): number;
+      setParameterValueById(id: string, value: number, weight?: number): void;
+    };
+
     if (this.lipSyncValue > 0.005 && this.lipParamId) {
       try {
-        const core = this.model.internalModel.coreModel as {
-          setParameterValueById(id: string, value: number, weight?: number): void;
-        };
-        core.setParameterValueById(this.lipParamId, this.lipSyncValue * 0.9);
+        const open = this.lipSyncValue * 0.9;
+        core.setParameterValueById(this.lipParamId, open);
+
+        // 有 viseme（Phase 2）：按元音概率驱动对应口型参数（嘴形由音素决定）
+        if (this.lipViseme && this.lipViseme.length >= 5) {
+          for (let v = 0; v < VISEME_AUX_PARAMS.length; v++) {
+            const id = VISEME_AUX_PARAMS[v];
+            if (this.lipAuxParams.indexOf(id) >= 0) {
+              core.setParameterValueById(id, open * this.lipViseme[v] * VISEME_PARAM_SCALE);
+            }
+          }
+        } else {
+          // 回退（Phase 1）：副口型参数按固定比例推导
+          for (const [id, weight] of LIP_AUX_WEIGHTS) {
+            if (this.lipAuxParams.indexOf(id) >= 0) {
+              core.setParameterValueById(id, open * weight);
+            }
+          }
+        }
+      } catch {
+        // ignore per-frame param errors
+      }
+    } else {
+      // 静音：主参数归零；副参数留给模型的 idle 动画自行控制（不强行覆盖）
+      try {
+        if (this.lipParamId) core.setParameterValueById(this.lipParamId, 0);
+      } catch {
+        // ignore per-frame param errors
+      }
+    }
+
+    // 说话头部微动（Phase B2）：幅度小、三轴正弦错相；idle 时归零交给动作
+    this.headMotion.update(performance.now() / 1000, this.lipSyncValue);
+    if (this.headMotion.isActive()) {
+      try {
+        if (core.getParameterIndex('ParamAngleX') >= 0) {
+          core.setParameterValueById('ParamAngleX', this.headMotion.angleX);
+        }
+        if (core.getParameterIndex('ParamAngleY') >= 0) {
+          core.setParameterValueById('ParamAngleY', this.headMotion.angleY);
+        }
+        if (core.getParameterIndex('ParamAngleZ') >= 0) {
+          core.setParameterValueById('ParamAngleZ', this.headMotion.angleZ);
+        }
       } catch {
         // ignore per-frame param errors
       }

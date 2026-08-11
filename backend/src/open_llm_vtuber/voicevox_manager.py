@@ -373,9 +373,10 @@ class VoiceVoxManager:
             if "PermissionError" in tail_text or "Permission denied" in tail_text:
                 hint = (
                     "引擎写用户数据目录（%LOCALAPPDATA%\\voicevox-engine）被当前运行环境限制。"
-                    "请在本机自己的终端（非受限环境）手动启动引擎："
+                    "请在 PowerShell/CMD 中手动启动引擎（cmd 中不要加 ./ 前缀）："
                     "cd backend/vendor/voicevox_engine/windows-cpu && run.exe，"
-                    "引擎就绪（50021）后回到设置页刷新状态即可。"
+                    "等 10-15 秒后 curl http://127.0.0.1:50021/version 返回 JSON 即就绪，"
+                    "回到设置页点「检测状态」刷新即可。"
                 )
             elif "見つかりません" in tail_text or "not found" in tail_text.lower():
                 hint = f"引擎组件缺失（{tail_text.strip().splitlines()[-1][:80]}）。建议重新下载引擎。"

@@ -49,16 +49,16 @@ export function PerfSettings(): ReactElement {
   /** 引擎库只显示已配置可用的引擎（默认开；关闭可看到全部引擎用于配置）。 */
   const [onlyReady, setOnlyReady] = useState(true);
 
-  /** 终端启动后端的命令（PowerShell / CMD 均可）。 */
-  const BACKEND_START_CMD =
-    'cd C:\\Users\\Elysia\\Desktop\\Project\\Pycharm\\Moonlight\\backend && uv run run_server.py';
+  /** VOICEVOX 引擎手动启动命令（PowerShell / CMD 均可；cmd 中不要加 ./ 前缀）。 */
+  const VOICEVOX_START_CMD =
+    'cd C:\\Users\\Elysia\\Desktop\\Project\\Pycharm\\Moonlight\\backend\\vendor\\voicevox_engine\\windows-cpu && run.exe';
 
   const copyStartCmd = async (): Promise<void> => {
     try {
-      await navigator.clipboard.writeText(BACKEND_START_CMD);
-      setStatus('已复制启动命令，粘贴到 PowerShell/CMD 运行即可（先停掉当前后端）');
+      await navigator.clipboard.writeText(VOICEVOX_START_CMD);
+      setStatus('已复制引擎启动命令，粘贴到 PowerShell/CMD 运行即可（cmd 中不要加 ./）');
     } catch {
-      setStatus(`复制失败，请手动输入：${BACKEND_START_CMD}`);
+      setStatus(`复制失败，请手动输入：${VOICEVOX_START_CMD}`);
     }
   };
 
@@ -402,13 +402,18 @@ export function PerfSettings(): ReactElement {
                   {showStartGuide && (
                     <div className="voicevox-start-guide">
                       <div className="setting-note">
-                        若「启动引擎」提示无法写入用户数据目录（运行环境沙箱限制），请先停掉当前后端，在 PowerShell/CMD 中运行以下命令启动后端，再回此页点「启动引擎」：
+                        最稳妥：直接在 PowerShell/CMD 中运行以下命令启动引擎（<b>cmd 中不要加 ./ 前缀</b>），
+                        等约 10-15 秒后 <code>curl http://127.0.0.1:50021/version</code> 返回 JSON 即就绪，然后点上方「检测状态」刷新：
                       </div>
                       <div className="voicevox-start-cmd">
-                        <code>{BACKEND_START_CMD}</code>
+                        <code>{VOICEVOX_START_CMD}</code>
                         <button className="btn" onClick={() => void copyStartCmd()}>
                           复制命令
                         </button>
+                      </div>
+                      <div className="setting-note">
+                        若点「启动引擎」由后端拉起时报「无法写入用户数据目录」：那是后端进程运行在受限环境（沙箱）所致，
+                        请在 PowerShell/CMD 中重启后端（<code>cd 项目backend目录 && uv run run_server.py</code>）后再回此页点「启动引擎」。
                       </div>
                     </div>
                   )}

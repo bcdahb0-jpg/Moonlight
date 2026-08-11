@@ -92,6 +92,21 @@ def _get_volume_by_chunks(audio: AudioSegment, chunk_length_ms: int) -> list:
     return [volume / max_volume for volume in volumes]
 
 
+def _get_visemes_by_chunks(audio: AudioSegment, chunk_length_ms: int) -> list:
+    """音素级口型：每 slice 一个 [a,i,u,e,o] 概率向量（可选增强）。
+
+    失败时静默降级为空列表 —— 前端没有 visemes 时自动回退 RMS 口型，
+    不影响主链路。
+    """
+    try:
+        from .viseme import compute_visemes
+
+        return compute_visemes(audio, chunk_length_ms)
+    except Exception as e:  # pragma: no cover - 保底不炸音频链路
+        logger.debug(f"viseme analysis failed, falling back to RMS-only: {type(e).__name__}")
+        return []
+
+
 def prepare_audio_payload(
     audio_path: str | None,
     chunk_length_ms: int = 20,
@@ -120,8 +135,12 @@ def prepare_audio_payload(
     if isinstance(display_text, DisplayText):
         display_text = display_text.to_dict()
 
-    # Moonlight 集成：从回复文本推断情绪，附加到载荷并更新全局跟踪器
+    # Moonlight 集成：从回复文本推断情绪，附加到载荷并更新全局跟踪器。
+    # Phase 1（面部表情）：规则快路径（analyzer）同步跑；句子流预取的 LLM
+    # 慢路径结果（tracker LLM 缓存，text_fingerprint 指纹匹配）命中时优先，
+    # 附带 emotion_meta {intensity, duration_ms, source} 供前端驱动表情强度与时长。
     _emotion = None
+    _emotion_meta = None
     if display_text and isinstance(display_text, dict):
         _text = display_text.get("text") or ""
         try:
@@ -129,9 +148,26 @@ def prepare_audio_payload(
             _emotion = _res.emotion
             if _emotion and _emotion != "neutral":
                 from ..emotion import get_emotion_tracker
+                from ..emotion.emotion_classifier import text_fingerprint
 
+                llm = get_emotion_tracker().get_llm_cache(text_fingerprint(_text))
+                if llm and llm["emotion"] != "neutral":
+                    _emotion = llm["emotion"]
+                    _emotion_meta = {
+                        "intensity": llm["intensity"],
+                        "duration_ms": llm["duration_ms"],
+                        "source": "llm",
+                    }
+                else:
+                    _emotion_meta = {
+                        "intensity": _res.confidence,
+                        "duration_ms": 4000,
+                        "source": "rule",
+                    }
                 get_emotion_tracker().update(
-                    _emotion, _res.confidence, source="conversation"
+                    _emotion,
+                    _emotion_meta.get("intensity", _res.confidence),
+                    source="conversation",
                 )
         except Exception:
             _emotion = None
@@ -142,12 +178,14 @@ def prepare_audio_payload(
             "type": "audio",
             "audio": None,
             "volumes": [],
+            "visemes": [],
             "slice_length": chunk_length_ms,
             "display_text": display_text,
             "subtitle_text": subtitle_text,
             "actions": actions.to_dict() if actions else None,
             "forwarded": forwarded,
             "emotion": _emotion,
+            "emotion_meta": _emotion_meta,
         }
 
     try:
@@ -164,17 +202,20 @@ def prepare_audio_payload(
         )
     audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
     volumes = _get_volume_by_chunks(audio, chunk_length_ms)
+    visemes = _get_visemes_by_chunks(audio, chunk_length_ms)
 
     payload = {
         "type": "audio",
         "audio": audio_base64,
         "volumes": volumes,
+        "visemes": visemes,
         "slice_length": chunk_length_ms,
         "display_text": display_text,
         "subtitle_text": subtitle_text,
         "actions": actions.to_dict() if actions else None,
         "forwarded": forwarded,
         "emotion": _emotion,
+        "emotion_meta": _emotion_meta,
     }
 
     return payload

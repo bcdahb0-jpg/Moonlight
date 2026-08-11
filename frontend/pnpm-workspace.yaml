@@ -1,0 +1,11 @@
+allowBuilds:
+  active-win: set this to true or false
+  electron: set this to true or false
+  esbuild: set this to true or false
+# pnpm v11 设置（package.json 的 "pnpm" 字段已废弃，配置统一放这里）
+# 允许这些依赖执行构建脚本（安装二进制），否则 electron/esbuild 会
+# 报 "Electron failed to install correctly" / esbuild 无二进制。
+onlyBuiltDependencies:
+  - electron
+  - esbuild
+  - active-win

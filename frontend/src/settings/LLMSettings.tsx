@@ -165,10 +165,10 @@ export function LLMSettings(): ReactElement {
       </div>
       {status && <div className="setting-status">{status}</div>}
 
-      {/* 性能与预设：本地模型驻留 / 一键预设（记忆整理已移到「记忆」页统一管理） */}
+      {/* 性能与预设：本地模型驻留 / 一键预设（折叠收纳，重设计 v4） */}
       {perf && (
-        <div className="llm-perf-block">
-          <h4 className="engine-section-title">性能与预设</h4>
+        <details className="llm-perf-fold">
+          <summary>性能与预设</summary>
           <div className="engine-more-panel">
             <label className="field">
               <span>Ollama keep_alive（秒，-1 常驻）</span>
@@ -197,7 +197,7 @@ export function LLMSettings(): ReactElement {
               </div>
             </div>
           </div>
-        </div>
+        </details>
       )}
     </div>
   );

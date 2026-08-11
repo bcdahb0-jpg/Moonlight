@@ -14,6 +14,12 @@ import { Icon } from '@/ui/icons';
 export interface PetOverlayProps {
   affection: AffectionSummary | null;
   emotion: Emotion;
+  /** 情绪强度 0..1（诊断显示）。 */
+  emotionIntensity?: number | null;
+  /** 情绪来源 'rule' | 'llm'（诊断显示）。 */
+  emotionSource?: string | null;
+  /** 引擎类型（诊断徽标：soullink / legacy）。 */
+  engineType?: 'soullink' | 'legacy' | null;
   connStatus: ConnStatus;
   errorCode: ErrorCode | null;
   onToggleMode: () => void;
@@ -24,6 +30,9 @@ export interface PetOverlayProps {
 export function PetOverlay({
   affection,
   emotion,
+  emotionIntensity,
+  emotionSource,
+  engineType,
   connStatus,
   onToggleMode,
   onOpenSettings,
@@ -33,7 +42,16 @@ export function PetOverlay({
     <div className="pet-overlay">
       {/* 信息区：常驻显示 */}
       <AffectionBadge affection={affection} />
-      <EmotionBadge emotion={emotion} />
+      <EmotionBadge
+        emotion={emotion}
+        intensity={emotionIntensity}
+        source={emotionSource}
+      />
+      {engineType && (
+        <span className={`engine-badge ${engineType}`}>
+          {engineType === 'soullink' ? 'SDK引擎' : '切换式'}
+        </span>
+      )}
       <div className="conn-dot" data-status={connStatus} />
 
       {/* 操作区：hover 显示图标，默认隐藏 */}

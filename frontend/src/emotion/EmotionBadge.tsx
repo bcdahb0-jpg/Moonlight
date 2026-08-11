@@ -37,8 +37,29 @@ const EMOTION_LABELS: Record<Emotion, string> = {
 
 export interface EmotionBadgeProps {
   emotion: Emotion;
+  /** 情绪强度 0..1（诊断显示，如「开心 · 0.8」）。 */
+  intensity?: number | null;
+  /** 情绪来源：'rule' | 'llm'（诊断显示角标）。 */
+  source?: string | null;
 }
 
-export function EmotionBadge({ emotion }: EmotionBadgeProps): ReactElement {
-  return <span className={`emotion-badge ${emotion}`}>{EMOTION_LABELS[emotion] ?? emotion}</span>;
+const SOURCE_LABELS: Record<string, string> = {
+  rule: '规则',
+  llm: 'LLM',
+  conversation: '对话',
+  manual: '手动',
+  reset: '复位',
+};
+
+export function EmotionBadge({ emotion, intensity, source }: EmotionBadgeProps): ReactElement {
+  const sourceLabel = source ? SOURCE_LABELS[source] ?? source : null;
+  return (
+    <span className={`emotion-badge ${emotion}`} title={`情绪来源：${sourceLabel ?? '未知'}`}>
+      {EMOTION_LABELS[emotion] ?? emotion}
+      {intensity !== null && intensity !== undefined && (
+        <span className="emotion-badge-meta">{intensity.toFixed(1)}</span>
+      )}
+      {sourceLabel && <span className="emotion-badge-meta src">{sourceLabel}</span>}
+    </span>
+  );
 }

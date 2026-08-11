@@ -108,7 +108,9 @@ function makeIntent(
   const vad = getVADPreset(emotion);
   return {
     emotion,
-    intensity: clamp01(intensity),
+    // 表情可见度保底：低于 0.55 的弱强度会被拉高，保证每次情绪触发
+    // 都有肉眼可见的表情（引擎的 FACS 是渐变式，弱强度下几乎不可察觉）
+    intensity: clamp01(Math.max(0.55, intensity)),
     naturalVAD: vad,
     contextTags: [`backend:${sourceEmotion}`],
   };

@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { topicsApi, ApiError, type ProactiveTopicsResult } from '@/api/rest';
+import { useAppState } from '@/state/AppStateContext';
 import { Icon } from '@/ui/icons';
 
 export function ProactiveSettings(): ReactElement {
+  const { state, dispatch } = useAppState();
   const [data, setData] = useState<ProactiveTopicsResult | null>(null);
   const [newTopic, setNewTopic] = useState('');
   const [status, setStatus] = useState('');
+
+  const updateSetting = (patch: Partial<typeof state.settings>): void => {
+    dispatch({ type: 'UPDATE_SETTINGS', settings: patch });
+  };
 
   const load = useCallback(async (): Promise<void> => {
     try {
@@ -55,14 +61,64 @@ export function ProactiveSettings(): ReactElement {
 
   return (
     <div className="settings-section general-settings">
+      {/* 主动对话开关（原「屏幕感知」页移入） */}
       <section className="settings-card">
         <div className="settings-card-head">
           <span className="settings-card-icon">
             <Icon name="zap" size={16} />
           </span>
           <div className="settings-card-title">
+            <h3>主动对话</h3>
+          </div>
+        </div>
+        <div className="settings-card-body">
+          <label className="toggle-row">
+            <span>启用主动对话</span>
+            <input
+              type="checkbox"
+              checked={state.settings.proactiveEnabled}
+              onChange={(e) => updateSetting({ proactiveEnabled: e.target.checked })}
+            />
+          </label>
+          <label className="field">
+            <span>空闲触发（秒）</span>
+            <input
+              type="number"
+              min={5}
+              max={600}
+              value={state.settings.proactiveIdleSec}
+              onChange={(e) => updateSetting({ proactiveIdleSec: Math.max(5, Number(e.target.value)) })}
+            />
+          </label>
+          <label className="toggle-row">
+            <span>自动发送话题</span>
+            <input
+              type="checkbox"
+              checked={state.settings.autoSpeakOnIdle}
+              onChange={(e) => updateSetting({ autoSpeakOnIdle: e.target.checked })}
+            />
+          </label>
+          <label className="toggle-row">
+            <span>仅桌宠模式触发</span>
+            <input
+              type="checkbox"
+              checked={state.settings.proactivePetModeOnly}
+              onChange={(e) => updateSetting({ proactivePetModeOnly: e.target.checked })}
+            />
+          </label>
+          <div className="field-note">
+            开启后，主动找话题只在桌宠模式触发；窗口模式（等待任务/思考输入）不会被打扰。
+          </div>
+        </div>
+      </section>
+
+      <section className="settings-card">
+        <div className="settings-card-head">
+          <span className="settings-card-icon">
+            <Icon name="message" size={16} />
+          </span>
+          <div className="settings-card-title">
             <h3>主动话题</h3>
-            <p>AI 主动搭话时的话题池</p>
           </div>
         </div>
         <div className="settings-card-body">
@@ -114,7 +170,6 @@ export function ProactiveSettings(): ReactElement {
           </span>
           <div className="settings-card-title">
             <h3>新闻来源</h3>
-            <p>自动拉取新鲜时事，丰富搭话素材</p>
           </div>
         </div>
         <div className="settings-card-body">

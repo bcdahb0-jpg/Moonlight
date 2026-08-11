@@ -25,6 +25,7 @@ from .chat_history_manager import (
     create_new_history,
     get_history,
     delete_history,
+    clear_all_histories,
     get_history_list,
     update_metadate,
 )
@@ -91,7 +92,9 @@ class WebSocketHandler:
         self.chat_group_manager = ChatGroupManager()
         self.current_conversation_tasks: Dict[str, Optional[asyncio.Task]] = {}
         self.default_context_cache = default_context_cache
-        self.received_data_buffers: Dict[str, np.ndarray] = {}
+        # Store microphone chunks without repeatedly reallocating the complete
+        # utterance. The conversation handler joins the list once on trigger.
+        self.received_data_buffers: Dict[str, list[np.ndarray]] = {}
 
         # Message handlers mapping
         self._message_handlers = self._init_message_handlers()
@@ -107,6 +110,8 @@ class WebSocketHandler:
             "create-new-history": self._handle_create_history,
             "delete-history": self._handle_delete_history,
             "set-history-title": self._handle_set_history_title,
+            "set-history-workspace": self._handle_set_history_workspace,
+            "clear-all-histories": self._handle_clear_all_histories,
             "interrupt-signal": self._handle_interrupt,
             "mic-audio-data": self._handle_audio_data,
             "mic-audio-end": self._handle_conversation_trigger,
@@ -166,7 +171,7 @@ class WebSocketHandler:
         """Store client data and initialize group status"""
         self.client_connections[client_uid] = websocket
         self.client_contexts[client_uid] = session_service_context
-        self.received_data_buffers[client_uid] = np.array([])
+        self.received_data_buffers[client_uid] = []
 
         self.chat_group_manager.client_group_map[client_uid] = ""
         await self.send_group_update(websocket, client_uid)
@@ -484,15 +489,26 @@ class WebSocketHandler:
             if msg["role"] != "system"
         ]
         await send_message(
-            websocket.send_text, {"type": "history-data", "messages": messages}
+            websocket.send_text,
+            {
+                "type": "history-data",
+                # Moonlight（2026-08-10 修复）：带 history_uid，前端据此同步
+                # currentHistoryUid（否则点击旧会话后输入仍被要求选工作目录）。
+                "history_uid": history_uid,
+                "messages": messages,
+            },
         )
 
     async def _handle_create_history(
         self, websocket: WebSocket, client_uid: str, data: WSMessage
     ) -> None:
-        """Handle creation of new chat history"""
+        """Handle creation of new chat history.
+
+        v5：所有会话必须归属工作目录，``workspace``（绝对路径）由前端必传。
+        """
         context = self.client_contexts[client_uid]
-        history_uid = create_new_history(context.character_config.conf_uid)
+        workspace = (data.get("workspace") or "").strip()
+        history_uid = create_new_history(context.character_config.conf_uid, workspace)
         if history_uid:
             context.history_uid = history_uid
             if context.agent_engine is not None:
@@ -505,10 +521,50 @@ class WebSocketHandler:
                 {
                     "type": "new-history-created",
                     "history_uid": history_uid,
+                    "workspace": workspace,
                     # 用户手动点击「新建会话」：前端应清空聊天区（新会话空白预期）。
                     "auto": False,
                 },
             )
+
+    async def _handle_set_history_workspace(
+        self, websocket: WebSocket, client_uid: str, data: dict
+    ) -> None:
+        """把会话移动到另一个工作目录（更新 metadata.workspace）。"""
+        history_uid = data.get("history_uid")
+        workspace = (data.get("workspace") or "").strip()
+        if not history_uid or not workspace:
+            return
+        context = self.client_contexts[client_uid]
+        success = update_metadate(
+            context.character_config.conf_uid,
+            history_uid,
+            {"workspace": workspace},
+        )
+        await send_message(
+            websocket.send_text,
+            {
+                "type": "history-workspace-updated",
+                "success": success,
+                "history_uid": history_uid,
+                "workspace": workspace,
+            },
+        )
+
+    async def _handle_clear_all_histories(
+        self, websocket: WebSocket, client_uid: str, data: dict
+    ) -> None:
+        """清空该角色全部会话记录（存量无目录会话一次性清理，前端需二次确认）。"""
+        context = self.client_contexts[client_uid]
+        removed = clear_all_histories(context.character_config.conf_uid)
+        context.history_uid = None
+        await send_message(
+            websocket.send_text,
+            {
+                "type": "histories-cleared",
+                "removed": removed,
+            },
+        )
 
     async def _handle_delete_history(
         self, websocket: WebSocket, client_uid: str, data: dict
@@ -567,9 +623,8 @@ class WebSocketHandler:
         """Handle incoming audio data"""
         audio_data = data.get("audio", [])
         if audio_data:
-            self.received_data_buffers[client_uid] = np.append(
-                self.received_data_buffers[client_uid],
-                np.array(audio_data, dtype=np.float32),
+            self.received_data_buffers[client_uid].append(
+                np.asarray(audio_data, dtype=np.float32)
             )
 
     async def _handle_raw_audio_data(
@@ -592,9 +647,8 @@ class WebSocketHandler:
                     pass
                 elif len(audio_bytes) > 1024:
                     # Detected audio activity (voice)
-                    self.received_data_buffers[client_uid] = np.append(
-                        self.received_data_buffers[client_uid],
-                        np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32),
+                    self.received_data_buffers[client_uid].append(
+                        np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32)
                     )
                     await send_message(
                         websocket.send_text,

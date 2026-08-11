@@ -1,0 +1,301 @@
+/* ==========================================================================
+   Moonlight · 前端重设计（方案 C 修正版）设计系统
+   File: frontend/src/styles/design-system.css
+   定位: 在 global.css 之后引入，只新增「任务域」token 与组件样式，渐进式接入。
+
+   与 global.css 的边界（评审 P0-1 修正）：
+   - 品牌主色 = 现有金色（--primary / --gradient-main），本文件不重复定义；
+   - 任务功能色 = 紫色语义 token（--task-*，方案 C 的 --brand-* 改名而来）；
+   - 表面层级用 --surface-* 命名，避免覆盖现有半透明玻璃 token（--bg-panel 等）；
+   - 语义状态用 --state-* 命名，避免与现有 --danger/--warn/--success 冲突。
+   ========================================================================== */
+
+:root,
+:root[data-theme='dark'] {
+  /* ---- 任务语义色（紫色功能分区，金色是品牌主色） ---- */
+  --task:       #7f77dd;
+  --task-strong:#6e64d4;          /* hover/active */
+  --task-bg:    rgba(127, 119, 221, 0.14);
+  --task-ink:   #ffffff;           /* task 底色上的文字 */
+
+  /* ---- 表面层级（方案 C --bg-* 改名，独立命名避免覆盖现有玻璃 token） ---- */
+  --surface-elevated: rgba(45, 47, 71, 0.82);  /* 卡片/选中项 */
+  --surface-hover:    rgba(52, 55, 79, 0.9);   /* hover 态 */
+  --surface-code:     rgba(15, 16, 24, 0.72);  /* 代码块/命令块 */
+
+  /* ---- 语义状态色（成功复用现有 --success） ---- */
+  --state-error:   #E24B4A;
+  --state-error-bg: rgba(226, 75, 74, 0.12);
+  --state-warning:  #BA7517;
+  --state-warning-bg: rgba(186, 117, 23, 0.14);
+  --state-info:     #378ADD;
+  --state-info-bg:  rgba(55, 138, 221, 0.12);
+
+  /* ---- 会话类型 chip ---- */
+  --chip-task-bg:   rgba(55, 138, 221, 0.14);
+  --chip-task-ink:  #85B7EB;
+  --chip-error-bg:  rgba(226, 75, 74, 0.14);
+  --chip-error-ink: #F09595;
+  --chip-chat-bg:   rgba(186, 117, 23, 0.16);
+  --chip-chat-ink:  #EF9F27;
+
+  /* ---- 动效（统一缓动，杜绝各组件自造曲线） ---- */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 300ms;
+  --ease-out:    cubic-bezier(0.25, 0.8, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* ---- 右栏任务详情态宽度（角色态沿用 global.css 的 0.42fr） ---- */
+  --right-panel-w: 360px;
+}
+
+:root[data-theme='light'] {
+  --task:       #534AB7;
+  --task-strong:#3C3489;
+  --task-bg:    rgba(83, 74, 183, 0.1);
+  --task-ink:   #ffffff;
+
+  --surface-elevated: rgba(255, 255, 255, 0.96);
+  --surface-hover:    rgba(241, 239, 232, 0.96);
+  --surface-code:     rgba(241, 239, 232, 0.96);
+
+  --state-error:    #A32D2D;
+  --state-error-bg: rgba(163, 45, 45, 0.08);
+  --state-warning:  #854F0B;
+  --state-warning-bg: rgba(186, 117, 23, 0.12);
+  --state-info:     #185FA5;
+  --state-info-bg:  rgba(24, 95, 165, 0.1);
+
+  --chip-task-bg:   #E6F1FB;
+  --chip-task-ink:  #185FA5;
+  --chip-error-bg:  #FCEBEB;
+  --chip-error-ink: #A32D2D;
+  --chip-chat-bg:   #FAEEDA;
+  --chip-chat-ink:  #854F0B;
+}
+
+/* ==========================================================================
+   1. 任务摘要卡（消息流，替代 TaskRunCard 就地展开）
+   紧凑 ≤3 行：状态行 / 元信息行 / 错误行（仅失败时）。点击整卡打开右栏详情。
+   ========================================================================== */
+.task-summary-card {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-glass);
+  backdrop-filter: var(--glass-blur);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out);
+}
+
+.task-summary-card:hover {
+  border-color: var(--task);
+  background: var(--bg-glass-strong);
+}
+
+/* 左侧状态色条：执行中=琥珀 / 完成=绿 / 失败=红 */
+.task-summary-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--text-faint);
+}
+
+.task-summary-card { position: relative; }
+.task-summary-card.running::before { background: var(--warn); }
+.task-summary-card.done::before { background: var(--success); }
+.task-summary-card.error::before { background: var(--state-error); }
+
+/* 行1：状态点 + 标题 + 状态文本 */
+.tsm-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tsm-state {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-faint);
+}
+
+.tsm-state.running {
+  background: var(--warn);
+  animation: pulse 1.3s infinite;
+}
+
+.tsm-state.done { background: var(--success); }
+.tsm-state.error { background: var(--state-error); }
+
+.tsm-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tsm-title b { font-weight: 600; }
+
+.tsm-status {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.tsm-status.running { color: var(--warn); }
+.tsm-status.done { color: var(--success); }
+.tsm-status.error { color: var(--state-error); }
+
+/* 行2：耗时 / 工具次数 / 工作目录 / 详情入口 */
+.tsm-meta {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.tsm-meta .dot-sep { opacity: 0.6; }
+
+.tsm-meta .tsm-dir {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tsm-detail-btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--task);
+  background: var(--task-bg);
+  border: 1px solid transparent;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+
+.task-summary-card:hover .tsm-detail-btn {
+  border-color: var(--task);
+}
+
+/* 行3：失败原因（仅 error 态） */
+.tsm-error {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--state-error);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   2. 右栏角色舞台（2026-08-09：任务详情抽屉已移除，右栏只服务角色）
+   ========================================================================== */
+.right-panel {
+  grid-column: 3;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  background: var(--bg-solid);
+  overflow: hidden;
+}
+
+/* 角色舞台：常驻 */
+.character-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(
+    circle at 50% 28%,
+    rgba(242, 200, 121, 0.16),
+    rgba(120, 90, 220, 0.1) 45%,
+    transparent 72%
+  );
+  transition: flex-basis 0.25s ease;
+}
+
+.right-panel .live2d-root { flex: 1; min-height: 0; }
+
+/* 复用 global.css 的 .tool-row / .run-output / .run-summary / .s-chip */
+
+/* ==========================================================================
+   4. 会话列表状态 chip（纯聊不显示；任务/失败才出现）
+   ========================================================================== */
+.conv-item-chips {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.conv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.conv-chip svg { flex-shrink: 0; }
+
+.conv-chip.task {
+  background: var(--chip-task-bg);
+  color: var(--chip-task-ink);
+}
+
+.conv-chip.error {
+  background: var(--chip-error-bg);
+  color: var(--chip-error-ink);
+}
+
+/* 折叠态下隐藏 chip（预览只留标题文字） */
+.conv-sidebar.closed .conv-item-chips { display: none; }
+
+/* 任务模式下拉菜单：「新建任务」入口分隔线 */
+.mode-sep {
+  height: 1px;
+  margin: 4px 10px;
+  background: var(--border);
+}
+
+/* 摘要卡内模式指示（任务模式输入区下拉高亮） */
+.task-mode-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--task);
+  font-weight: 500;
+}

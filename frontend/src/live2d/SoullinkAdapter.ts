@@ -8,12 +8,13 @@ import type {
   AudioLevelAnalyzer,
   EmotionIntent,
   Live2DParamState,
-  NativeAnimationDirective,
   ModelProfile,
+  NativeAnimationDirective,
   RuntimeSnapshot,
 } from '@soullink-emotion/engine';
 import { ensureCubismCore } from './cubismCore';
 import { neutralIntent, toEmotionIntent } from './emotionBridge';
+import { HeadMotion, isBodyParam, isHeadParam, pickRandomMotion } from './motionUtils';
 import type { Live2DAdapter } from './Live2DAdapter';
 import type { EmotionMap, TapMotions } from './Live2DModelAdapter';
 
@@ -23,6 +24,8 @@ interface SoullinkAdapterOptions {
   canvas: HTMLCanvasElement;
   modelUrl: string;
   profileUrl: string;
+  /** 直接注入 profile 对象（默认 profile 生成器产物）；优先于 profileUrl 加载。 */
+  profile?: ModelProfile;
   emotionMap?: EmotionMap;
   tapMotions?: TapMotions;
 }
@@ -51,6 +54,7 @@ export class SoullinkAdapter implements Live2DAdapter {
   private readonly canvas: HTMLCanvasElement;
   private readonly modelUrl: string;
   private readonly profileUrl: string;
+  private readonly injectedProfile?: ModelProfile;
   private readonly emotionMap: EmotionMap;
   private readonly tapMotions: TapMotions;
 
@@ -64,10 +68,22 @@ export class SoullinkAdapter implements Live2DAdapter {
   private voiceLevel = 0;
   private voiceActive = false;
 
+  // 说话头部微动（Phase B2，引擎 idle 头部输出为 0 的补丁）
+  private readonly headMotion = new HeadMotion();
+
   // 引擎最新一帧参数（在 beforeModelUpdate hook 中写入）
   private latestParams: Live2DParamState = {};
   private lastNativeAnimToken = -1;
   private suppressedParamIds: ReadonlySet<string> = new Set();
+
+  // ---- 自研眨眼（引擎 0.1.0-beta.1 的 BlinkController 缺陷补丁）----
+  // Node 探针实证：idle 的 eyeBlinkL/R FACS 恒 0，12s 无一次眨眼。
+  // 此处自己调度眨眼（2.5-6s 随机间隔、150ms 正弦波形），在写参数时把
+  // ParamEyeLOpen/ROpen 按 (1 - blinkValue) 压低，实现自然眨眼。
+  private blinkNextAt = 2 + Math.random() * 3;
+  private blinkUntil = -1;
+  private blinkValue = 0;
+  private readonly blinkCloseDuration = 0.15; // 一次眨眼的闭合-张开总时长(s)
 
   private readonly onBeforeModelUpdate = (): void => this.applyParametersNow();
   private resizeObserver: ResizeObserver | null = null;
@@ -76,6 +92,7 @@ export class SoullinkAdapter implements Live2DAdapter {
     this.canvas = options.canvas;
     this.modelUrl = options.modelUrl;
     this.profileUrl = options.profileUrl;
+    this.injectedProfile = options.profile;
     this.emotionMap = options.emotionMap ?? {};
     this.tapMotions = options.tapMotions ?? {};
   }
@@ -113,11 +130,13 @@ export class SoullinkAdapter implements Live2DAdapter {
     };
     internalModel.eyeBlink = undefined;
 
-    // 加载模型 Profile 并构造引擎
-    const profile = await this.loadProfile();
+    // 加载模型 Profile 并构造引擎；blinkRate=2.2 → BlinkController 间隔
+    // ~1.4-3.2s（引擎 rate 范围 0.25-2.5；scheduleNext: base=(3+rand*4)/rate，
+    // rate 越大眨眼越频繁。0.35 是错误方向——会放大到 8.6-20s/次）
+    const profile = this.injectedProfile ?? (await this.loadProfile());
     this.runtime = new SoullinkRuntime({
       profile,
-      motionStyle: { ...motionStylePresets.lively },
+      motionStyle: { ...motionStylePresets.lively, blinkRate: 2.2 },
     });
     // 用后端的实时音量驱动引擎口型
     this.runtime.setAudioLevelAnalyzer(new VolumeLevelAnalyzer(() => this.voiceLevel));
@@ -138,9 +157,9 @@ export class SoullinkAdapter implements Live2DAdapter {
   // Public control API（与 Live2DModelAdapter 保持一致）
   // ------------------------------------------------------------------ //
 
-  setExpression(input: string | number | undefined | null): void {
+  setExpression(input: string | number | undefined | null, confidence?: number | null): void {
     if (!this.runtime) return;
-    const intent = toEmotionIntent(input, this.emotionMap);
+    const intent = toEmotionIntent(input, this.emotionMap, confidence ?? undefined);
     if (!intent) {
       this.revertExpression();
       return;
@@ -174,7 +193,20 @@ export class SoullinkAdapter implements Live2DAdapter {
     void this.model.motion('Idle', 0, 3).catch(() => undefined);
   }
 
-  setLipSync(value: number): void {
+  playRandomMotion(mode: 'idle' | 'speaking'): boolean {
+    if (!this.model) return false;
+    const picked = pickRandomMotion(this.model, mode);
+    if (!picked) return false;
+    try {
+      // priority 2 (NORMAL)：不打断 FORCE 级关键动作
+      void this.model.motion(picked.group, picked.index, 2).catch(() => undefined);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  setLipSync(value: number, _viseme?: import('./Live2DAdapter').VisemeVector | null): void {
     this.voiceLevel = value;
     const active = value > 0.005;
     if (active !== this.voiceActive) {
@@ -267,10 +299,33 @@ export class SoullinkAdapter implements Live2DAdapter {
     const deltaSeconds = Math.min(0.1, absoluteTime - this.previousTime);
     this.previousTime = absoluteTime;
 
+    // 自研眨眼调度（引擎 BlinkController 缺陷补丁）
+    this.updateBlink(timeSeconds);
+
+    // 说话头部微动（Phase B2）：随音量摆动/点头；idle 交给模型动作
+    this.headMotion.update(timeSeconds, this.voiceLevel);
+
     const snapshot = this.runtime?.update(timeSeconds, deltaSeconds);
     if (snapshot) this.applySnapshot(snapshot);
 
     this.frameId = requestAnimationFrame(this.frame.bind(this));
+  }
+
+  /**
+   * 眨眼调度：2.5-6s 随机间隔触发一次，150ms 正弦波形（0→1→0）。
+   * 值在 applyParametersNow 里作用于 ParamEyeLOpen/ROpen。
+   */
+  private updateBlink(timeSeconds: number): void {
+    if (timeSeconds >= this.blinkNextAt) {
+      this.blinkUntil = timeSeconds + this.blinkCloseDuration;
+      this.blinkNextAt = timeSeconds + 2.5 + Math.random() * 3.5;
+    }
+    if (this.blinkUntil > timeSeconds) {
+      const phase = (this.blinkUntil - timeSeconds) / this.blinkCloseDuration; // 1 → 0
+      this.blinkValue = Math.sin(phase * Math.PI); // 0 → 1 → 0
+    } else {
+      this.blinkValue = 0;
+    }
   }
 
   private applySnapshot(snapshot: RuntimeSnapshot): void {
@@ -336,7 +391,30 @@ export class SoullinkAdapter implements Live2DAdapter {
     for (const [id, value] of Object.entries(this.latestParams)) {
       if (this.suppressedParamIds.has(id)) continue;
       if (coreModel.getParameterIndex && coreModel.getParameterIndex(id) < 0) continue;
-      coreModel.setParameterValueById(id, value, 1);
+      // 引擎的头部/身体姿态参数（headX/Y/Z → ParamAngle*、bodyX/Y/Z → ParamBodyAngle*）
+      // 与模型动作（Idle/Talk 动画）同写一套参数，每帧覆盖会把动作动画压成
+      // 引擎的静态微动（Node 探针实证引擎 idle 也输出 head/body 非 0）。
+      // 姿态完全交给动作层 + 说话微动（HeadMotion），引擎只负责表情 FACS。
+      if (isHeadParam(id) || isBodyParam(id)) continue;
+      // 自研眨眼补丁：眨眼期间压低眼睛张开度（引擎 BlinkController 缺陷兜底）
+      let final = value;
+      if (this.blinkValue > 0 && (id === 'ParamEyeLOpen' || id === 'ParamEyeROpen')) {
+        final = value * (1 - this.blinkValue);
+      }
+      coreModel.setParameterValueById(id, final, 1);
+    }
+
+    // 说话头部微动叠加（Phase B2）：仅说话时生效，幅度小不冲突动作。
+    // 引擎头部参数已在上方无条件跳过，此处直接叠加（无需再检查引擎值）。
+    if (this.headMotion.isActive()) {
+      for (const [id, angle] of [
+        ['ParamAngleX', this.headMotion.angleX],
+        ['ParamAngleY', this.headMotion.angleY],
+        ['ParamAngleZ', this.headMotion.angleZ],
+      ] as const) {
+        if (coreModel.getParameterIndex && coreModel.getParameterIndex(id) < 0) continue;
+        coreModel.setParameterValueById(id, angle, 1);
+      }
     }
   }
 

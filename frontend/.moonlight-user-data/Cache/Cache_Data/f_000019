@@ -1,0 +1,238 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/settings/ScreenAwareSettings.tsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=b90f1a35"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.__vite_plugin_react_preamble_installed__) {
+    throw new Error("@vitejs/plugin-react can't detect preamble. Something is wrong. See https://github.com/vitejs/vite-plugin-react/pull/11#discussion_r430879201");
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = (type, id) => {
+    RefreshRuntime.register(type, "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx " + id);
+  };
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import { useAppState } from "/src/state/AppStateContext.tsx";
+import { Icon } from "/src/ui/icons.tsx";
+export function ScreenAwareSettings() {
+  _s();
+  const { state, dispatch } = useAppState();
+  const settings = state.settings;
+  const update = (patch) => {
+    dispatch({ type: "UPDATE_SETTINGS", settings: patch });
+  };
+  return /* @__PURE__ */ jsxDEV("div", { className: "settings-section general-settings", children: [
+    /* @__PURE__ */ jsxDEV("section", { className: "settings-card", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-head", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "settings-card-icon", children: /* @__PURE__ */ jsxDEV(Icon, { name: "monitor", size: 16 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+          lineNumber: 22,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+          lineNumber: 21,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "settings-card-title", children: /* @__PURE__ */ jsxDEV("h3", { children: "屏幕感知" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+          lineNumber: 25,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+          lineNumber: 24,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+        lineNumber: 20,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-body", children: [
+        /* @__PURE__ */ jsxDEV("label", { className: "toggle-row", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "启用屏幕感知" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+            lineNumber: 30,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "checkbox",
+              checked: settings.screenAwareEnabled,
+              onChange: (e) => update({ screenAwareEnabled: e.target.checked })
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+              lineNumber: 31,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+          lineNumber: 29,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "轮询间隔（秒）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+            lineNumber: 38,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: 1,
+              max: 60,
+              value: settings.screenPollIntervalSec,
+              onChange: (e) => update({ screenPollIntervalSec: Math.max(1, Number(e.target.value)) })
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+              lineNumber: 39,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+          lineNumber: 37,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+        lineNumber: 28,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+      lineNumber: 19,
+      columnNumber: 7
+    }, this),
+    state.activeWindow && /* @__PURE__ */ jsxDEV("section", { className: "settings-card", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-head", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "settings-card-icon", children: /* @__PURE__ */ jsxDEV(Icon, { name: "eye", size: 16 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+          lineNumber: 56,
+          columnNumber: 15
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+          lineNumber: 55,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "settings-card-title", children: /* @__PURE__ */ jsxDEV("h3", { children: "当前窗口" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+          lineNumber: 59,
+          columnNumber: 15
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+          lineNumber: 58,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+        lineNumber: 54,
+        columnNumber: 11
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-body", children: /* @__PURE__ */ jsxDEV("div", { className: "screen-info", children: [
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("span", { className: "screen-label", children: "当前窗口" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+            lineNumber: 65,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { className: "screen-value", children: state.activeWindow.title || "（无）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+            lineNumber: 66,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+          lineNumber: 64,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("span", { className: "screen-label", children: "应用" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+            lineNumber: 69,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { className: "screen-value", children: state.activeWindow.app || "（无）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+            lineNumber: 70,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+          lineNumber: 68,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { children: [
+          /* @__PURE__ */ jsxDEV("span", { className: "screen-label", children: "空闲" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+            lineNumber: 73,
+            columnNumber: 17
+          }, this),
+          /* @__PURE__ */ jsxDEV("span", { className: "screen-value", children: [
+            state.activeWindow.idleTime,
+            " 秒"
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+            lineNumber: 74,
+            columnNumber: 17
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+          lineNumber: 72,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+        lineNumber: 63,
+        columnNumber: 13
+      }, this) }, void 0, false, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+        lineNumber: 62,
+        columnNumber: 11
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+      lineNumber: 53,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx",
+    lineNumber: 18,
+    columnNumber: 5
+  }, this);
+}
+_s(ScreenAwareSettings, "L66qTK03RYxfiOBDKeOI21Rw1hM=", false, function() {
+  return [useAppState];
+});
+_c = ScreenAwareSettings;
+var _c;
+$RefreshReg$(_c, "ScreenAwareSettings");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/ScreenAwareSettings.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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cHBTdGF0ZSIsIkljb24iLCJTY3JlZW5Bd2FyZVNldHRpbmdzIiwiX3MiLCJzdGF0ZSIsImRpc3BhdGNoIiwic2V0dGluZ3MiLCJ1cGRhdGUiLCJwYXRjaCIsInR5cGUiLCJzY3JlZW5Bd2FyZUVuYWJsZWQiLCJlIiwidGFyZ2V0IiwiY2hlY2tlZCIsInNjcmVlblBvbGxJbnRlcnZhbFNlYyIsIk1hdGgiLCJtYXgiLCJOdW1iZXIiLCJ2YWx1ZSIsImFjdGl2ZVdpbmRvdyIsInRpdGxlIiwiYXBwIiwiaWRsZVRpbWUiLCJfYyJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJTY3JlZW5Bd2FyZVNldHRpbmdzLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyIvKipcclxuICog5oSf55+l6aG1IMK3IOWxj+W5leaEn+efpe+8iOmHjeiuvuiuoSB2NO+8ie+8muWQr+eUqOW8gOWFsyArIOi9ruivoumikeeOhyArIOW9k+WJjeeql+WPo+WPquivu+OAglxyXG4gKiDljp/jgIzkuLvliqjlr7nor53jgI3ljLrlnZflt7Lnp7vlhaXjgIzkuLvliqjjgI3pobXvvIhQcm9hY3RpdmVTZXR0aW5nc++8ieOAglxyXG4gKi9cclxuaW1wb3J0IHR5cGUgeyBSZWFjdEVsZW1lbnQgfSBmcm9tICdyZWFjdCc7XHJcbmltcG9ydCB7IHVzZUFwcFN0YXRlIH0gZnJvbSAnQC9zdGF0ZS9BcHBTdGF0ZUNvbnRleHQnO1xyXG5pbXBvcnQgeyBJY29uIH0gZnJvbSAnQC91aS9pY29ucyc7XHJcblxyXG5leHBvcnQgZnVuY3Rpb24gU2NyZWVuQXdhcmVTZXR0aW5ncygpOiBSZWFjdEVsZW1lbnQge1xyXG4gIGNvbnN0IHsgc3RhdGUsIGRpc3BhdGNoIH0gPSB1c2VBcHBTdGF0ZSgpO1xyXG4gIGNvbnN0IHNldHRpbmdzID0gc3RhdGUuc2V0dGluZ3M7XHJcblxyXG4gIGNvbnN0IHVwZGF0ZSA9IChwYXRjaDogUGFydGlhbDx0eXBlb2Ygc2V0dGluZ3M+KTogdm9pZCA9PiB7XHJcbiAgICBkaXNwYXRjaCh7IHR5cGU6ICdVUERBVEVfU0VUVElOR1MnLCBzZXR0aW5nczogcGF0Y2ggfSk7XHJcbiAgfTtcclxuXHJcbiAgcmV0dXJuIChcclxuICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZ3Mtc2VjdGlvbiBnZW5lcmFsLXNldHRpbmdzXCI+XHJcbiAgICAgIDxzZWN0aW9uIGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmRcIj5cclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtaGVhZFwiPlxyXG4gICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC1pY29uXCI+XHJcbiAgICAgICAgICAgIDxJY29uIG5hbWU9XCJtb25pdG9yXCIgc2l6ZT17MTZ9IC8+XHJcbiAgICAgICAgICA8L3NwYW4+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtdGl0bGVcIj5cclxuICAgICAgICAgICAgPGgzPuWxj+W5leaEn+efpTwvaDM+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICA8L2Rpdj5cclxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtYm9keVwiPlxyXG4gICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRvZ2dsZS1yb3dcIj5cclxuICAgICAgICAgICAgPHNwYW4+5ZCv55So5bGP5bmV5oSf55+lPC9zcGFuPlxyXG4gICAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgICB0eXBlPVwiY2hlY2tib3hcIlxyXG4gICAgICAgICAgICAgIGNoZWNrZWQ9e3NldHRpbmdzLnNjcmVlbkF3YXJlRW5hYmxlZH1cclxuICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHVwZGF0ZSh7IHNjcmVlbkF3YXJlRW5hYmxlZDogZS50YXJnZXQuY2hlY2tlZCB9KX1cclxuICAgICAgICAgICAgLz5cclxuICAgICAgICAgIDwvbGFiZWw+XHJcbiAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZmllbGRcIj5cclxuICAgICAgICAgICAgPHNwYW4+6L2u6K+i6Ze06ZqU77yI56eS77yJPC9zcGFuPlxyXG4gICAgICAgICAgICA8aW5wdXRcclxuICAgICAgICAgICAgICB0eXBlPVwibnVtYmVyXCJcclxuICAgICAgICAgICAgICBtaW49ezF9XHJcbiAgICAgICAgICAgICAgbWF4PXs2MH1cclxuICAgICAgICAgICAgICB2YWx1ZT17c2V0dGluZ3Muc2NyZWVuUG9sbEludGVydmFsU2VjfVxyXG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT5cclxuICAgICAgICAgICAgICAgIHVwZGF0ZSh7IHNjcmVlblBvbGxJbnRlcnZhbFNlYzogTWF0aC5tYXgoMSwgTnVtYmVyKGUudGFyZ2V0LnZhbHVlKSkgfSlcclxuICAgICAgICAgICAgICB9XHJcbiAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICA8L2xhYmVsPlxyXG4gICAgICAgIDwvZGl2PlxyXG4gICAgICA8L3NlY3Rpb24+XHJcblxyXG4gICAgICB7c3RhdGUuYWN0aXZlV2luZG93ICYmIChcclxuICAgICAgICA8c2VjdGlvbiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkXCI+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtaGVhZFwiPlxyXG4gICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWljb25cIj5cclxuICAgICAgICAgICAgICA8SWNvbiBuYW1lPVwiZXllXCIgc2l6ZT17MTZ9IC8+XHJcbiAgICAgICAgICAgIDwvc3Bhbj5cclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLXRpdGxlXCI+XHJcbiAgICAgICAgICAgICAgPGgzPuW9k+WJjeeql+WPozwvaDM+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtYm9keVwiPlxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNjcmVlbi1pbmZvXCI+XHJcbiAgICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInNjcmVlbi1sYWJlbFwiPuW9k+WJjeeql+WPozwvc3Bhbj5cclxuICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInNjcmVlbi12YWx1ZVwiPntzdGF0ZS5hY3RpdmVXaW5kb3cudGl0bGUgfHwgJ++8iOaXoO+8iSd9PC9zcGFuPlxyXG4gICAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICAgIDxkaXY+XHJcbiAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJzY3JlZW4tbGFiZWxcIj7lupTnlKg8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJzY3JlZW4tdmFsdWVcIj57c3RhdGUuYWN0aXZlV2luZG93LmFwcCB8fCAn77yI5peg77yJJ308L3NwYW4+XHJcbiAgICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICAgICAgPGRpdj5cclxuICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInNjcmVlbi1sYWJlbFwiPuepuumXsjwvc3Bhbj5cclxuICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInNjcmVlbi12YWx1ZVwiPntzdGF0ZS5hY3RpdmVXaW5kb3cuaWRsZVRpbWV9IOenkjwvc3Bhbj5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICA8L3NlY3Rpb24+XHJcbiAgICAgICl9XHJcbiAgICA8L2Rpdj5cclxuICApO1xyXG59XHJcblxyXG4iXSwiZmlsZSI6IkM6L1VzZXJzL0VseXNpYS9EZXNrdG9wL1Byb2plY3QvUHljaGFybS9Nb29ubGlnaHQvZnJvbnRlbmQvc3JjL3NldHRpbmdzL1NjcmVlbkF3YXJlU2V0dGluZ3MudHN4In0=

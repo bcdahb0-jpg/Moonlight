@@ -1,0 +1,46 @@
+{
+  "contract": "task_event",
+  "version": "1.0",
+  "description": "任务平台 SSE 事件协议契约（plan §5.5）。前端同构维护一份。",
+  "compatibility": {
+    "additive": "新增事件类型 = 兼容",
+    "breaking": "改名 / 删除事件类型 = 破坏性变更，需前后端同步升级版本号"
+  },
+  "event_types": [
+    "run_start",
+    "message",
+    "tool_call",
+    "tool_result",
+    "status",
+    "clarify_requested",
+    "progress",
+    "run_end",
+    "run_error",
+    "error"
+  ],
+  "categories": ["message", "trace", "outputs", "error"],
+  "origins": ["core", "shell"],
+  "record_shape": {
+    "seq": "int (按 task 单调递增，断线重连锚点)",
+    "event_type": "string (见 event_types)",
+    "task_id": "string",
+    "run_id": "string",
+    "category": "string (见 categories)",
+    "origin": "string (见 origins；G7 分流：core=任务内核 / shell=人设外壳)",
+    "payload": "object (事件体，类型相关)",
+    "created_at": "string (ISO-8601 UTC)"
+  },
+  "event_payloads": {
+    "run_start": { "goal": "string" },
+    "message": { "role": "user|assistant", "content": "string", "delta": "bool(optional)" },
+    "tool_call": { "name": "string", "arguments": "object", "tool_call_id": "string" },
+    "tool_result": { "name": "string", "result": "string", "is_error": "bool", "tool_call_id": "string" },
+    "status": { "state": "string", "detail": "string(optional)" },
+    "clarify_requested": { "question": "string", "options": ["string"] },
+    "progress": { "phase": "string", "percent": "number(optional)", "log": "string(optional)" },
+    "run_end": { "status": "completed|interrupted|error", "summary": "string(optional)" },
+    "run_error": { "error": "string" },
+    "error": { "message": "string", "code": "string(optional)" }
+  },
+  "sse_wire_format": "data: <json>\n\n (每事件一行 JSON；断线重连：GET /api/tasks/{id}/runs/stream?after_seq=N 先回放再实时)"
+}

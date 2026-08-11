@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "description": "SKILL.md frontmatter 契约（plan §5.1，deer-flow 同款）。字段白名单：name/description 必填；allowed-tools/required-secrets 可选数组。",
+  "fields": {
+    "name": {
+      "required": true,
+      "type": "string"
+    },
+    "description": {
+      "required": true,
+      "type": "string",
+      "max_chars": 120
+    },
+    "allowed-tools": {
+      "required": false,
+      "type": "array<string>"
+    },
+    "required-secrets": {
+      "required": false,
+      "type": "array<string>"
+    }
+  }
+}

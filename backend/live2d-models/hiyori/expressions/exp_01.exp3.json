@@ -1,0 +1,30 @@
+{
+ "Version": 3,
+ "Type": "Live2D Expression",
+ "Parameters": [
+  {
+   "Id": "ParamEyeLSmile",
+   "Value": 1
+  },
+  {
+   "Id": "ParamEyeRSmile",
+   "Value": 1
+  },
+  {
+   "Id": "ParamBrowLAngle",
+   "Value": -0.3
+  },
+  {
+   "Id": "ParamBrowRAngle",
+   "Value": -0.3
+  },
+  {
+   "Id": "ParamMouthForm",
+   "Value": 1
+  },
+  {
+   "Id": "ParamMouthOpenY",
+   "Value": 0.15
+  }
+ ]
+}

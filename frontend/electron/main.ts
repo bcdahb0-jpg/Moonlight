@@ -1,8 +1,12 @@
-import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, desktopCapturer, nativeImage, powerMonitor } from 'electron';
+import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, desktopCapturer, nativeImage, powerMonitor, dialog } from 'electron';
 import * as path from 'node:path';
 import { getActiveWindow } from './active-window';
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
+
+// build marker: 2026-08-10 触发 Electron 重启以加载 Live2D 修复（calm_idle / idleHoldMs）
+// 修改本文件（main/preload）会触发 scripts/dev.mjs 的 esbuild watch 自动重启 Electron。
+// 注：上一次重启时旧进程未完全退出导致新进程抢 SingletonLock 失败，此处再触发一次。
 
 // --------------------------------------------------------------------------- //
 // Window sizing presets (pet vs window mode)
@@ -126,6 +130,18 @@ function createWindow(): void {
 
   applyCSP(mainWindow);
 
+  // 诊断：转发渲染进程 console/崩溃事件到主进程日志（dev.log / frontend_dev.log），
+  // 便于排查渲染层运行时错误（如 AudioContext 被拒、PIXI context lost）。
+  mainWindow.webContents.on('console-message', (_e, level, message, line, sourceId) => {
+    console.log(`[renderer:${level}] ${message} (${sourceId}:${line})`);
+  });
+  mainWindow.webContents.on('render-process-gone', (_e, details) => {
+    console.log(`[renderer-gone] ${JSON.stringify(details)}`);
+  });
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    console.log(`[did-fail-load] ${code} ${desc} ${url}`);
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -189,6 +205,17 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('screen:get-idle-time', () => powerMonitor.getSystemIdleTime());
 
+  // v5：会话绑定工作目录 —— 原生目录选择对话框（取消返回 null）。
+  ipcMain.handle('dialog:select-directory', async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: '选择工作目录',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return result.filePaths[0];
+  });
+
   ipcMain.handle('win:toggle-always-on-top', () => {
     alwaysOnTop = !alwaysOnTop;
     mainWindow?.setAlwaysOnTop(alwaysOnTop, 'screen-saver');
@@ -250,6 +277,12 @@ function registerIpcHandlers(): void {
     //    像常规桌面软件一样不置顶。
     alwaysOnTop = mode === 'pet';
     mainWindow.setAlwaysOnTop(alwaysOnTop, 'screen-saver');
+
+    // ④ 任务栏可见性（Moonlight 2026-08-10 修复）：桌宠模式是悬浮小窗，
+    //    不占任务栏（skipTaskbar=true 与创建时一致）；窗口模式是常规桌面
+    //    软件，必须在任务栏可见——否则最小化后任务栏没有按钮，用户只能
+    //    从托盘恢复，表现为"最小化后窗口不见了"。
+    mainWindow.setSkipTaskbar(mode === 'pet');
 
     const workArea = screen.getPrimaryDisplay().workArea;
     const applyMode = (): void => {
@@ -355,6 +388,16 @@ function registerIpcHandlers(): void {
 // --------------------------------------------------------------------------- //
 // App lifecycle
 // --------------------------------------------------------------------------- //
+// 2026-08-10：沙箱/托管环境（WorkBuddy）启动的 Electron GPU 进程持续崩溃
+// （gpu_process_host.cc exit_code=1），导致渲染层 WebAudio 报错（无声音）。
+// 禁用硬件加速 → 软件渲染（SwiftShader），Live2D 简单模型性能足够，换取稳定。
+app.disableHardwareAcceleration();
+
+// 2026-08-10：AudioContext "error from the audio device or the WebAudio renderer"
+// 仍未消失 → 尝试把音频服务内联到浏览器进程（沙箱下独立 audio service 进程
+// 可能无法访问音频设备），绕过 out-of-process audio service。
+app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess');
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();

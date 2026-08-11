@@ -93,6 +93,9 @@ export interface ConfigPayload {
       proactive_enabled?: boolean;
       proactive_idle_sec?: number;
       auto_speak_on_idle?: boolean;
+      // UX 修复（2026-08-10）：与后端 UiPrefs 新增字段保持一致
+      proactive_pet_mode_only?: boolean;
+      subtitle_enabled?: boolean;
     };
     [key: string]: unknown;
   };
@@ -611,6 +614,113 @@ export const agentApi = {
       '/api/agent-config/use-mcpp',
       body,
     ),
+};
+
+// ------------------------------------------------------------------ //
+// Task platform config (task_platform/task_config_route.py)
+// ------------------------------------------------------------------ //
+
+/** 单个 MCP 服务器配置（conf.yaml task_platform.mcp.servers 项）。 */
+export interface McpServerConfig {
+  name: string;
+  transport: string;
+  command: string;
+  args: string[];
+  url?: string | null;
+  headers: Record<string, string>;
+  enabled: boolean;
+}
+
+/** GET /api/task-platform/config 返回的扁平化配置（Phase 0-6 + v3 全部可编辑字段）。 */
+export interface TaskPlatformConfig {
+  enabled: boolean;
+  tasks_root: string;
+  tool_timeout_sec: number;
+  bash_output_limit: number;
+  write_limit_bytes: number;
+  read_limit_bytes: number;
+  allow_network: boolean;
+  max_no_progress: number;
+  skills_root: string;
+  agents_root: string;
+  plugins_root: string;
+  embedding_enabled: boolean;
+  embedding_top_k: number;
+  // ---- v3 升级（借鉴 deer-flow / pi-agent）----
+  llm_context_window: number;
+  read_before_write: boolean;
+  web_search_enabled: boolean;
+  web_search_provider: 'auto' | 'ddg' | 'tavily';
+  web_search_max_results: number;
+  web_fetch_max_bytes: number;
+  tavily_api_key: string;
+  jina_api_key: string;
+  bash_audit: boolean;
+  token_budget_warn_ratio: number;
+  token_budget_hard_ratio: number;
+  memory_max_injection_tokens: number;
+  mcp_servers: McpServerConfig[];
+}
+
+/** POST /api/task-platform/mcp/probe 的探测结果（fail-soft）。 */
+export interface McpServerProbeResult {
+  name: string;
+  transport: string;
+  enabled: boolean;
+  status: 'connected' | 'error' | 'disabled' | 'misconfigured';
+  tool_count?: number;
+  tools?: string[];
+  error?: string;
+}
+
+export interface SaveTaskPlatformConfigResult {
+  ok: boolean;
+  updated?: string[];
+  restart_required: boolean;
+}
+
+/** 技能索引摘要（GET /api/skills，不含正文）。 */
+export interface SkillSummary {
+  name: string;
+  description: string;
+  allowed_tools: string[];
+  required_secrets: string[];
+}
+
+/** sub-agent 目录条目（GET /api/agents）。 */
+export interface AgentSummary {
+  name: string;
+  description: string;
+  display_name: string;
+  tools: string[];
+  prompt_mode: string;
+}
+
+/** 已加载插件条目（GET /api/plugins）。 */
+export interface PluginSummary {
+  name: string;
+  enabled: boolean;
+}
+
+export const taskPlatformApi = {
+  /** 读取任务平台配置（force_reload：总是磁盘最新值）。 */
+  getConfig: (): Promise<{ ok: boolean; config: TaskPlatformConfig }> =>
+    get('/api/task-platform/config'),
+  /** JSON Merge Patch 保存标量配置（写盘需重启生效）。 */
+  saveConfig: (patch: Partial<TaskPlatformConfig>): Promise<SaveTaskPlatformConfigResult> =>
+    put('/api/task-platform/config', patch),
+  /** 整体替换 MCP 服务器列表。 */
+  saveMcpServers: (servers: McpServerConfig[]): Promise<SaveTaskPlatformConfigResult> =>
+    post('/api/task-platform/mcp/servers', servers),
+  /** 测试单个 MCP 服务器连接并列出工具。 */
+  probeMcpServer: (server: McpServerConfig): Promise<{ ok: boolean; result: McpServerProbeResult }> =>
+    post('/api/task-platform/mcp/probe', server),
+  /** 技能索引（只读摘要）。 */
+  listSkills: (): Promise<{ ok: boolean; skills: SkillSummary[] }> => get('/api/skills'),
+  /** sub-agent 目录（只读摘要）。 */
+  listAgents: (): Promise<{ ok: boolean; agents: AgentSummary[] }> => get('/api/agents'),
+  /** 已加载插件（只读摘要）。 */
+  listPlugins: (): Promise<{ ok: boolean; plugins: PluginSummary[] }> => get('/api/plugins'),
 };
 
 // ------------------------------------------------------------------ //

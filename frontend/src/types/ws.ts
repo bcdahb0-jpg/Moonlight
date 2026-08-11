@@ -68,6 +68,8 @@ export type ClientMessageType =
   | 'create-new-history'
   | 'delete-history'
   | 'set-history-title'
+  | 'set-history-workspace'
+  | 'clear-all-histories'
   | 'fetch-configs'
   | 'switch-config'
   | 'fetch-backgrounds'
@@ -86,6 +88,8 @@ export interface ClientMessage {
   images?: string[];
   history_uid?: string;
   title?: string;
+  /** v5：会话绑定/移动的工作目录（绝对路径）。 */
+  workspace?: string;
   file?: string;
   display_text?: DisplayText;
   request_id?: string;
@@ -102,6 +106,22 @@ export interface AudioMessage {
   audio: string | null;
   volumes: number[];
   slice_length: number;
+  /**
+   * 音素级口型数据（可选增强）：每 slice 一个 [a,i,u,e,o] 概率向量，
+   * 与 volumes 同粒度。后端 F1/F2 共振峰分析产出；缺省时前端回退 RMS 口型。
+   */
+  visemes?: number[][] | null;
+  /**
+   * 情绪强度/时长元数据（Phase 1 面部表情）：
+   * {emotion, intensity, duration_ms, source}。emotion 为分类结果 token，
+   * 在 actions.expressions 为空时作为表情兜底源（比规则 msg.emotion 更准）。
+   */
+  emotion_meta?: {
+    emotion?: string | null;
+    intensity?: number;
+    duration_ms?: number;
+    source?: string;
+  } | null;
   display_text?: DisplayText | null;
   subtitle_text?: string | null;
   actions?: Actions | null;
@@ -181,15 +201,40 @@ export interface HistoryListMessage {
 
 export interface HistoryDataMessage {
   type: 'history-data';
-  messages: Array<{ role: string; content: string; name?: string; avatar?: string }>;
+  /** Moonlight（2026-08-10 修复）：加载的会话 uid，前端同步 currentHistoryUid 用。 */
+  history_uid?: string | null;
+  messages: Array<{
+    role: string;
+    content: string;
+    name?: string;
+    avatar?: string;
+    /** 2026-08-10：消息类别（"task_brief" 等，后端 chat_history kind 字段）。 */
+    kind?: string;
+    /** 2026-08-10：简报归属任务 id（后端 task_id 字段）。 */
+    task_id?: string;
+  }>;
 }
 
 export interface NewHistoryCreatedMessage {
   type: 'new-history-created';
   history_uid: string;
+  /** v5：会话绑定的工作目录。 */
+  workspace?: string;
   /** true = 后端在对话中途自动创建的会话（首次真人消息），勿清空当前聊天区；
    *  false / 缺省 = 用户手动新建会话，清空聊天区。 */
   auto?: boolean;
+}
+
+export interface HistoryWorkspaceUpdatedMessage {
+  type: 'history-workspace-updated';
+  success: boolean;
+  history_uid: string;
+  workspace: string;
+}
+
+export interface HistoriesClearedMessage {
+  type: 'histories-cleared';
+  removed: number;
 }
 
 export interface HistoryDeletedMessage {
@@ -246,6 +291,23 @@ export interface AffectionUpdateMessage {
   milestone?: string;
 }
 
+/** 聊天 agent 工具执行状态（backend basic_memory_agent 的 tool_call_status 事件）。
+ *  text 非空 = 工具执行中（显示状态条）；空串 = 结束/清除。 */
+export interface ToolCallStatusMessage {
+  type: 'tool_call_status';
+  text: string;
+  name?: string;
+}
+
+/** delegate 任务完整结果直达聊天区（backend single_conversation 的 task_result 事件）。
+ *  text 为完整清单/表格，前端直接渲染为 AI 气泡，不等 LLM 逐句复述。 */
+export interface TaskResultMessage {
+  type: 'task-result';
+  text: string;
+  name?: string;
+  avatar?: string;
+}
+
 export type ServerMessage =
   | AudioMessage
   | FullTextMessage
@@ -261,12 +323,16 @@ export type ServerMessage =
   | NewHistoryCreatedMessage
   | HistoryDeletedMessage
   | HistoryTitleUpdatedMessage
+  | HistoryWorkspaceUpdatedMessage
+  | HistoriesClearedMessage
   | ConfigFilesMessage
   | GroupUpdateMessage
   | ConfigSwitchedMessage
   | HeartbeatAckMessage
   | ConfigUpdatedMessage
-  | AffectionUpdateMessage;
+  | AffectionUpdateMessage
+  | ToolCallStatusMessage
+  | TaskResultMessage;
 
 /**
  * 运行期守卫：只校验「是带 type 字段的对象」。

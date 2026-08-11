@@ -12,9 +12,11 @@ import { useScreenAwareness } from '@/screen/useScreenAwareness';
 import { useSettingsSync } from '@/hooks/useSettingsSync';
 import { WSClient } from '@/api/wsClient';
 import { AudioPlayer } from '@/api/audioPlayer';
+import { LipSyncDriver } from '@/live2d/LipSyncDriver';
 import { expressionToEmotion } from '@/emotion/expression';
 import { dispatchServerMessage, type WsHandlerDeps } from '@/ws/messageHandlers';
 import type { Live2DAdapter } from '@/live2d/Live2DAdapter';
+import type { VisemeVector } from '@/live2d/Live2DAdapter';
 import type { LocalSettings, ThemeMode } from '@/state/types';
 import { DEFAULT_SETTINGS } from '@/state/types';
 
@@ -55,6 +57,9 @@ export function useAppShell(): AppShell {
 
   const adapterRef = useRef<Live2DAdapter | null>(null);
   const audioPlayerRef = useRef<AudioPlayer | null>(null);
+  const lipDriverRef = useRef<LipSyncDriver | null>(null);
+  /** 情绪生命周期计时（Phase 2：duration_ms 到期 revert 表情）。 */
+  const emotionTimerRef = useRef<number | null>(null);
   const wsRef = useRef<WSClient | null>(null);
   const stateRef = useRef(state);
   const synthCompleteRef = useRef(false);
@@ -95,31 +100,78 @@ export function useAppShell(): AppShell {
   }, []);
 
   useEffect(() => {
+    // 口型驱动层：rAF 平滑 + 说话状态机 + 动作联动（Talk ↔ Idle）
+    const lipDriver = new LipSyncDriver(() => adapterRef.current);
+    lipDriverRef.current = lipDriver;
+
     const player = new AudioPlayer({
-      onVolume: (value) => adapterRef.current?.setLipSync(value),
+      onVolume: (value, viseme) => {
+        // AudioPlayer 层是通用 number[]，此处校验为五元音向量再交给驱动层
+        const v: VisemeVector | null =
+          viseme && viseme.length >= 5 ? (viseme as VisemeVector) : null;
+        lipDriverRef.current?.onVolume(value, v);
+      },
       onItemStart: (item) => {
         if (item.expression && item.expression.length > 0) {
-          adapterRef.current?.setExpression(item.expression[0]);
+          // Phase 1：emotion_meta.intensity 透传为表情强度（Soullink 生效）
+          adapterRef.current?.setExpression(
+            item.expression[0],
+            item.emotionMeta?.intensity ?? null,
+          );
           dispatch({
             type: 'SET_EMOTION',
             emotion: expressionToEmotion(item.expression[0], stateRef.current.modelInfo),
+            intensity: item.emotionMeta?.intensity ?? null,
+            source: item.emotionMeta?.source ?? null,
           });
+          // Phase 2 情绪生命周期：duration_ms 到期归零（段内中途复位表情）
+          const dur = item.emotionMeta?.duration_ms;
+          if (dur && dur > 0) {
+            if (emotionTimerRef.current !== null) {
+              window.clearTimeout(emotionTimerRef.current);
+            }
+            emotionTimerRef.current = window.setTimeout(() => {
+              emotionTimerRef.current = null;
+              adapterRef.current?.revertExpression();
+            }, dur);
+          }
         }
         if (item.displayText) {
           wsRef.current?.sendAudioPlayStart({ text: item.displayText });
         }
+        lipDriverRef.current?.onItemStart();
       },
       onItemEnd: (item) => {
         adapterRef.current?.revertExpression();
+        if (emotionTimerRef.current !== null) {
+          window.clearTimeout(emotionTimerRef.current);
+          emotionTimerRef.current = null;
+        }
         pendingAudioRef.current = Math.max(0, pendingAudioRef.current - 1);
         void item;
+        lipDriverRef.current?.onItemEnd(false);
         maybeCompletePlayback();
+      },
+      onStop: () => {
+        // 打断：stop() 不触发 onItemEnd，这里立即复位口型、动作与情绪计时
+        adapterRef.current?.revertExpression();
+        if (emotionTimerRef.current !== null) {
+          window.clearTimeout(emotionTimerRef.current);
+          emotionTimerRef.current = null;
+        }
+        lipDriverRef.current?.onItemEnd(true);
       },
       onQueueEmpty: () => maybeCompletePlayback(),
     });
     audioPlayerRef.current = player;
     return () => {
       player.stop();
+      if (emotionTimerRef.current !== null) {
+        window.clearTimeout(emotionTimerRef.current);
+        emotionTimerRef.current = null;
+      }
+      lipDriverRef.current?.destroy();
+      lipDriverRef.current = null;
       audioPlayerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -177,10 +229,15 @@ export function useAppShell(): AppShell {
     wsRef.current?.sendAiSpeakSignal();
   }, []);
 
+  // UX 修复（2026-08-10）：主动找话题加「模式闸门」——proactivePetModeOnly
+  // 开启时（默认）只有桌宠模式才触发；窗口模式（用户等待任务/思考输入）
+  // 不得打扰。关闭该开关则恢复任意模式触发（兼容想全局使用的用户）。
+  const petModeOnly = settings.proactivePetModeOnly && state.mode !== 'pet';
+
   useScreenAwareness({
     enabled: settings.screenAwareEnabled,
     pollIntervalSec: settings.screenPollIntervalSec,
-    proactiveEnabled: settings.proactiveEnabled,
+    proactiveEnabled: settings.proactiveEnabled && !petModeOnly,
     proactiveIdleSec: settings.proactiveIdleSec,
     onProactiveTrigger: settings.autoSpeakOnIdle ? triggerProactive : () => undefined,
   });

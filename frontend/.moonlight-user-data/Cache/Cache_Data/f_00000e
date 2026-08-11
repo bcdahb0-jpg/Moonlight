@@ -1,0 +1,982 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/ui/icons.tsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=b90f1a35"; const Fragment = __vite__cjsImport0_react_jsxDevRuntime["Fragment"]; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.__vite_plugin_react_preamble_installed__) {
+    throw new Error("@vitejs/plugin-react can't detect preamble. Something is wrong. See https://github.com/vitejs/vite-plugin-react/pull/11#discussion_r430879201");
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = (type, id) => {
+    RefreshRuntime.register(type, "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx " + id);
+  };
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+const STROKE = {
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.75,
+  strokeLinecap: "round",
+  strokeLinejoin: "round"
+};
+const ICON_PATHS = {
+  // —— 设置分区 ——
+  sparkles: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 78,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 79,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M5 16l.7 1.8L7.5 18.5l-1.8.7L5 21l-.7-1.8L2.5 18.5l1.8-.7L5 16z" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 80,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 77,
+    columnNumber: 3
+  }, this),
+  message: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M21 12a8 8 0 0 1-8 8H5.5L3 22l.6-4A8 8 0 1 1 21 12z" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 85,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M8.5 10.5h7M8.5 14h4.5" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 86,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 84,
+    columnNumber: 3
+  }, this),
+  volume: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M11 5L6.5 8.5H3v7h3.5L11 19V5z" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 91,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M15 9a4.5 4.5 0 0 1 0 6M17.5 6.5a8 8 0 0 1 0 11" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 92,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 90,
+    columnNumber: 3
+  }, this),
+  eye: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 97,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "12", r: "2.8" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 98,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 96,
+    columnNumber: 3
+  }, this),
+  palette: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M12 3a9 9 0 0 0 0 18c1.2 0 2-.8 2-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 103,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("circle", { cx: "7.5", cy: "10.5", r: "1", fill: "currentColor", stroke: "none" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 104,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "7.5", r: "1", fill: "currentColor", stroke: "none" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 105,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("circle", { cx: "16.5", cy: "10.5", r: "1", fill: "currentColor", stroke: "none" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 106,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 102,
+    columnNumber: 3
+  }, this),
+  cpu: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("rect", { x: "6", y: "6", width: "12", height: "12", rx: "2" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 111,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("rect", { x: "9.5", y: "9.5", width: "5", height: "5", rx: "1" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 112,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 113,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 110,
+    columnNumber: 3
+  }, this),
+  brain: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M9.5 4a2.5 2.5 0 0 0-2.5 2.5A2.5 2.5 0 0 0 5 11.5 2.5 2.5 0 0 0 6.5 16v3.5" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 118,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M9.5 4a2.5 2.5 0 0 1 2.5 2.5V21" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 119,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M12 6.5V4a2.5 2.5 0 0 1 2.5-2.5c1.5 0 2.5 1.3 2.5 2.8V11" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 120,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M17 11a2.5 2.5 0 0 0 0 5 2 2 0 0 1 0 4h-4.5" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 121,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 117,
+    columnNumber: 3
+  }, this),
+  database: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("ellipse", { cx: "12", cy: "5.5", rx: "7.5", ry: "3" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 126,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M4.5 5.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 127,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M4.5 11.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 128,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 125,
+    columnNumber: 3
+  }, this),
+  // —— 聊天 / 交互 ——
+  send: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M21 3L10.5 13.5" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 134,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M21 3l-6.5 18-4-7.5L3 9.5 21 3z" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 135,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 133,
+    columnNumber: 3
+  }, this),
+  mic: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("rect", { x: "9", y: "3", width: "6", height: "11", rx: "3" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 140,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 141,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 139,
+    columnNumber: 3
+  }, this),
+  micOff: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M9 9v2a3 3 0 0 0 5.1 2.1M15 10.5V6a3 3 0 0 0-5.5-1.8" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 146,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M5.5 11a6.5 6.5 0 0 0 9.6 5.6M12 17.5V21M8.5 21h7" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 147,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M3 3l18 18" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 148,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 145,
+    columnNumber: 3
+  }, this),
+  stop: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "12", r: "9" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 153,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("rect", { x: "9", y: "9", width: "6", height: "6", rx: "1", fill: "currentColor", stroke: "none" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 154,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 152,
+    columnNumber: 3
+  }, this),
+  settings: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "12", r: "3.2" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 159,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.08a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09c0 .68.4 1.29 1.03 1.56a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.08c.27.63.88 1.03 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03z" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 160,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 158,
+    columnNumber: 3
+  }, this),
+  switch: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M8 3L4 7l4 4" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 165,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M4 7h13a3 3 0 0 1 3 3v1" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 166,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M16 21l4-4-4-4" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 167,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M20 17H7a3 3 0 0 1-3-3v-1" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 168,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 164,
+    columnNumber: 3
+  }, this),
+  plus: /* @__PURE__ */ jsxDEV(Fragment, { children: /* @__PURE__ */ jsxDEV("path", { d: "M12 5v14M5 12h14" }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 173,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 172,
+    columnNumber: 3
+  }, this),
+  trash: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M4 7h16M9.5 7V5.5A1.5 1.5 0 0 1 11 4h2a1.5 1.5 0 0 1 1.5 1.5V7" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 178,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M6.5 7l.8 12.2A1.8 1.8 0 0 0 9.1 21h5.8a1.8 1.8 0 0 0 1.8-1.8L17.5 7" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 179,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M10 11v6M14 11v6" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 180,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 177,
+    columnNumber: 3
+  }, this),
+  history: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M3 12a9 9 0 1 0 3-6.7L3 8" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 185,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M3 4v4h4" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 186,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M12 8v4.5l3 1.8" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 187,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 184,
+    columnNumber: 3
+  }, this),
+  x: /* @__PURE__ */ jsxDEV(Fragment, { children: /* @__PURE__ */ jsxDEV("path", { d: "M6 6l12 12M18 6L6 18" }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 192,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 191,
+    columnNumber: 3
+  }, this),
+  chevronDown: /* @__PURE__ */ jsxDEV(Fragment, { children: /* @__PURE__ */ jsxDEV("path", { d: "M6 9l6 6 6-6" }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 197,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 196,
+    columnNumber: 3
+  }, this),
+  panelLeftOpen: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("rect", { x: "3", y: "4", width: "18", height: "16", rx: "2" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 202,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M9.5 4v16" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 203,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M14 9l3 3-3 3" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 204,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 201,
+    columnNumber: 3
+  }, this),
+  panelLeftClose: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("rect", { x: "3", y: "4", width: "18", height: "16", rx: "2" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 209,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M9.5 4v16" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 210,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M14 9l-3 3 3 3" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 211,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 208,
+    columnNumber: 3
+  }, this),
+  folder: /* @__PURE__ */ jsxDEV(Fragment, { children: /* @__PURE__ */ jsxDEV("path", { d: "M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2.5h9A1.5 1.5 0 0 1 21 9v8.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 216,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 215,
+    columnNumber: 3
+  }, this),
+  check: /* @__PURE__ */ jsxDEV(Fragment, { children: /* @__PURE__ */ jsxDEV("path", { d: "M5 12.5l4.5 4.5L19 7" }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 221,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 220,
+    columnNumber: 3
+  }, this),
+  // —— 主题 ——
+  moon: /* @__PURE__ */ jsxDEV(Fragment, { children: /* @__PURE__ */ jsxDEV("path", { d: "M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z" }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 227,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 226,
+    columnNumber: 3
+  }, this),
+  sun: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "12", r: "4" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 232,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M12 2.5v2M12 19.5v2M4.5 4.5l1.4 1.4M18.1 18.1l1.4 1.4M2.5 12h2M19.5 12h2M4.5 19.5l1.4-1.4M18.1 5.9l1.4-1.4" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 233,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 231,
+    columnNumber: 3
+  }, this),
+  // —— 状态 / 杂项 ——
+  wifi: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M2.5 9a15.5 15.5 0 0 1 19 0M5.5 12.5a10.5 10.5 0 0 1 13 0M8.5 16a5.5 5.5 0 0 1 7 0" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 239,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "19", r: "1", fill: "currentColor", stroke: "none" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 240,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 238,
+    columnNumber: 3
+  }, this),
+  heart: /* @__PURE__ */ jsxDEV(Fragment, { children: /* @__PURE__ */ jsxDEV("path", { d: "M12 20.5s-7.5-4.6-9.3-9.3C1.5 8 3.7 5 6.8 5c2 0 3.6 1.1 4.4 2.7h1.6C13.6 6.1 15.2 5 17.2 5c3.1 0 5.3 3 4.1 6.2-1.8 4.7-9.3 9.3-9.3 9.3z" }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 245,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 244,
+    columnNumber: 3
+  }, this),
+  face: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "12", r: "9" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 250,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M8.5 10h.01M15.5 10h.01" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 251,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M9 14.5c1 .9 2 1.3 3 1.3s2-.4 3-1.3" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 252,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 249,
+    columnNumber: 3
+  }, this),
+  languages: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "12", r: "9" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 257,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M3.5 12h17M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 258,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 256,
+    columnNumber: 3
+  }, this),
+  tool: /* @__PURE__ */ jsxDEV(Fragment, { children: /* @__PURE__ */ jsxDEV("path", { d: "M14.7 6.3a4.5 4.5 0 0 0-6 5.6L3 17.6V21h3.4l5.7-5.7a4.5 4.5 0 0 0 5.6-6L14 13l-3-3 3.7-3.7z" }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 263,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 262,
+    columnNumber: 3
+  }, this),
+  info: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "12", r: "9" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 268,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M12 11v5M12 7.5h.01" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 269,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 267,
+    columnNumber: 3
+  }, this),
+  zap: /* @__PURE__ */ jsxDEV(Fragment, { children: /* @__PURE__ */ jsxDEV("path", { d: "M13 2L4.5 13.5H11L9.5 22 19 10.5h-6.5L13 2z" }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 274,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 273,
+    columnNumber: 3
+  }, this),
+  monitor: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("rect", { x: "2.5", y: "4", width: "19", height: "13", rx: "2" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 279,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M8 21h8M12 17v4" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 280,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 278,
+    columnNumber: 3
+  }, this),
+  user: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "8", r: "4" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 285,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M4 21c.8-4 4.2-6 8-6s7.2 2 8 6" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 286,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 284,
+    columnNumber: 3
+  }, this),
+  edit: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M4 20h4L20 8l-4-4L4 16v4z" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 291,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M13.5 6.5l4 4" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 292,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 290,
+    columnNumber: 3
+  }, this),
+  search: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("circle", { cx: "11", cy: "11", r: "7" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 297,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M20.5 20.5L16 16" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 298,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 296,
+    columnNumber: 3
+  }, this),
+  refresh: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M20.5 12a8.5 8.5 0 1 1-2.5-6" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 303,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M20.5 3.5V9H15" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 304,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 302,
+    columnNumber: 3
+  }, this),
+  play: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "12", r: "9" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 309,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M10 8.5l6 3.5-6 3.5v-7z", fill: "currentColor", stroke: "none" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 310,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 308,
+    columnNumber: 3
+  }, this),
+  pause: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("circle", { cx: "12", cy: "12", r: "9" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 315,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M10 9.5v5M14 9.5v5" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 316,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 314,
+    columnNumber: 3
+  }, this),
+  alert: /* @__PURE__ */ jsxDEV(Fragment, { children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 321,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("path", { d: "M12 9v4.5M12 17h.01" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 322,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+    lineNumber: 320,
+    columnNumber: 3
+  }, this)
+};
+export function Icon({ name, size = 20, ...rest }) {
+  return /* @__PURE__ */ jsxDEV(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      "aria-hidden": "true",
+      focusable: "false",
+      ...STROKE,
+      ...rest,
+      children: ICON_PATHS[name]
+    },
+    void 0,
+    false,
+    {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+      lineNumber: 334,
+      columnNumber: 5
+    },
+    this
+  );
+}
+_c = Icon;
+export const SparklesIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "sparkles", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 349,
+  columnNumber: 75
+}, this);
+_c2 = SparklesIcon;
+export const MessageIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "message", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 350,
+  columnNumber: 74
+}, this);
+_c3 = MessageIcon;
+export const VolumeIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "volume", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 351,
+  columnNumber: 73
+}, this);
+_c4 = VolumeIcon;
+export const EyeIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "eye", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 352,
+  columnNumber: 70
+}, this);
+_c5 = EyeIcon;
+export const PaletteIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "palette", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 353,
+  columnNumber: 74
+}, this);
+_c6 = PaletteIcon;
+export const CpuIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "cpu", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 354,
+  columnNumber: 70
+}, this);
+_c7 = CpuIcon;
+export const BrainIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "brain", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 355,
+  columnNumber: 72
+}, this);
+_c8 = BrainIcon;
+export const DatabaseIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "database", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 356,
+  columnNumber: 75
+}, this);
+_c9 = DatabaseIcon;
+export const SendIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "send", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 357,
+  columnNumber: 71
+}, this);
+_c0 = SendIcon;
+export const MicIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "mic", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 358,
+  columnNumber: 70
+}, this);
+_c1 = MicIcon;
+export const MicOffIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "micOff", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 359,
+  columnNumber: 73
+}, this);
+_c10 = MicOffIcon;
+export const StopIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "stop", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 360,
+  columnNumber: 71
+}, this);
+_c11 = StopIcon;
+export const SettingsIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "settings", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 361,
+  columnNumber: 75
+}, this);
+_c12 = SettingsIcon;
+export const SwitchIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "switch", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 362,
+  columnNumber: 73
+}, this);
+_c13 = SwitchIcon;
+export const PlusIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "plus", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 363,
+  columnNumber: 71
+}, this);
+_c14 = PlusIcon;
+export const TrashIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "trash", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 364,
+  columnNumber: 72
+}, this);
+_c15 = TrashIcon;
+export const HistoryIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "history", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 365,
+  columnNumber: 74
+}, this);
+_c16 = HistoryIcon;
+export const XIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "x", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 366,
+  columnNumber: 68
+}, this);
+_c17 = XIcon;
+export const ChevronDownIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "chevronDown", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 367,
+  columnNumber: 78
+}, this);
+_c18 = ChevronDownIcon;
+export const CheckIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "check", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 368,
+  columnNumber: 72
+}, this);
+_c19 = CheckIcon;
+export const MoonIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "moon", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 369,
+  columnNumber: 71
+}, this);
+_c20 = MoonIcon;
+export const SunIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "sun", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 370,
+  columnNumber: 70
+}, this);
+_c21 = SunIcon;
+export const WifiIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "wifi", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 371,
+  columnNumber: 71
+}, this);
+_c22 = WifiIcon;
+export const HeartIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "heart", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 372,
+  columnNumber: 72
+}, this);
+_c23 = HeartIcon;
+export const FaceIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "face", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 373,
+  columnNumber: 71
+}, this);
+_c24 = FaceIcon;
+export const LanguagesIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "languages", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 374,
+  columnNumber: 76
+}, this);
+_c25 = LanguagesIcon;
+export const ToolIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "tool", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 375,
+  columnNumber: 71
+}, this);
+_c26 = ToolIcon;
+export const InfoIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "info", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 376,
+  columnNumber: 71
+}, this);
+_c27 = InfoIcon;
+export const ZapIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "zap", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 377,
+  columnNumber: 70
+}, this);
+_c28 = ZapIcon;
+export const MonitorIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "monitor", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 378,
+  columnNumber: 74
+}, this);
+_c29 = MonitorIcon;
+export const UserIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "user", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 379,
+  columnNumber: 71
+}, this);
+_c30 = UserIcon;
+export const EditIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "edit", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 380,
+  columnNumber: 71
+}, this);
+_c31 = EditIcon;
+export const SearchIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "search", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 381,
+  columnNumber: 73
+}, this);
+_c32 = SearchIcon;
+export const RefreshIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "refresh", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 382,
+  columnNumber: 74
+}, this);
+_c33 = RefreshIcon;
+export const PlayIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "play", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 383,
+  columnNumber: 71
+}, this);
+_c34 = PlayIcon;
+export const PauseIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "pause", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 384,
+  columnNumber: 72
+}, this);
+_c35 = PauseIcon;
+export const AlertIcon = (p) => /* @__PURE__ */ jsxDEV(Icon, { name: "alert", ...p }, void 0, false, {
+  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx",
+  lineNumber: 385,
+  columnNumber: 72
+}, this);
+_c36 = AlertIcon;
+var _c, _c2, _c3, _c4, _c5, _c6, _c7, _c8, _c9, _c0, _c1, _c10, _c11, _c12, _c13, _c14, _c15, _c16, _c17, _c18, _c19, _c20, _c21, _c22, _c23, _c24, _c25, _c26, _c27, _c28, _c29, _c30, _c31, _c32, _c33, _c34, _c35, _c36;
+$RefreshReg$(_c, "Icon");
+$RefreshReg$(_c2, "SparklesIcon");
+$RefreshReg$(_c3, "MessageIcon");
+$RefreshReg$(_c4, "VolumeIcon");
+$RefreshReg$(_c5, "EyeIcon");
+$RefreshReg$(_c6, "PaletteIcon");
+$RefreshReg$(_c7, "CpuIcon");
+$RefreshReg$(_c8, "BrainIcon");
+$RefreshReg$(_c9, "DatabaseIcon");
+$RefreshReg$(_c0, "SendIcon");
+$RefreshReg$(_c1, "MicIcon");
+$RefreshReg$(_c10, "MicOffIcon");
+$RefreshReg$(_c11, "StopIcon");
+$RefreshReg$(_c12, "SettingsIcon");
+$RefreshReg$(_c13, "SwitchIcon");
+$RefreshReg$(_c14, "PlusIcon");
+$RefreshReg$(_c15, "TrashIcon");
+$RefreshReg$(_c16, "HistoryIcon");
+$RefreshReg$(_c17, "XIcon");
+$RefreshReg$(_c18, "ChevronDownIcon");
+$RefreshReg$(_c19, "CheckIcon");
+$RefreshReg$(_c20, "MoonIcon");
+$RefreshReg$(_c21, "SunIcon");
+$RefreshReg$(_c22, "WifiIcon");
+$RefreshReg$(_c23, "HeartIcon");
+$RefreshReg$(_c24, "FaceIcon");
+$RefreshReg$(_c25, "LanguagesIcon");
+$RefreshReg$(_c26, "ToolIcon");
+$RefreshReg$(_c27, "InfoIcon");
+$RefreshReg$(_c28, "ZapIcon");
+$RefreshReg$(_c29, "MonitorIcon");
+$RefreshReg$(_c30, "UserIcon");
+$RefreshReg$(_c31, "EditIcon");
+$RefreshReg$(_c32, "SearchIcon");
+$RefreshReg$(_c33, "RefreshIcon");
+$RefreshReg$(_c34, "PlayIcon");
+$RefreshReg$(_c35, "PauseIcon");
+$RefreshReg$(_c36, "AlertIcon");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/ui/icons.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QUFBLGFBQUFFLE1BQUE7QUFBQSxhQUFBRSxNQUFBO0FBQUEsYUFBQUUsTUFBQTtBQUFBLGFBQUFFLE1BQUE7QUFBQSxhQUFBRSxNQUFBO0FBQUEsYUFBQUUsTUFBQTtBQUFBLGFBQUFFLE1BQUE7QUFBQSxhQUFBRSxNQUFBO0FBQUEsYUFBQUUsTUFBQTtBQUFBLGFBQUFFLE1BQUE7QUFBQSxhQUFBRSxNQUFBO0FBQUEsYUFBQUUsTUFBQTtBQUFBLGFBQUFFLE1BQUE7QUFBQSxhQUFBRSxNQUFBO0FBQUEsYUFBQUUsTUFBQTtBQUFBLGFBQUFFLE1BQUE7QUFBQSxhQUFBRSxNQUFBO0FBQUEsYUFBQUUsTUFBQTtBQUFBLGFBQUFFLE1BQUE7QUFBQSxhQUFBRSxNQUFBO0FBQUEsYUFBQUUsTUFBQTtBQUFBLGFBQUFFLE1BQUE7QUFBQSxhQUFBRSxNQUFBO0FBQUEsYUFBQUUsTUFBQTtBQUFBLGFBQUFFLE1BQUE7QUFBQSxhQUFBRSxNQUFBIiwibmFtZXMiOlsiU1RST0tFIiwiZmlsbCIsInN0cm9rZSIsInN0cm9rZVdpZHRoIiwic3Ryb2tlTGluZWNhcCIsInN0cm9rZUxpbmVqb2luIiwiSUNPTl9QQVRIUyIsInNwYXJrbGVzIiwibWVzc2FnZSIsInZvbHVtZSIsImV5ZSIsInBhbGV0dGUiLCJjcHUiLCJicmFpbiIsImRhdGFiYXNlIiwic2VuZCIsIm1pYyIsIm1pY09mZiIsInN0b3AiLCJzZXR0aW5ncyIsInN3aXRjaCIsInBsdXMiLCJ0cmFzaCIsImhpc3RvcnkiLCJ4IiwiY2hldnJvbkRvd24iLCJwYW5lbExlZnRPcGVuIiwicGFuZWxMZWZ0Q2xvc2UiLCJmb2xkZXIiLCJjaGVjayIsIm1vb24iLCJzdW4iLCJ3aWZpIiwiaGVhcnQiLCJmYWNlIiwibGFuZ3VhZ2VzIiwidG9vbCIsImluZm8iLCJ6YXAiLCJtb25pdG9yIiwidXNlciIsImVkaXQiLCJzZWFyY2giLCJyZWZyZXNoIiwicGxheSIsInBhdXNlIiwiYWxlcnQiLCJJY29uIiwibmFtZSIsInNpemUiLCJyZXN0IiwiX2MiLCJTcGFya2xlc0ljb24iLCJwIiwiX2MyIiwiTWVzc2FnZUljb24iLCJfYzMiLCJWb2x1bWVJY29uIiwiX2M0IiwiRXllSWNvbiIsIl9jNSIsIlBhbGV0dGVJY29uIiwiX2M2IiwiQ3B1SWNvbiIsIl9jNyIsIkJyYWluSWNvbiIsIl9jOCIsIkRhdGFiYXNlSWNvbiIsIl9jOSIsIlNlbmRJY29uIiwiX2MwIiwiTWljSWNvbiIsIl9jMSIsIk1pY09mZkljb24iLCJfYzEwIiwiU3RvcEljb24iLCJfYzExIiwiU2V0dGluZ3NJY29uIiwiX2MxMiIsIlN3aXRjaEljb24iLCJfYzEzIiwiUGx1c0ljb24iLCJfYzE0IiwiVHJhc2hJY29uIiwiX2MxNSIsIkhpc3RvcnlJY29uIiwiX2MxNiIsIlhJY29uIiwiX2MxNyIsIkNoZXZyb25Eb3duSWNvbiIsIl9jMTgiLCJDaGVja0ljb24iLCJfYzE5IiwiTW9vbkljb24iLCJfYzIwIiwiU3VuSWNvbiIsIl9jMjEiLCJXaWZpSWNvbiIsIl9jMjIiLCJIZWFydEljb24iLCJfYzIzIiwiRmFjZUljb24iLCJfYzI0IiwiTGFuZ3VhZ2VzSWNvbiIsIl9jMjUiLCJUb29sSWNvbiIsIl9jMjYiLCJJbmZvSWNvbiIsIl9jMjciLCJaYXBJY29uIiwiX2MyOCIsIk1vbml0b3JJY29uIiwiX2MyOSIsIlVzZXJJY29uIiwiX2MzMCIsIkVkaXRJY29uIiwiX2MzMSIsIlNlYXJjaEljb24iLCJfYzMyIiwiUmVmcmVzaEljb24iLCJfYzMzIiwiUGxheUljb24iLCJfYzM0IiwiUGF1c2VJY29uIiwiX2MzNSIsIkFsZXJ0SWNvbiIsIl9jMzYiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiaWNvbnMudHN4Il0sInNvdXJjZXNDb250ZW50IjpbIi8qKlxyXG4gKiBpY29ucy50c3gg4oCUIE1vb25saWdodCDlhoXogZTnur/mgKcgU1ZHIOWbvuagh+W6k+OAglxyXG4gKlxyXG4gKiDorr7orqHnuqblrprvvJpcclxuICogLSAyNHgyNCB2aWV3Qm9477yMMS43NSDmj4/ovrnvvIhzdHJva2Utd2lkdGjvvInvvIxyb3VuZCDnq6/ngrkv6L+e5o6l77yM5LiO5pqX5aSc5pyI5YWJ546755KD6aOO5qC85Yy56YWN77ybXHJcbiAqIC0g6aKc6Imy57un5om/IGN1cnJlbnRDb2xvcu+8jOi3n+maj+eItue6p+aWh+Wtl+minOiJsu+8m1xyXG4gKiAtIOS4jeaWsOWinuS7u+S9lSBucG0g5L6d6LWW44CCXHJcbiAqXHJcbiAqIOeUqOazle+8mjxJY29uIG5hbWU9XCJzcGFya2xlc1wiIC8+IOaIliA8U3BhcmtsZXMgLz7vvIzlj6/kvKAgY2xhc3NOYW1lIC8gc2l6ZeOAglxyXG4gKi9cclxuaW1wb3J0IHR5cGUgeyBSZWFjdEVsZW1lbnQsIFNWR1Byb3BzIH0gZnJvbSAncmVhY3QnO1xyXG5cclxuZXhwb3J0IGludGVyZmFjZSBJY29uUHJvcHMgZXh0ZW5kcyBTVkdQcm9wczxTVkdTVkdFbGVtZW50PiB7XHJcbiAgLyoqIOWbvuagh+WQjeensO+8iOingSBJQ09OX1BBVEhT77yJ44CCICovXHJcbiAgbmFtZTogSWNvbk5hbWU7XHJcbiAgLyoqIOWDj+e0oOWwuuWvuO+8jOm7mOiupCAyMOOAgiAqL1xyXG4gIHNpemU/OiBudW1iZXI7XHJcbn1cclxuXHJcbnR5cGUgSWNvbk5hbWUgPVxyXG4gIHwgJ3NwYXJrbGVzJyAvLyDop5LoibJcclxuICB8ICdtZXNzYWdlJyAvLyDlr7nor51cclxuICB8ICd2b2x1bWUnIC8vIOWjsOmfs1xyXG4gIHwgJ2V5ZScgLy8g5oSf55+lXHJcbiAgfCAncGFsZXR0ZScgLy8g5aSW6KeCXHJcbiAgfCAnY3B1JyAvLyDns7vnu59cclxuICB8ICdicmFpbicgLy8gTExNXHJcbiAgfCAnZGF0YWJhc2UnIC8vIOiusOW/hlxyXG4gIHwgJ3NlbmQnIC8vIOWPkemAgVxyXG4gIHwgJ21pYycgLy8g5b2V6Z+zXHJcbiAgfCAnbWljT2ZmJyAvLyDlgZzmraLlvZXpn7NcclxuICB8ICdzdG9wJyAvLyDmiZPmlq1cclxuICB8ICdzZXR0aW5ncycgLy8g6K6+572uXHJcbiAgfCAnc3dpdGNoJyAvLyDliIfmjaLmqKHlvI9cclxuICB8ICdwbHVzJyAvLyDmlrDlu7pcclxuICB8ICd0cmFzaCcgLy8g5Yig6ZmkXHJcbiAgfCAnaGlzdG9yeScgLy8g5Y6G5Y+yXHJcbiAgfCAnZm9sZGVyJyAvLyDlt6XkvZznm67lvZVcclxuICB8ICd4JyAvLyDlhbPpl61cclxuICB8ICdjaGV2cm9uRG93bicgLy8g5pu05aSaXHJcbiAgfCAncGFuZWxMZWZ0T3BlbicgLy8g5bGV5byA5Lya6K+d5L6n6L655qCPXHJcbiAgfCAncGFuZWxMZWZ0Q2xvc2UnIC8vIOaUtui1t+S8muivneS+p+i+ueagj1xyXG4gIHwgJ2NoZWNrJyAvLyDlrozmiJBcclxuICB8ICdtb29uJyAvLyDmt7HoibJcclxuICB8ICdzdW4nIC8vIOa1heiJslxyXG4gIHwgJ3dpZmknIC8vIOi/nuaOpVxyXG4gIHwgJ2hlYXJ0JyAvLyDlpb3mhJ9cclxuICB8ICdmYWNlJyAvLyDmg4Xnu6pcclxuICB8ICdsYW5ndWFnZXMnIC8vIOe/u+ivkVxyXG4gIHwgJ3Rvb2wnIC8vIOW3peWFtyBNQ1BcclxuICB8ICdpbmZvJyAvLyDns7vnu5/kv6Hmga9cclxuICB8ICd6YXAnIC8vIOS4u+WKqFxyXG4gIHwgJ21vbml0b3InIC8vIOWxj+W5leaEn+efpVxyXG4gIHwgJ3VzZXInIC8vIOeOqeWutlxyXG4gIHwgJ2VkaXQnIC8vIOe8lui+kVxyXG4gIHwgJ3NlYXJjaCcgLy8g5pCc57SiXHJcbiAgfCAncmVmcmVzaCcgLy8g5Yi35pawXHJcbiAgfCAncGxheScgLy8g6K+V5ZCsXHJcbiAgfCAncGF1c2UnXHJcbiAgfCAnYWxlcnQnIC8vIOmUmeivr1xyXG4gIDtcclxuXHJcbmV4cG9ydCB0eXBlIHsgSWNvbk5hbWUgfTtcclxuXHJcbi8qKiDnu5/kuIDnmoTmj4/ovrnlj4LmlbDvvIzkv53or4HmlbTlpZflm77moIfop4bop4nkuIDoh7TjgIIgKi9cclxuY29uc3QgU1RST0tFID0ge1xyXG4gIGZpbGw6ICdub25lJyxcclxuICBzdHJva2U6ICdjdXJyZW50Q29sb3InLFxyXG4gIHN0cm9rZVdpZHRoOiAxLjc1LFxyXG4gIHN0cm9rZUxpbmVjYXA6ICdyb3VuZCcgYXMgY29uc3QsXHJcbiAgc3Ryb2tlTGluZWpvaW46ICdyb3VuZCcgYXMgY29uc3QsXHJcbn07XHJcblxyXG5jb25zdCBJQ09OX1BBVEhTOiBSZWNvcmQ8SWNvbk5hbWUsIFJlYWN0RWxlbWVudD4gPSB7XHJcbiAgLy8g4oCU4oCUIOiuvue9ruWIhuWMuiDigJTigJRcclxuICBzcGFya2xlczogKFxyXG4gICAgPD5cclxuICAgICAgPHBhdGggZD1cIk0xMiAzbDEuOSA1LjFMMTkgMTBsLTUuMSAxLjlMMTIgMTdsLTEuOS01LjFMNSAxMGw1LjEtMS45TDEyIDN6XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk0xOSAxNmwuOCAyLjJMMjIgMTlsLTIuMi44TDE5IDIybC0uOC0yLjJMMTYgMTlsMi4yLS44TDE5IDE2elwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNNSAxNmwuNyAxLjhMNy41IDE4LjVsLTEuOC43TDUgMjFsLS43LTEuOEwyLjUgMTguNWwxLjgtLjdMNSAxNnpcIiAvPlxyXG4gICAgPC8+XHJcbiAgKSxcclxuICBtZXNzYWdlOiAoXHJcbiAgICA8PlxyXG4gICAgICA8cGF0aCBkPVwiTTIxIDEyYTggOCAwIDAgMS04IDhINS41TDMgMjJsLjYtNEE4IDggMCAxIDEgMjEgMTJ6XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk04LjUgMTAuNWg3TTguNSAxNGg0LjVcIiAvPlxyXG4gICAgPC8+XHJcbiAgKSxcclxuICB2b2x1bWU6IChcclxuICAgIDw+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMTEgNUw2LjUgOC41SDN2N2gzLjVMMTEgMTlWNXpcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTE1IDlhNC41IDQuNSAwIDAgMSAwIDZNMTcuNSA2LjVhOCA4IDAgMCAxIDAgMTFcIiAvPlxyXG4gICAgPC8+XHJcbiAgKSxcclxuICBleWU6IChcclxuICAgIDw+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMiAxMnMzLjUtNi41IDEwLTYuNVMyMiAxMiAyMiAxMnMtMy41IDYuNS0xMCA2LjVTMiAxMiAyIDEyelwiIC8+XHJcbiAgICAgIDxjaXJjbGUgY3g9XCIxMlwiIGN5PVwiMTJcIiByPVwiMi44XCIgLz5cclxuICAgIDwvPlxyXG4gICksXHJcbiAgcGFsZXR0ZTogKFxyXG4gICAgPD5cclxuICAgICAgPHBhdGggZD1cIk0xMiAzYTkgOSAwIDAgMCAwIDE4YzEuMiAwIDItLjggMi0xLjggMC0uNS0uMi0uOS0uNS0xLjItLjMtLjMtLjUtLjctLjUtMS4yIDAtMSAuOC0xLjggMS44LTEuOEgxN2E0IDQgMCAwIDAgNC00YzAtNC40LTQtOC05LTh6XCIgLz5cclxuICAgICAgPGNpcmNsZSBjeD1cIjcuNVwiIGN5PVwiMTAuNVwiIHI9XCIxXCIgZmlsbD1cImN1cnJlbnRDb2xvclwiIHN0cm9rZT1cIm5vbmVcIiAvPlxyXG4gICAgICA8Y2lyY2xlIGN4PVwiMTJcIiBjeT1cIjcuNVwiIHI9XCIxXCIgZmlsbD1cImN1cnJlbnRDb2xvclwiIHN0cm9rZT1cIm5vbmVcIiAvPlxyXG4gICAgICA8Y2lyY2xlIGN4PVwiMTYuNVwiIGN5PVwiMTAuNVwiIHI9XCIxXCIgZmlsbD1cImN1cnJlbnRDb2xvclwiIHN0cm9rZT1cIm5vbmVcIiAvPlxyXG4gICAgPC8+XHJcbiAgKSxcclxuICBjcHU6IChcclxuICAgIDw+XHJcbiAgICAgIDxyZWN0IHg9XCI2XCIgeT1cIjZcIiB3aWR0aD1cIjEyXCIgaGVpZ2h0PVwiMTJcIiByeD1cIjJcIiAvPlxyXG4gICAgICA8cmVjdCB4PVwiOS41XCIgeT1cIjkuNVwiIHdpZHRoPVwiNVwiIGhlaWdodD1cIjVcIiByeD1cIjFcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTkgM3YzTTE1IDN2M005IDE4djNNMTUgMTh2M00zIDloM00zIDE1aDNNMTggOWgzTTE4IDE1aDNcIiAvPlxyXG4gICAgPC8+XHJcbiAgKSxcclxuICBicmFpbjogKFxyXG4gICAgPD5cclxuICAgICAgPHBhdGggZD1cIk05LjUgNGEyLjUgMi41IDAgMCAwLTIuNSAyLjVBMi41IDIuNSAwIDAgMCA1IDExLjUgMi41IDIuNSAwIDAgMCA2LjUgMTZ2My41XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk05LjUgNGEyLjUgMi41IDAgMCAxIDIuNSAyLjVWMjFcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTEyIDYuNVY0YTIuNSAyLjUgMCAwIDEgMi41LTIuNWMxLjUgMCAyLjUgMS4zIDIuNSAyLjhWMTFcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTE3IDExYTIuNSAyLjUgMCAwIDAgMCA1IDIgMiAwIDAgMSAwIDRoLTQuNVwiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIGRhdGFiYXNlOiAoXHJcbiAgICA8PlxyXG4gICAgICA8ZWxsaXBzZSBjeD1cIjEyXCIgY3k9XCI1LjVcIiByeD1cIjcuNVwiIHJ5PVwiM1wiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNNC41IDUuNXY2YzAgMS43IDMuNCAzIDcuNSAzczcuNS0xLjMgNy41LTN2LTZcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTQuNSAxMS41djZjMCAxLjcgMy40IDMgNy41IDNzNy41LTEuMyA3LjUtM3YtNlwiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIC8vIOKAlOKAlCDogYrlpKkgLyDkuqTkupIg4oCU4oCUXHJcbiAgc2VuZDogKFxyXG4gICAgPD5cclxuICAgICAgPHBhdGggZD1cIk0yMSAzTDEwLjUgMTMuNVwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMjEgM2wtNi41IDE4LTQtNy41TDMgOS41IDIxIDN6XCIgLz5cclxuICAgIDwvPlxyXG4gICksXHJcbiAgbWljOiAoXHJcbiAgICA8PlxyXG4gICAgICA8cmVjdCB4PVwiOVwiIHk9XCIzXCIgd2lkdGg9XCI2XCIgaGVpZ2h0PVwiMTFcIiByeD1cIjNcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTUuNSAxMWE2LjUgNi41IDAgMCAwIDEzIDBNMTIgMTcuNVYyMU04LjUgMjFoN1wiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIG1pY09mZjogKFxyXG4gICAgPD5cclxuICAgICAgPHBhdGggZD1cIk05IDl2MmEzIDMgMCAwIDAgNS4xIDIuMU0xNSAxMC41VjZhMyAzIDAgMCAwLTUuNS0xLjhcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTUuNSAxMWE2LjUgNi41IDAgMCAwIDkuNiA1LjZNMTIgMTcuNVYyMU04LjUgMjFoN1wiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMyAzbDE4IDE4XCIgLz5cclxuICAgIDwvPlxyXG4gICksXHJcbiAgc3RvcDogKFxyXG4gICAgPD5cclxuICAgICAgPGNpcmNsZSBjeD1cIjEyXCIgY3k9XCIxMlwiIHI9XCI5XCIgLz5cclxuICAgICAgPHJlY3QgeD1cIjlcIiB5PVwiOVwiIHdpZHRoPVwiNlwiIGhlaWdodD1cIjZcIiByeD1cIjFcIiBmaWxsPVwiY3VycmVudENvbG9yXCIgc3Ryb2tlPVwibm9uZVwiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIHNldHRpbmdzOiAoXHJcbiAgICA8PlxyXG4gICAgICA8Y2lyY2xlIGN4PVwiMTJcIiBjeT1cIjEyXCIgcj1cIjMuMlwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMTkuNCAxNWExLjcgMS43IDAgMCAwIC4zNCAxLjg3bC4wNi4wNmEyIDIgMCAxIDEtMi44MyAyLjgzbC0uMDYtLjA2YTEuNyAxLjcgMCAwIDAtMS44Ny0uMzQgMS43IDEuNyAwIDAgMC0xLjAzIDEuNTZWMjFhMiAyIDAgMSAxLTQgMHYtLjA5YTEuNyAxLjcgMCAwIDAtMS4xMS0xLjU2IDEuNyAxLjcgMCAwIDAtMS44Ny4zNGwtLjA2LjA2YTIgMiAwIDEgMS0yLjgzLTIuODNsLjA2LS4wNmExLjcgMS43IDAgMCAwIC4zNC0xLjg3IDEuNyAxLjcgMCAwIDAtMS41Ni0xLjAzSDNhMiAyIDAgMSAxIDAtNGguMDlhMS43IDEuNyAwIDAgMCAxLjU2LTEuMTEgMS43IDEuNyAwIDAgMC0uMzQtMS44N2wtLjA2LS4wNmEyIDIgMCAxIDEgMi44My0yLjgzbC4wNi4wNmExLjcgMS43IDAgMCAwIDEuODcuMzRoLjA4YTEuNyAxLjcgMCAwIDAgMS4wMy0xLjU2VjNhMiAyIDAgMSAxIDQgMHYuMDljMCAuNjguNCAxLjI5IDEuMDMgMS41NmExLjcgMS43IDAgMCAwIDEuODctLjM0bC4wNi0uMDZhMiAyIDAgMSAxIDIuODMgMi44M2wtLjA2LjA2YTEuNyAxLjcgMCAwIDAtLjM0IDEuODd2LjA4Yy4yNy42My44OCAxLjAzIDEuNTYgMS4wM0gyMWEyIDIgMCAxIDEgMCA0aC0uMDlhMS43IDEuNyAwIDAgMC0xLjUxIDEuMDN6XCIgLz5cclxuICAgIDwvPlxyXG4gICksXHJcbiAgc3dpdGNoOiAoXHJcbiAgICA8PlxyXG4gICAgICA8cGF0aCBkPVwiTTggM0w0IDdsNCA0XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk00IDdoMTNhMyAzIDAgMCAxIDMgM3YxXCIgLz5cclxuICAgICAgPHBhdGggZD1cIk0xNiAyMWw0LTQtNC00XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk0yMCAxN0g3YTMgMyAwIDAgMS0zLTN2LTFcIiAvPlxyXG4gICAgPC8+XHJcbiAgKSxcclxuICBwbHVzOiAoXHJcbiAgICA8PlxyXG4gICAgICA8cGF0aCBkPVwiTTEyIDV2MTRNNSAxMmgxNFwiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIHRyYXNoOiAoXHJcbiAgICA8PlxyXG4gICAgICA8cGF0aCBkPVwiTTQgN2gxNk05LjUgN1Y1LjVBMS41IDEuNSAwIDAgMSAxMSA0aDJhMS41IDEuNSAwIDAgMSAxLjUgMS41VjdcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTYuNSA3bC44IDEyLjJBMS44IDEuOCAwIDAgMCA5LjEgMjFoNS44YTEuOCAxLjggMCAwIDAgMS44LTEuOEwxNy41IDdcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTEwIDExdjZNMTQgMTF2NlwiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIGhpc3Rvcnk6IChcclxuICAgIDw+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMyAxMmE5IDkgMCAxIDAgMy02LjdMMyA4XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk0zIDR2NGg0XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk0xMiA4djQuNWwzIDEuOFwiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIHg6IChcclxuICAgIDw+XHJcbiAgICAgIDxwYXRoIGQ9XCJNNiA2bDEyIDEyTTE4IDZMNiAxOFwiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIGNoZXZyb25Eb3duOiAoXHJcbiAgICA8PlxyXG4gICAgICA8cGF0aCBkPVwiTTYgOWw2IDYgNi02XCIgLz5cclxuICAgIDwvPlxyXG4gICksXHJcbiAgcGFuZWxMZWZ0T3BlbjogKFxyXG4gICAgPD5cclxuICAgICAgPHJlY3QgeD1cIjNcIiB5PVwiNFwiIHdpZHRoPVwiMThcIiBoZWlnaHQ9XCIxNlwiIHJ4PVwiMlwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNOS41IDR2MTZcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTE0IDlsMyAzLTMgM1wiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIHBhbmVsTGVmdENsb3NlOiAoXHJcbiAgICA8PlxyXG4gICAgICA8cmVjdCB4PVwiM1wiIHk9XCI0XCIgd2lkdGg9XCIxOFwiIGhlaWdodD1cIjE2XCIgcng9XCIyXCIgLz5cclxuICAgICAgPHBhdGggZD1cIk05LjUgNHYxNlwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMTQgOWwtMyAzIDMgM1wiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIGZvbGRlcjogKFxyXG4gICAgPD5cclxuICAgICAgPHBhdGggZD1cIk0zIDYuNUExLjUgMS41IDAgMCAxIDQuNSA1aDRsMiAyLjVoOUExLjUgMS41IDAgMCAxIDIxIDl2OC41YTEuNSAxLjUgMCAwIDEtMS41IDEuNWgtMTVBMS41IDEuNSAwIDAgMSAzIDE3LjV6XCIgLz5cclxuICAgIDwvPlxyXG4gICksXHJcbiAgY2hlY2s6IChcclxuICAgIDw+XHJcbiAgICAgIDxwYXRoIGQ9XCJNNSAxMi41bDQuNSA0LjVMMTkgN1wiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIC8vIOKAlOKAlCDkuLvpopgg4oCU4oCUXHJcbiAgbW9vbjogKFxyXG4gICAgPD5cclxuICAgICAgPHBhdGggZD1cIk0yMC41IDE0LjVBOC41IDguNSAwIDEgMSA5LjUgMy41YTcgNyAwIDAgMCAxMSAxMXpcIiAvPlxyXG4gICAgPC8+XHJcbiAgKSxcclxuICBzdW46IChcclxuICAgIDw+XHJcbiAgICAgIDxjaXJjbGUgY3g9XCIxMlwiIGN5PVwiMTJcIiByPVwiNFwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMTIgMi41djJNMTIgMTkuNXYyTTQuNSA0LjVsMS40IDEuNE0xOC4xIDE4LjFsMS40IDEuNE0yLjUgMTJoMk0xOS41IDEyaDJNNC41IDE5LjVsMS40LTEuNE0xOC4xIDUuOWwxLjQtMS40XCIgLz5cclxuICAgIDwvPlxyXG4gICksXHJcbiAgLy8g4oCU4oCUIOeKtuaAgSAvIOadgumhuSDigJTigJRcclxuICB3aWZpOiAoXHJcbiAgICA8PlxyXG4gICAgICA8cGF0aCBkPVwiTTIuNSA5YTE1LjUgMTUuNSAwIDAgMSAxOSAwTTUuNSAxMi41YTEwLjUgMTAuNSAwIDAgMSAxMyAwTTguNSAxNmE1LjUgNS41IDAgMCAxIDcgMFwiIC8+XHJcbiAgICAgIDxjaXJjbGUgY3g9XCIxMlwiIGN5PVwiMTlcIiByPVwiMVwiIGZpbGw9XCJjdXJyZW50Q29sb3JcIiBzdHJva2U9XCJub25lXCIgLz5cclxuICAgIDwvPlxyXG4gICksXHJcbiAgaGVhcnQ6IChcclxuICAgIDw+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMTIgMjAuNXMtNy41LTQuNi05LjMtOS4zQzEuNSA4IDMuNyA1IDYuOCA1YzIgMCAzLjYgMS4xIDQuNCAyLjdoMS42QzEzLjYgNi4xIDE1LjIgNSAxNy4yIDVjMy4xIDAgNS4zIDMgNC4xIDYuMi0xLjggNC43LTkuMyA5LjMtOS4zIDkuM3pcIiAvPlxyXG4gICAgPC8+XHJcbiAgKSxcclxuICBmYWNlOiAoXHJcbiAgICA8PlxyXG4gICAgICA8Y2lyY2xlIGN4PVwiMTJcIiBjeT1cIjEyXCIgcj1cIjlcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTguNSAxMGguMDFNMTUuNSAxMGguMDFcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTkgMTQuNWMxIC45IDIgMS4zIDMgMS4zczItLjQgMy0xLjNcIiAvPlxyXG4gICAgPC8+XHJcbiAgKSxcclxuICBsYW5ndWFnZXM6IChcclxuICAgIDw+XHJcbiAgICAgIDxjaXJjbGUgY3g9XCIxMlwiIGN5PVwiMTJcIiByPVwiOVwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMy41IDEyaDE3TTEyIDNhMTQgMTQgMCAwIDEgMCAxOE0xMiAzYTE0IDE0IDAgMCAwIDAgMThcIiAvPlxyXG4gICAgPC8+XHJcbiAgKSxcclxuICB0b29sOiAoXHJcbiAgICA8PlxyXG4gICAgICA8cGF0aCBkPVwiTTE0LjcgNi4zYTQuNSA0LjUgMCAwIDAtNiA1LjZMMyAxNy42VjIxaDMuNGw1LjctNS43YTQuNSA0LjUgMCAwIDAgNS42LTZMMTQgMTNsLTMtMyAzLjctMy43elwiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIGluZm86IChcclxuICAgIDw+XHJcbiAgICAgIDxjaXJjbGUgY3g9XCIxMlwiIGN5PVwiMTJcIiByPVwiOVwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMTIgMTF2NU0xMiA3LjVoLjAxXCIgLz5cclxuICAgIDwvPlxyXG4gICksXHJcbiAgemFwOiAoXHJcbiAgICA8PlxyXG4gICAgICA8cGF0aCBkPVwiTTEzIDJMNC41IDEzLjVIMTFMOS41IDIyIDE5IDEwLjVoLTYuNUwxMyAyelwiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIG1vbml0b3I6IChcclxuICAgIDw+XHJcbiAgICAgIDxyZWN0IHg9XCIyLjVcIiB5PVwiNFwiIHdpZHRoPVwiMTlcIiBoZWlnaHQ9XCIxM1wiIHJ4PVwiMlwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNOCAyMWg4TTEyIDE3djRcIiAvPlxyXG4gICAgPC8+XHJcbiAgKSxcclxuICB1c2VyOiAoXHJcbiAgICA8PlxyXG4gICAgICA8Y2lyY2xlIGN4PVwiMTJcIiBjeT1cIjhcIiByPVwiNFwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNNCAyMWMuOC00IDQuMi02IDgtNnM3LjIgMiA4IDZcIiAvPlxyXG4gICAgPC8+XHJcbiAgKSxcclxuICBlZGl0OiAoXHJcbiAgICA8PlxyXG4gICAgICA8cGF0aCBkPVwiTTQgMjBoNEwyMCA4bC00LTRMNCAxNnY0elwiIC8+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMTMuNSA2LjVsNCA0XCIgLz5cclxuICAgIDwvPlxyXG4gICksXHJcbiAgc2VhcmNoOiAoXHJcbiAgICA8PlxyXG4gICAgICA8Y2lyY2xlIGN4PVwiMTFcIiBjeT1cIjExXCIgcj1cIjdcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTIwLjUgMjAuNUwxNiAxNlwiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIHJlZnJlc2g6IChcclxuICAgIDw+XHJcbiAgICAgIDxwYXRoIGQ9XCJNMjAuNSAxMmE4LjUgOC41IDAgMSAxLTIuNS02XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk0yMC41IDMuNVY5SDE1XCIgLz5cclxuICAgIDwvPlxyXG4gICksXHJcbiAgcGxheTogKFxyXG4gICAgPD5cclxuICAgICAgPGNpcmNsZSBjeD1cIjEyXCIgY3k9XCIxMlwiIHI9XCI5XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk0xMCA4LjVsNiAzLjUtNiAzLjV2LTd6XCIgZmlsbD1cImN1cnJlbnRDb2xvclwiIHN0cm9rZT1cIm5vbmVcIiAvPlxyXG4gICAgPC8+XHJcbiAgKSxcclxuICBwYXVzZTogKFxyXG4gICAgPD5cclxuICAgICAgPGNpcmNsZSBjeD1cIjEyXCIgY3k9XCIxMlwiIHI9XCI5XCIgLz5cclxuICAgICAgPHBhdGggZD1cIk0xMCA5LjV2NU0xNCA5LjV2NVwiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG4gIGFsZXJ0OiAoXHJcbiAgICA8PlxyXG4gICAgICA8cGF0aCBkPVwiTTEwLjMgMy45TDEuOCAxOGEyIDIgMCAwIDAgMS43IDNoMTdhMiAyIDAgMCAwIDEuNy0zTDEzLjcgMy45YTIgMiAwIDAgMC0zLjQgMHpcIiAvPlxyXG4gICAgICA8cGF0aCBkPVwiTTEyIDl2NC41TTEyIDE3aC4wMVwiIC8+XHJcbiAgICA8Lz5cclxuICApLFxyXG59O1xyXG5cclxuLyoqXHJcblxyXG4vKipcclxuICog6YCa55So5Zu+5qCH57uE5Lu277yaPEljb24gbmFtZT1cInNldHRpbmdzXCIgc2l6ZT17MTh9IC8+XHJcbiAqL1xyXG5leHBvcnQgZnVuY3Rpb24gSWNvbih7IG5hbWUsIHNpemUgPSAyMCwgLi4ucmVzdCB9OiBJY29uUHJvcHMpOiBSZWFjdEVsZW1lbnQge1xyXG4gIHJldHVybiAoXHJcbiAgICA8c3ZnXHJcbiAgICAgIHdpZHRoPXtzaXplfVxyXG4gICAgICBoZWlnaHQ9e3NpemV9XHJcbiAgICAgIHZpZXdCb3g9XCIwIDAgMjQgMjRcIlxyXG4gICAgICBhcmlhLWhpZGRlbj1cInRydWVcIlxyXG4gICAgICBmb2N1c2FibGU9XCJmYWxzZVwiXHJcbiAgICAgIHsuLi5TVFJPS0V9XHJcbiAgICAgIHsuLi5yZXN0fVxyXG4gICAgPlxyXG4gICAgICB7SUNPTl9QQVRIU1tuYW1lXX1cclxuICAgIDwvc3ZnPlxyXG4gICk7XHJcbn1cclxuXHJcbi8qKiDlhbflkI3lr7zlh7rvvIzlj6/nm7TmjqXnlKggPFNldHRpbmdzSWNvbiAvPu+8iOecgeS4gOWxgiBuYW1lIOWPguaVsO+8ieOAgiAqL1xyXG5leHBvcnQgY29uc3QgU3BhcmtsZXNJY29uID0gKHA6IE9taXQ8SWNvblByb3BzLCAnbmFtZSc+KTogUmVhY3RFbGVtZW50ID0+IDxJY29uIG5hbWU9XCJzcGFya2xlc1wiIHsuLi5wfSAvPjtcclxuZXhwb3J0IGNvbnN0IE1lc3NhZ2VJY29uID0gKHA6IE9taXQ8SWNvblByb3BzLCAnbmFtZSc+KTogUmVhY3RFbGVtZW50ID0+IDxJY29uIG5hbWU9XCJtZXNzYWdlXCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgVm9sdW1lSWNvbiA9IChwOiBPbWl0PEljb25Qcm9wcywgJ25hbWUnPik6IFJlYWN0RWxlbWVudCA9PiA8SWNvbiBuYW1lPVwidm9sdW1lXCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgRXllSWNvbiA9IChwOiBPbWl0PEljb25Qcm9wcywgJ25hbWUnPik6IFJlYWN0RWxlbWVudCA9PiA8SWNvbiBuYW1lPVwiZXllXCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgUGFsZXR0ZUljb24gPSAocDogT21pdDxJY29uUHJvcHMsICduYW1lJz4pOiBSZWFjdEVsZW1lbnQgPT4gPEljb24gbmFtZT1cInBhbGV0dGVcIiB7Li4ucH0gLz47XHJcbmV4cG9ydCBjb25zdCBDcHVJY29uID0gKHA6IE9taXQ8SWNvblByb3BzLCAnbmFtZSc+KTogUmVhY3RFbGVtZW50ID0+IDxJY29uIG5hbWU9XCJjcHVcIiB7Li4ucH0gLz47XHJcbmV4cG9ydCBjb25zdCBCcmFpbkljb24gPSAocDogT21pdDxJY29uUHJvcHMsICduYW1lJz4pOiBSZWFjdEVsZW1lbnQgPT4gPEljb24gbmFtZT1cImJyYWluXCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgRGF0YWJhc2VJY29uID0gKHA6IE9taXQ8SWNvblByb3BzLCAnbmFtZSc+KTogUmVhY3RFbGVtZW50ID0+IDxJY29uIG5hbWU9XCJkYXRhYmFzZVwiIHsuLi5wfSAvPjtcclxuZXhwb3J0IGNvbnN0IFNlbmRJY29uID0gKHA6IE9taXQ8SWNvblByb3BzLCAnbmFtZSc+KTogUmVhY3RFbGVtZW50ID0+IDxJY29uIG5hbWU9XCJzZW5kXCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgTWljSWNvbiA9IChwOiBPbWl0PEljb25Qcm9wcywgJ25hbWUnPik6IFJlYWN0RWxlbWVudCA9PiA8SWNvbiBuYW1lPVwibWljXCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgTWljT2ZmSWNvbiA9IChwOiBPbWl0PEljb25Qcm9wcywgJ25hbWUnPik6IFJlYWN0RWxlbWVudCA9PiA8SWNvbiBuYW1lPVwibWljT2ZmXCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgU3RvcEljb24gPSAocDogT21pdDxJY29uUHJvcHMsICduYW1lJz4pOiBSZWFjdEVsZW1lbnQgPT4gPEljb24gbmFtZT1cInN0b3BcIiB7Li4ucH0gLz47XHJcbmV4cG9ydCBjb25zdCBTZXR0aW5nc0ljb24gPSAocDogT21pdDxJY29uUHJvcHMsICduYW1lJz4pOiBSZWFjdEVsZW1lbnQgPT4gPEljb24gbmFtZT1cInNldHRpbmdzXCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgU3dpdGNoSWNvbiA9IChwOiBPbWl0PEljb25Qcm9wcywgJ25hbWUnPik6IFJlYWN0RWxlbWVudCA9PiA8SWNvbiBuYW1lPVwic3dpdGNoXCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgUGx1c0ljb24gPSAocDogT21pdDxJY29uUHJvcHMsICduYW1lJz4pOiBSZWFjdEVsZW1lbnQgPT4gPEljb24gbmFtZT1cInBsdXNcIiB7Li4ucH0gLz47XHJcbmV4cG9ydCBjb25zdCBUcmFzaEljb24gPSAocDogT21pdDxJY29uUHJvcHMsICduYW1lJz4pOiBSZWFjdEVsZW1lbnQgPT4gPEljb24gbmFtZT1cInRyYXNoXCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgSGlzdG9yeUljb24gPSAocDogT21pdDxJY29uUHJvcHMsICduYW1lJz4pOiBSZWFjdEVsZW1lbnQgPT4gPEljb24gbmFtZT1cImhpc3RvcnlcIiB7Li4ucH0gLz47XHJcbmV4cG9ydCBjb25zdCBYSWNvbiA9IChwOiBPbWl0PEljb25Qcm9wcywgJ25hbWUnPik6IFJlYWN0RWxlbWVudCA9PiA8SWNvbiBuYW1lPVwieFwiIHsuLi5wfSAvPjtcclxuZXhwb3J0IGNvbnN0IENoZXZyb25Eb3duSWNvbiA9IChwOiBPbWl0PEljb25Qcm9wcywgJ25hbWUnPik6IFJlYWN0RWxlbWVudCA9PiA8SWNvbiBuYW1lPVwiY2hldnJvbkRvd25cIiB7Li4ucH0gLz47XHJcbmV4cG9ydCBjb25zdCBDaGVja0ljb24gPSAocDogT21pdDxJY29uUHJvcHMsICduYW1lJz4pOiBSZWFjdEVsZW1lbnQgPT4gPEljb24gbmFtZT1cImNoZWNrXCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgTW9vbkljb24gPSAocDogT21pdDxJY29uUHJvcHMsICduYW1lJz4pOiBSZWFjdEVsZW1lbnQgPT4gPEljb24gbmFtZT1cIm1vb25cIiB7Li4ucH0gLz47XHJcbmV4cG9ydCBjb25zdCBTdW5JY29uID0gKHA6IE9taXQ8SWNvblByb3BzLCAnbmFtZSc+KTogUmVhY3RFbGVtZW50ID0+IDxJY29uIG5hbWU9XCJzdW5cIiB7Li4ucH0gLz47XHJcbmV4cG9ydCBjb25zdCBXaWZpSWNvbiA9IChwOiBPbWl0PEljb25Qcm9wcywgJ25hbWUnPik6IFJlYWN0RWxlbWVudCA9PiA8SWNvbiBuYW1lPVwid2lmaVwiIHsuLi5wfSAvPjtcclxuZXhwb3J0IGNvbnN0IEhlYXJ0SWNvbiA9IChwOiBPbWl0PEljb25Qcm9wcywgJ25hbWUnPik6IFJlYWN0RWxlbWVudCA9PiA8SWNvbiBuYW1lPVwiaGVhcnRcIiB7Li4ucH0gLz47XHJcbmV4cG9ydCBjb25zdCBGYWNlSWNvbiA9IChwOiBPbWl0PEljb25Qcm9wcywgJ25hbWUnPik6IFJlYWN0RWxlbWVudCA9PiA8SWNvbiBuYW1lPVwiZmFjZVwiIHsuLi5wfSAvPjtcclxuZXhwb3J0IGNvbnN0IExhbmd1YWdlc0ljb24gPSAocDogT21pdDxJY29uUHJvcHMsICduYW1lJz4pOiBSZWFjdEVsZW1lbnQgPT4gPEljb24gbmFtZT1cImxhbmd1YWdlc1wiIHsuLi5wfSAvPjtcclxuZXhwb3J0IGNvbnN0IFRvb2xJY29uID0gKHA6IE9taXQ8SWNvblByb3BzLCAnbmFtZSc+KTogUmVhY3RFbGVtZW50ID0+IDxJY29uIG5hbWU9XCJ0b29sXCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgSW5mb0ljb24gPSAocDogT21pdDxJY29uUHJvcHMsICduYW1lJz4pOiBSZWFjdEVsZW1lbnQgPT4gPEljb24gbmFtZT1cImluZm9cIiB7Li4ucH0gLz47XHJcbmV4cG9ydCBjb25zdCBaYXBJY29uID0gKHA6IE9taXQ8SWNvblByb3BzLCAnbmFtZSc+KTogUmVhY3RFbGVtZW50ID0+IDxJY29uIG5hbWU9XCJ6YXBcIiB7Li4ucH0gLz47XHJcbmV4cG9ydCBjb25zdCBNb25pdG9ySWNvbiA9IChwOiBPbWl0PEljb25Qcm9wcywgJ25hbWUnPik6IFJlYWN0RWxlbWVudCA9PiA8SWNvbiBuYW1lPVwibW9uaXRvclwiIHsuLi5wfSAvPjtcclxuZXhwb3J0IGNvbnN0IFVzZXJJY29uID0gKHA6IE9taXQ8SWNvblByb3BzLCAnbmFtZSc+KTogUmVhY3RFbGVtZW50ID0+IDxJY29uIG5hbWU9XCJ1c2VyXCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgRWRpdEljb24gPSAocDogT21pdDxJY29uUHJvcHMsICduYW1lJz4pOiBSZWFjdEVsZW1lbnQgPT4gPEljb24gbmFtZT1cImVkaXRcIiB7Li4ucH0gLz47XHJcbmV4cG9ydCBjb25zdCBTZWFyY2hJY29uID0gKHA6IE9taXQ8SWNvblByb3BzLCAnbmFtZSc+KTogUmVhY3RFbGVtZW50ID0+IDxJY29uIG5hbWU9XCJzZWFyY2hcIiB7Li4ucH0gLz47XHJcbmV4cG9ydCBjb25zdCBSZWZyZXNoSWNvbiA9IChwOiBPbWl0PEljb25Qcm9wcywgJ25hbWUnPik6IFJlYWN0RWxlbWVudCA9PiA8SWNvbiBuYW1lPVwicmVmcmVzaFwiIHsuLi5wfSAvPjtcclxuZXhwb3J0IGNvbnN0IFBsYXlJY29uID0gKHA6IE9taXQ8SWNvblByb3BzLCAnbmFtZSc+KTogUmVhY3RFbGVtZW50ID0+IDxJY29uIG5hbWU9XCJwbGF5XCIgey4uLnB9IC8+O1xyXG5leHBvcnQgY29uc3QgUGF1c2VJY29uID0gKHA6IE9taXQ8SWNvblByb3BzLCAnbmFtZSc+KTogUmVhY3RFbGVtZW50ID0+IDxJY29uIG5hbWU9XCJwYXVzZVwiIHsuLi5wfSAvPjtcclxuZXhwb3J0IGNvbnN0IEFsZXJ0SWNvbiA9IChwOiBPbWl0PEljb25Qcm9wcywgJ25hbWUnPik6IFJlYWN0RWxlbWVudCA9PiA8SWNvbiBuYW1lPVwiYWxlcnRcIiB7Li4ucH0gLz47XHJcbiJdLCJmaWxlIjoiQzovVXNlcnMvRWx5c2lhL0Rlc2t0b3AvUHJvamVjdC9QeWNoYXJtL01vb25saWdodC9mcm9udGVuZC9zcmMvdWkvaWNvbnMudHN4In0=

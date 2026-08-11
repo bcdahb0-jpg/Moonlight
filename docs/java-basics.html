@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Java 编程基础入门</title>
+<style>
+  body {
+    font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+    background-color: #f7f8fa;
+    color: #333;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 30px 20px 60px;
+    line-height: 1.7;
+  }
+  h1 {
+    text-align: center;
+    color: #2c3e50;
+    font-size: 2em;
+    border-bottom: 3px solid #e67e22;
+    padding-bottom: 15px;
+  }
+  h2 {
+    color: #e67e22;
+    border-left: 5px solid #e67e22;
+    padding-left: 12px;
+    margin-top: 40px;
+  }
+  p {
+    margin: 10px 0;
+  }
+  ul {
+    padding-left: 22px;
+  }
+  li {
+    margin: 4px 0;
+  }
+  pre {
+    background-color: #2d2d2d;
+    color: #f8f8f2;
+    padding: 14px 18px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  code {
+    font-family: Consolas, "Courier New", monospace;
+  }
+  .tip {
+    background-color: #fff8e6;
+    border-left: 4px solid #f1c40f;
+    padding: 10px 14px;
+    border-radius: 4px;
+    margin: 14px 0;
+  }
+  .encourage {
+    text-align: center;
+    background: linear-gradient(135deg, #ffecd2, #fcb69f);
+    padding: 24px;
+    border-radius: 10px;
+    margin-top: 50px;
+    font-size: 1.15em;
+    color: #5a3b1f;
+  }
+</style>
+</head>
+<body>
+
+<h1>☕ Java 编程基础入门</h1>
+<p style="text-align:center; color:#888;">面向零基础初学者 · 简洁版</p>
+
+<h2>1. 什么是 Java？</h2>
+<p>Java 是一种<strong>跨平台、面向对象</strong>的编程语言，写一次代码，可以在 Windows、Mac、Linux 等系统上运行。</p>
+<ul>
+  <li>✅ 跨平台：通过 JVM（Java 虚拟机）运行</li>
+  <li>✅ 面向对象：以"类"和"对象"为核心</li>
+  <li>✅ 生态庞大：企业开发、安卓、大数据都在用</li>
+</ul>
+
+<h2>2. 基本语法结构</h2>
+<p>Java 程序由<strong>类</strong>组成，程序入口是 <code>main</code> 方法：</p>
+<pre><code>public class Hello {
+    public static void main(String[] args) {
+        System.out.println("Hello, Java!");
+    }
+}</code></pre>
+
+<h2>3. 变量与数据类型</h2>
+<p>用变量存储数据，常见类型有 <code>int</code>（整数）、<code>double</code>（小数）、<code>boolean</code>（布尔）、<code>String</code>（字符串）：</p>
+<pre><code>int age = 18;
+double price = 9.9;
+boolean isStudent = true;
+String name = "小明";
+
+System.out.println(name + "今年" + age + "岁");</code></pre>
+
+<h2>4. 运算符</h2>
+<p>算术运算符：<code>+</code>（加） <code>-</code>（减） <code>*</code>（乘） <code>/</code>（除） <code>%</code>（取余）：</p>
+<pre><code>int a = 10, b = 3;
+System.out.println(a + b);  // 13
+System.out.println(a - b);  // 7
+System.out.println(a * b);  // 30
+System.out.println(a / b);  // 3（整数相除）
+System.out.println(a % b);  // 1（余数）</code></pre>
+
+<h2>5. 条件判断 if-else</h2>
+<p>根据条件执行不同代码：</p>
+<pre><code>int score = 85;
+if (score >= 60) {
+    System.out.println("及格了！");
+} else {
+    System.out.println("需要加油~");
+}</code></pre>
+
+<h2>6. 循环 for</h2>
+<p>重复执行一段代码，<code>for</code> 适合已知次数的循环：</p>
+<pre><code>for (int i = 1; i &lt;= 5; i++) {
+    System.out.println("第 " + i + " 次循环");
+}</code></pre>
+
+<h2>7. 方法</h2>
+<p>把功能封装成方法，可以反复调用：</p>
+<pre><code>// 定义方法
+static int add(int x, int y) {
+    return x + y;
+}
+
+public static void main(String[] args) {
+    int result = add(3, 4);   // 调用方法
+    System.out.println(result);  // 7
+}</code></pre>
+
+<h2>8. 数组</h2>
+<p>数组用于存储<strong>一组相同类型</strong>的数据：</p>
+<pre><code>int[] nums = {1, 2, 3, 4, 5};
+
+for (int i = 0; i &lt; nums.length; i++) {
+    System.out.println(nums[i]);
+}</code></pre>
+
+<h2>9. 面向对象基础</h2>
+<p>把数据和操作封装成"类"，用类创建"对象"；<strong>构造方法</strong>在创建对象时自动执行：</p>
+<pre><code>class Student {
+    String name;
+
+    // 构造方法
+    Student(String n) {
+        name = n;
+    }
+
+    void sayHello() {
+        System.out.println("你好，我是 " + name);
+    }
+}
+
+// 创建对象并调用
+Student s = new Student("小红");
+s.sayHello();</code></pre>
+
+<div class="tip">
+💡 <strong>小提示：</strong>动手敲代码比只看更有效，建议把每个示例都亲自运行一遍！
+</div>
+
+<div class="encourage">
+🚀 <strong>坚持就是胜利！</strong><br>
+你已经迈出了学习 Java 的第一步，<br>
+后面的路还很长，但每学会一个知识点都会让你更强。<br>
+加油，未来的程序员！
+</div>
+
+</body>
+</html>

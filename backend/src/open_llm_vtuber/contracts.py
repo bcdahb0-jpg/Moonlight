@@ -92,6 +92,12 @@ class AudioMessage(BaseModel):
     audio: Optional[str] = None
     volumes: list[float] = Field(default_factory=list)
     slice_length: int = 20
+    # 音素级口型数据：每 slice 一个 [a,i,u,e,o] 概率向量（可选增强，
+    # 由 utils/viseme.py 的 F1/F2 共振峰分析产出；前端无此字段时回退 RMS 口型）。
+    visemes: list[list[float]] = Field(default_factory=list)
+    # 情绪强度/时长元数据（Phase 1 面部表情）：{intensity, duration_ms, source}
+    # 缺省时前端用 emotion 默认强度与固定时长。
+    emotion_meta: Optional[dict[str, Any]] = None
     display_text: Optional[dict[str, Any]] = None
     subtitle_text: Optional[str] = None
     actions: Optional[dict[str, Any]] = None
@@ -128,6 +134,26 @@ class ControlMessage(BaseModel):
 
 class BackendSynthCompleteMessage(BaseModel):
     type: Literal["backend-synth-complete"]
+
+
+class ToolCallStatusMessage(BaseModel):
+    """聊天 agent 工具执行状态（basic_memory_agent 的 tool_call_status 事件）。
+
+    text 非空 = 工具执行中（前端显示状态条）；空串 = 结束/清除。
+    """
+
+    type: Literal["tool_call_status"]
+    text: str
+    name: Optional[str] = None
+
+
+class TaskResultMessage(BaseModel):
+    """delegate 任务完整结果直达聊天区（single_conversation 的 task_result 事件）。"""
+
+    type: Literal["task-result"]
+    text: str
+    name: Optional[str] = None
+    avatar: Optional[str] = None
 
 
 class ForceNewMessage(BaseModel):
@@ -169,6 +195,9 @@ class HistoryTitleUpdatedMessage(BaseModel):
 
 class HistoryDataMessage(BaseModel):
     type: Literal["history-data"]
+    # Moonlight（2026-08-10 修复）：点击旧会话加载后前端需要同步当前会话
+    # uid，否则 state.currentHistoryUid 保持 null，输入会误弹"选择工作目录"。
+    history_uid: Optional[str] = None
     messages: list[Any] = Field(default_factory=list)
 
 
@@ -206,6 +235,8 @@ ServerMessage = Union[
     ControlMessage,
     BackendSynthCompleteMessage,
     ForceNewMessage,
+    ToolCallStatusMessage,
+    TaskResultMessage,
     ErrorMessage,
     HistoryListMessage,
     NewHistoryCreatedMessage,
@@ -317,6 +348,8 @@ _CLIENT_MESSAGE_TYPES: frozenset[str] = frozenset(
         "create-new-history",
         "delete-history",
         "set-history-title",
+        "set-history-workspace",
+        "clear-all-histories",
         "interrupt-signal",
         "mic-audio-data",
         "mic-audio-end",
@@ -344,6 +377,9 @@ _CLIENT_MESSAGE_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "fetch-and-set-history": ("history_uid",),
     "delete-history": ("history_uid",),
     "set-history-title": ("history_uid", "title"),
+    # v5：会话必须归属工作目录；移动会话同样需要目标目录。
+    "create-new-history": ("workspace",),
+    "set-history-workspace": ("history_uid", "workspace"),
     "switch-config": ("file",),
 }
 

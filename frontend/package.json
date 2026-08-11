@@ -22,7 +22,9 @@
     "pixi-live2d-display": "^0.5.0-beta",
     "pixi.js": "^7.4.3",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",
@@ -36,5 +38,12 @@
     "typescript": "^5.6.3",
     "vite": "^5.4.8",
     "wait-on": "^8.0.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild",
+      "active-win"
+    ]
   }
 }

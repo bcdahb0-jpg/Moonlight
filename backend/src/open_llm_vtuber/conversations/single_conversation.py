@@ -190,14 +190,24 @@ async def process_single_conversation(
             agent = context.agent_engine
             if _mem_on and hasattr(agent, "set_system"):
                 fresh_mem = load_core_memory(context.character_config.conf_uid)
-                if fresh_mem != getattr(context, "_core_mem_injected", None):
+                # P2 上下文桥：任务简报也纳入 prompt 重建触发因子——简报有/无变化时
+                # 也必须重建（否则任务完成后角色"失忆"，见 service_context._recent_task_brief）。
+                # 这里仅取"是否有简报"作布尔因子，避免每轮全量比对。
+                fresh_brief = ""
+                try:
+                    fresh_brief = context._recent_task_brief()
+                except Exception:
+                    fresh_brief = ""
+                _sig = (fresh_mem, bool(fresh_brief))
+                _prev_sig = getattr(context, "_core_mem_injected", None)
+                if _sig != _prev_sig:
                     refreshed_prompt = await context.construct_system_prompt(
                         context.character_config.persona_prompt
                     )
                     agent.set_system(refreshed_prompt)
-                    context._core_mem_injected = fresh_mem
+                    context._core_mem_injected = _sig
                     logger.info(
-                        "[core_memory] system prompt refreshed with latest core memory"
+                        f"[core_memory] system prompt refreshed (mem_changed={_sig[0] != (_prev_sig or (None,))[0]}, brief={_sig[1]})"
                     )
         except Exception as _refresh_e:
             logger.warning(f"[core_memory] refresh failed: {_refresh_e}")
@@ -245,8 +255,14 @@ async def process_single_conversation(
                         _emb_base, _emb_model, _emb_key = _embedding_llm(
                             context.character_config
                         )
-                        _embs = await embed_texts(
-                            [input_text], _emb_base, _emb_model, _emb_key
+                        # Vector retrieval is a best-effort enhancement. Never
+                        # make the first LLM token wait on a remote embedding
+                        # endpoint; FTS/memory_v2 results remain usable on timeout.
+                        _embs = await asyncio.wait_for(
+                            embed_texts(
+                                [input_text], _emb_base, _emb_model, _emb_key
+                            ),
+                            timeout=0.35,
                         )
                         if _embs and _embs[0]:
                             vec_snippets = search(
@@ -320,6 +336,35 @@ async def process_single_conversation(
 
                     await websocket_send(json.dumps(output_item))
 
+                elif (
+                    isinstance(output_item, dict)
+                    and output_item.get("type") == "task_result"
+                ):
+                    # 2026-08-09 修复：delegate 任务的完整结果直达聊天区。
+                    # 推送给前端（task-result 消息 → AI 气泡显示完整清单/表格），
+                    # 并累加进 full_response（会话历史落库），不等 LLM 逐句复述。
+                    # 2026-08-10：仅成功结果直达；失败由 LLM 口语转述（错误不再
+                    # 以「任务结果」形式展示，避免 HTTP 502 等技术细节外泄）。
+                    status = str(output_item.get("status") or "completed")
+                    task_result = str(output_item.get("content") or "").strip()
+                    if task_result and status in ("completed", "success", ""):
+                        char_name = (
+                            context.character_config.character_name
+                            or context.character_config.conf_name
+                            or ""
+                        )
+                        await websocket_send(
+                            json.dumps(
+                                {
+                                    "type": "task-result",
+                                    "text": f"【任务结果】\n{task_result}",
+                                    "name": char_name,
+                                    "avatar": context.character_config.avatar,
+                                }
+                            )
+                        )
+                        full_response += f"\n\n【任务结果】\n{task_result}"
+
                 elif isinstance(output_item, (SentenceOutput, AudioOutput)):
                     # Handle SentenceOutput or AudioOutput
                     response_part = await process_agent_output(
@@ -359,7 +404,14 @@ async def process_single_conversation(
         # 先把聚合缓冲里的剩余文本整段合成（句子已按段落聚合，见 tts_manager.speak）
         await tts_manager.flush()
         if tts_manager.task_list:
+            # 阶段反馈（v6）：LLM 文本已全部流式上屏，接下来是语音合成（本地引擎
+            # 可能数秒）——明确提示「正在合成语音」，避免用户以为回复已结束/卡住。
+            await send_message(
+                websocket_send,
+                {"type": "tool_call_status", "text": "正在合成语音…"},
+            )
             await asyncio.gather(*tts_manager.task_list)
+            await send_message(websocket_send, {"type": "tool_call_status", "text": ""})
             await send_message(websocket_send, {"type": "backend-synth-complete"})
 
         await finalize_conversation_turn(
@@ -446,18 +498,24 @@ async def process_single_conversation(
                 _emb_base, _emb_model, _emb_key = _embedding_llm(
                     context.character_config
                 )
-                _embs = await embed_texts(
-                    [_mem_text], _emb_base, _emb_model, _emb_key
-                )
-                if _embs and _embs[0]:
-                    import time as _t
-
-                    store_memory(
-                        context.character_config.conf_uid,
-                        _mem_text,
-                        _embs[0],
-                        ts=_t.time(),
+                async def _store_vector_memory() -> None:
+                    _embs = await embed_texts(
+                        [_mem_text], _emb_base, _emb_model, _emb_key
                     )
+                    if _embs and _embs[0]:
+                        import time as _t
+
+                        await asyncio.to_thread(
+                            store_memory,
+                            context.character_config.conf_uid,
+                            _mem_text,
+                            _embs[0],
+                            _t.time(),
+                        )
+
+                _vm_task = asyncio.create_task(_store_vector_memory())
+                _BG_MEMORY_TASKS.add(_vm_task)
+                _vm_task.add_done_callback(_BG_MEMORY_TASKS.discard)
         except Exception as _vm_e:
             logger.warning(f"[vector_memory] store failed: {_vm_e}")
 

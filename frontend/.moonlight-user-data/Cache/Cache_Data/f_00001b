@@ -1,0 +1,2039 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/settings/TaskPlatformSettings.tsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=b90f1a35"; const Fragment = __vite__cjsImport0_react_jsxDevRuntime["Fragment"]; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.__vite_plugin_react_preamble_installed__) {
+    throw new Error("@vitejs/plugin-react can't detect preamble. Something is wrong. See https://github.com/vitejs/vite-plugin-react/pull/11#discussion_r430879201");
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = (type, id) => {
+    RefreshRuntime.register(type, "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx " + id);
+  };
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=b90f1a35"; const useCallback = __vite__cjsImport3_react["useCallback"]; const useEffect = __vite__cjsImport3_react["useEffect"]; const useState = __vite__cjsImport3_react["useState"];
+import {
+  taskPlatformApi,
+  ApiError
+} from "/src/api/rest.ts";
+import { Icon } from "/src/ui/icons.tsx";
+import { SettingStatus } from "/src/settings/SettingStatus.tsx";
+function errorMessage(err) {
+  if (err instanceof ApiError) return err.message;
+  return err instanceof Error ? err.message : "发生未知错误";
+}
+const GENERAL_KEYS = ["enabled", "tasks_root", "max_no_progress"];
+const SANDBOX_KEYS = [
+  "tool_timeout_sec",
+  "bash_output_limit",
+  "write_limit_bytes",
+  "read_limit_bytes",
+  "allow_network"
+];
+const EMBEDDING_KEYS = ["embedding_enabled", "embedding_top_k"];
+const EDIT_KEYS = ["read_before_write", "bash_audit"];
+const WEB_KEYS = [
+  "web_search_enabled",
+  "web_search_provider",
+  "web_search_max_results",
+  "web_fetch_max_bytes",
+  "tavily_api_key",
+  "jina_api_key"
+];
+const CONTEXT_KEYS = [
+  "llm_context_window",
+  "token_budget_warn_ratio",
+  "token_budget_hard_ratio",
+  "memory_max_injection_tokens"
+];
+const TRANSPORTS = ["stdio", "http", "sse", "websocket", "streamable_http"];
+function emptyServer() {
+  return {
+    name: "",
+    transport: "stdio",
+    command: "",
+    args: [],
+    url: "",
+    headers: {},
+    enabled: true
+  };
+}
+function parseArgs(text) {
+  return text.split(/[,，\s]+/).map((s) => s.trim()).filter(Boolean);
+}
+function argsToText(args) {
+  return args.join(" ");
+}
+function parseHeaders(text) {
+  const out = {};
+  for (const line of text.split("\n")) {
+    const idx = line.indexOf(":");
+    if (idx <= 0) continue;
+    const k = line.slice(0, idx).trim();
+    const v = line.slice(idx + 1).trim();
+    if (k) out[k] = v;
+  }
+  return out;
+}
+function headersToText(headers) {
+  return Object.entries(headers).map(([k, v]) => `${k}: ${v}`).join("\n");
+}
+const PROBE_LABELS = {
+  connected: "连接成功",
+  disabled: "已禁用",
+  misconfigured: "配置不完整",
+  error: "连接失败"
+};
+export function TaskPlatformSettings() {
+  _s();
+  const [base, setBase] = useState(null);
+  const [draft, setDraft] = useState(null);
+  const [skills, setSkills] = useState([]);
+  const [agents, setAgents] = useState([]);
+  const [plugins, setPlugins] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState(null);
+  const [form, setForm] = useState(null);
+  const [probe, setProbe] = useState(null);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [cfgRes, skillsRes, agentsRes, pluginsRes] = await Promise.all(
+        [
+          taskPlatformApi.getConfig(),
+          taskPlatformApi.listSkills(),
+          taskPlatformApi.listAgents(),
+          taskPlatformApi.listPlugins()
+        ]
+      );
+      setBase(cfgRes.config);
+      setDraft(cfgRes.config);
+      setSkills(skillsRes.skills);
+      setAgents(agentsRes.agents);
+      setPlugins(pluginsRes.plugins);
+      setStatus(null);
+    } catch (err) {
+      setStatus(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  const dirtyFor = useCallback(
+    (keys) => {
+      if (!base || !draft) return [];
+      return keys.filter((k) => base[k] !== draft[k]);
+    },
+    [base, draft]
+  );
+  const setScalar = (key, value) => {
+    setDraft((d) => d ? { ...d, [key]: value } : d);
+  };
+  const setInt = (key, raw) => {
+    const n = Number(raw);
+    if (Number.isNaN(n)) return;
+    setScalar(key, n);
+  };
+  const setRatio = (key, raw) => {
+    const n = Number(raw);
+    if (Number.isNaN(n)) return;
+    setScalar(key, Math.min(1, Math.max(0, n)));
+  };
+  const saveScalars = async (keys) => {
+    if (!draft) return;
+    const dirty = dirtyFor(keys);
+    if (dirty.length === 0) {
+      setStatus("没有需要保存的修改");
+      return;
+    }
+    setSaving(true);
+    try {
+      const patch = Object.fromEntries(dirty.map((k) => [k, draft[k]]));
+      const r = await taskPlatformApi.saveConfig(patch);
+      setBase({ ...draft });
+      setStatus(r.restart_required ? "已保存，需重启后端后生效" : "已保存");
+    } catch (err) {
+      setStatus(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+  const persistServers = async (servers, msg) => {
+    try {
+      const r = await taskPlatformApi.saveMcpServers(servers);
+      setBase((b) => b ? { ...b, mcp_servers: servers } : b);
+      setDraft((d) => d ? { ...d, mcp_servers: servers } : d);
+      setStatus(msg ?? (r.restart_required ? "MCP 服务器已保存，需重启后端生效" : "MCP 服务器已保存"));
+      return true;
+    } catch (err) {
+      setStatus(errorMessage(err));
+      return false;
+    }
+  };
+  const toggleServer = (index, enabled) => {
+    if (!draft) return;
+    const servers = draft.mcp_servers.map((s, i) => i === index ? { ...s, enabled } : s);
+    void persistServers(servers);
+  };
+  const deleteServer = (index) => {
+    if (!draft) return;
+    const servers = draft.mcp_servers.filter((_, i) => i !== index);
+    void persistServers(servers, "MCP 服务器已删除，需重启后端生效");
+  };
+  const submitServer = async () => {
+    if (!draft || !form) return;
+    const s = form.server;
+    if (!s.name.trim()) {
+      setStatus("请填写服务器名称");
+      return;
+    }
+    if (s.transport === "stdio" && !s.command.trim()) {
+      setStatus("stdio 服务器需要填写启动命令");
+      return;
+    }
+    if (s.transport !== "stdio" && !s.url?.trim()) {
+      setStatus("远程服务器需要填写 URL");
+      return;
+    }
+    const servers = [...draft.mcp_servers];
+    const clean = { ...s, name: s.name.trim() };
+    if (form.mode === "add") servers.push(clean);
+    else
+      servers[form.index] = clean;
+    setForm(null);
+    setProbe(null);
+    await persistServers(
+      servers,
+      form.mode === "add" ? "MCP 服务器已添加，需重启后端生效" : "MCP 服务器已更新，需重启后端生效"
+    );
+  };
+  const probeServer = async (index) => {
+    if (!draft) return;
+    const server = draft.mcp_servers[index];
+    if (!server) return;
+    setStatus(`正在测试 ${server.name} …`);
+    setProbe(null);
+    try {
+      const r = await taskPlatformApi.probeMcpServer(server);
+      setProbe(r.result);
+      setStatus(
+        r.result.status === "connected" ? `${r.result.name} 连接成功，可用工具 ${r.result.tool_count ?? 0} 个` : `${r.result.name}：${r.result.error ?? PROBE_LABELS[r.result.status]}`
+      );
+    } catch (err) {
+      setStatus(errorMessage(err));
+    }
+  };
+  const startAdd = () => {
+    setForm({ mode: "add", index: -1, server: emptyServer() });
+    setProbe(null);
+  };
+  const startEdit = (index) => {
+    if (!draft) return;
+    setForm({ mode: "edit", index, server: { ...draft.mcp_servers[index] } });
+    setProbe(null);
+  };
+  if (loading) {
+    return /* @__PURE__ */ jsxDEV("div", { className: "settings-section task-platform-settings", children: /* @__PURE__ */ jsxDEV("div", { className: "setting-status", children: "正在加载任务平台配置…" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+      lineNumber: 292,
+      columnNumber: 9
+    }, this) }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+      lineNumber: 291,
+      columnNumber: 7
+    }, this);
+  }
+  const generalDirty = dirtyFor(GENERAL_KEYS).length;
+  const sandboxDirty = dirtyFor(SANDBOX_KEYS).length;
+  const embeddingDirty = dirtyFor(EMBEDDING_KEYS).length;
+  const editDirty = dirtyFor(EDIT_KEYS).length;
+  const webDirty = dirtyFor(WEB_KEYS).length;
+  const contextDirty = dirtyFor(CONTEXT_KEYS).length;
+  return /* @__PURE__ */ jsxDEV("div", { className: "settings-section task-platform-settings", children: [
+    /* @__PURE__ */ jsxDEV("section", { className: "settings-card", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-head", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "settings-card-icon", children: /* @__PURE__ */ jsxDEV(Icon, { name: "tool", size: 16 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 309,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 308,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "settings-card-title", children: [
+          /* @__PURE__ */ jsxDEV("h3", { children: "通用" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 312,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { children: "任务模式总开关 · 默认目录 · 无进展上限" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 313,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 311,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 307,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-body", children: [
+        /* @__PURE__ */ jsxDEV("label", { className: "toggle-row", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "启用任务平台" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 318,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "checkbox",
+              checked: draft?.enabled ?? false,
+              onChange: (e) => setScalar("enabled", e.target.checked)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 319,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 317,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "默认任务根目录" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 326,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "text",
+              value: draft?.tasks_root ?? "",
+              placeholder: "tasks/",
+              onChange: (e) => setScalar("tasks_root", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 327,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 325,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "无进展轮数上限（1-100）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 335,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: 1,
+              max: 100,
+              value: draft?.max_no_progress ?? 5,
+              onChange: (e) => setInt("max_no_progress", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 336,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 334,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "btn-row", children: [
+          /* @__PURE__ */ jsxDEV("button", { className: "btn btn-primary btn-sm", disabled: saving, onClick: () => void saveScalars(GENERAL_KEYS), children: saving ? "保存中…" : "保存通用配置" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 345,
+            columnNumber: 13
+          }, this),
+          generalDirty > 0 && /* @__PURE__ */ jsxDEV("span", { className: "setting-note", children: [
+            "有 ",
+            generalDirty,
+            " 项未保存"
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 348,
+            columnNumber: 34
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 344,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: "任务平台配置改完需重启后端生效；关闭后任务模式将不可用。" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 350,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 316,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+      lineNumber: 306,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("section", { className: "settings-card", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-head", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "settings-card-icon", children: /* @__PURE__ */ jsxDEV(Icon, { name: "monitor", size: 16 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 358,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 357,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "settings-card-title", children: [
+          /* @__PURE__ */ jsxDEV("h3", { children: "沙箱限制" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 361,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { children: "任务智能体执行工具时的资源上限" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 362,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 360,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 356,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-body", children: [
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "bash 超时（秒）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 367,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: 1,
+              max: 3600,
+              value: draft?.tool_timeout_sec ?? 120,
+              onChange: (e) => setInt("tool_timeout_sec", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 368,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 366,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "bash 输出截断（字节）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 377,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: 1024,
+              max: 1e7,
+              value: draft?.bash_output_limit ?? 65536,
+              onChange: (e) => setInt("bash_output_limit", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 378,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 376,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "写文件上限（字节）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 387,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: 1024,
+              max: 1e8,
+              value: draft?.write_limit_bytes ?? 1048576,
+              onChange: (e) => setInt("write_limit_bytes", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 388,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 386,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "读文件上限（字节）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 397,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: 1024,
+              max: 1e8,
+              value: draft?.read_limit_bytes ?? 524288,
+              onChange: (e) => setInt("read_limit_bytes", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 398,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 396,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "toggle-row", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "允许任务 agent 联网" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 407,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "checkbox",
+              checked: draft?.allow_network ?? true,
+              onChange: (e) => setScalar("allow_network", e.target.checked)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 408,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 406,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "btn-row", children: [
+          /* @__PURE__ */ jsxDEV("button", { className: "btn btn-primary btn-sm", disabled: saving, onClick: () => void saveScalars(SANDBOX_KEYS), children: saving ? "保存中…" : "保存沙箱限制" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 415,
+            columnNumber: 13
+          }, this),
+          sandboxDirty > 0 && /* @__PURE__ */ jsxDEV("span", { className: "setting-note", children: [
+            "有 ",
+            sandboxDirty,
+            " 项未保存"
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 418,
+            columnNumber: 34
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 414,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: "这些限制防止任务智能体误操作把机器搞挂；改完需重启后端生效。" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 420,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 365,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+      lineNumber: 355,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("section", { className: "settings-card", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-head", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "settings-card-icon", children: /* @__PURE__ */ jsxDEV(Icon, { name: "zap", size: 16 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 428,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 427,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "settings-card-title", children: [
+          /* @__PURE__ */ jsxDEV("h3", { children: "智能体能力" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 431,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { children: "写前读版本门 · bash 高危命令审计（借鉴 deer-flow / pi-agent）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 432,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 430,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 426,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-body", children: [
+        /* @__PURE__ */ jsxDEV("label", { className: "toggle-row", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "写前必须读过（read_before_write）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 437,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "checkbox",
+              checked: draft?.read_before_write ?? true,
+              onChange: (e) => setScalar("read_before_write", e.target.checked)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 438,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 436,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: "修改已有文件前必须先 read_file 读取当前版本（内容哈希比对），防止覆盖外部改动。误伤可关闭。" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 444,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "toggle-row", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "bash 高危命令审计" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 448,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "checkbox",
+              checked: draft?.bash_audit ?? true,
+              onChange: (e) => setScalar("bash_audit", e.target.checked)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 449,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 447,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: [
+          "拦截 ",
+          /* @__PURE__ */ jsxDEV("code", { children: "rm -rf /" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 456,
+            columnNumber: 16
+          }, this),
+          "、",
+          /* @__PURE__ */ jsxDEV("code", { children: "curl | sh" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 456,
+            columnNumber: 38
+          }, this),
+          "、fork 炸弹等高危命令；pip/sudo 等高风险操作执行但追加警告。"
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 455,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "btn-row", children: [
+          /* @__PURE__ */ jsxDEV("button", { className: "btn btn-primary btn-sm", disabled: saving, onClick: () => void saveScalars(EDIT_KEYS), children: saving ? "保存中…" : "保存能力设置" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 459,
+            columnNumber: 13
+          }, this),
+          editDirty > 0 && /* @__PURE__ */ jsxDEV("span", { className: "setting-note", children: [
+            "有 ",
+            editDirty,
+            " 项未保存"
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 462,
+            columnNumber: 31
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 458,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: "改完需重启后端生效。" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 464,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 435,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+      lineNumber: 425,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("section", { className: "settings-card", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-head", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "settings-card-icon", children: /* @__PURE__ */ jsxDEV(Icon, { name: "search", size: 16 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 472,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 471,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "settings-card-title", children: [
+          /* @__PURE__ */ jsxDEV("h3", { children: "网页搜索" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 475,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { children: "任务智能体联网查资料：Tavily（推荐，有 key）→ DuckDuckGo 免费兜底 + Jina 抓正文" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 476,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 474,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 470,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-body", children: [
+        /* @__PURE__ */ jsxDEV("label", { className: "toggle-row", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "启用网页搜索（web_search / web_fetch 工具）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 481,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "checkbox",
+              checked: draft?.web_search_enabled ?? true,
+              onChange: (e) => setScalar("web_search_enabled", e.target.checked)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 482,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 480,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "搜索源" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 489,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "select",
+            {
+              value: draft?.web_search_provider ?? "auto",
+              onChange: (e) => setScalar("web_search_provider", e.target.value),
+              children: [
+                /* @__PURE__ */ jsxDEV("option", { value: "auto", children: "auto（有 Tavily key 用 Tavily，否则 DDG）" }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 494,
+                  columnNumber: 15
+                }, this),
+                /* @__PURE__ */ jsxDEV("option", { value: "tavily", children: "tavily（仅 Tavily）" }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 495,
+                  columnNumber: 15
+                }, this),
+                /* @__PURE__ */ jsxDEV("option", { value: "ddg", children: "ddg（仅 DuckDuckGo，无需 key）" }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 496,
+                  columnNumber: 15
+                }, this)
+              ]
+            },
+            void 0,
+            true,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 490,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 488,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "Tavily API Key" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 500,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "password",
+              value: draft?.tavily_api_key ?? "",
+              placeholder: "tvly-…（留空则用 DDG；支持环境变量 TAVILY_API_KEY）",
+              onChange: (e) => setScalar("tavily_api_key", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 501,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 499,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "Jina Reader API Key（可选，抓网页正文用）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 509,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "password",
+              value: draft?.jina_api_key ?? "",
+              placeholder: "jina_…（留空匿名，限流更严）",
+              onChange: (e) => setScalar("jina_api_key", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 510,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 508,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "单次搜索结果数（1-20）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 518,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: 1,
+              max: 20,
+              value: draft?.web_search_max_results ?? 5,
+              onChange: (e) => setInt("web_search_max_results", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 519,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 517,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "抓取正文上限（字节）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 528,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: 1024,
+              max: 1e7,
+              value: draft?.web_fetch_max_bytes ?? 524288,
+              onChange: (e) => setInt("web_fetch_max_bytes", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 529,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 527,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "btn-row", children: [
+          /* @__PURE__ */ jsxDEV("button", { className: "btn btn-primary btn-sm", disabled: saving, onClick: () => void saveScalars(WEB_KEYS), children: saving ? "保存中…" : "保存搜索设置" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 538,
+            columnNumber: 13
+          }, this),
+          webDirty > 0 && /* @__PURE__ */ jsxDEV("span", { className: "setting-note", children: [
+            "有 ",
+            webDirty,
+            " 项未保存"
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 541,
+            columnNumber: 30
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 537,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: "API key 保存在本地 conf.yaml（含真实密钥，永不提交）。依赖「沙箱限制 → 允许任务 agent 联网」。 改完需重启后端生效。" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 543,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 479,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+      lineNumber: 469,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("section", { className: "settings-card", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-head", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "settings-card-icon", children: /* @__PURE__ */ jsxDEV(Icon, { name: "database", size: 16 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 554,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 553,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "settings-card-title", children: [
+          /* @__PURE__ */ jsxDEV("h3", { children: "上下文与记忆" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 557,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { children: "token 预算前瞻 · 上下文窗口 · 项目级记忆（DeerMem）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 558,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 556,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 552,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-body", children: [
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "上下文窗口（token，0=按模型自动探测）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 563,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: 0,
+              max: 2e6,
+              value: draft?.llm_context_window ?? 0,
+              placeholder: "0（DeepSeek 自动 1M）",
+              onChange: (e) => setInt("llm_context_window", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 564,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 562,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: "0 时按模型名自动探测（deepseek-chat/reasoner = 1M，未知模型回退 64k）。" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 573,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "软警告阈值（0-1，默认 0.8）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 575,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: 0,
+              max: 1,
+              step: 0.05,
+              value: draft?.token_budget_warn_ratio ?? 0.8,
+              onChange: (e) => setRatio("token_budget_warn_ratio", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 576,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 574,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "硬停阈值（0-1，默认 0.95）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 586,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: 0,
+              max: 1,
+              step: 0.05,
+              value: draft?.token_budget_hard_ratio ?? 0.95,
+              onChange: (e) => setRatio("token_budget_hard_ratio", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 587,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 585,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: "超过软阈值后提示 /compact；超过硬阈值自动暂停任务（剥离工具调用防残缺参数执行）。" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 596,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "项目记忆注入上限（token）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 600,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: 100,
+              max: 1e5,
+              value: draft?.memory_max_injection_tokens ?? 1500,
+              onChange: (e) => setInt("memory_max_injection_tokens", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 601,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 599,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: [
+          "记忆存于 ",
+          /* @__PURE__ */ jsxDEV("code", { children: "<工作目录>/.pi/memory/" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 610,
+            columnNumber: 18
+          }, this),
+          "（跨任务积累，任务完成自动写入）。"
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 609,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "btn-row", children: [
+          /* @__PURE__ */ jsxDEV("button", { className: "btn btn-primary btn-sm", disabled: saving, onClick: () => void saveScalars(CONTEXT_KEYS), children: saving ? "保存中…" : "保存上下文设置" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 613,
+            columnNumber: 13
+          }, this),
+          contextDirty > 0 && /* @__PURE__ */ jsxDEV("span", { className: "setting-note", children: [
+            "有 ",
+            contextDirty,
+            " 项未保存"
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 616,
+            columnNumber: 34
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 612,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: "改完需重启后端生效。" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 618,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 561,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+      lineNumber: 551,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("section", { className: "settings-card", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-head", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "settings-card-icon", children: /* @__PURE__ */ jsxDEV(Icon, { name: "wifi", size: 16 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 626,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 625,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "settings-card-title", children: [
+          /* @__PURE__ */ jsxDEV("h3", { children: "MCP 服务器" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 629,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { children: "外部工具接入（联网抓取 / 时间 / 自定义），替代旧的 use_mcpp 开关" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 630,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 628,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 624,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-body", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "mcp-server-head", children: [
+          /* @__PURE__ */ jsxDEV("span", { className: "mcp-server-count", children: [
+            draft?.mcp_servers.length ?? 0,
+            " 个服务器"
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 635,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("button", { className: "btn btn-sm btn-primary", onClick: startAdd, children: [
+            /* @__PURE__ */ jsxDEV(Icon, { name: "plus", size: 14 }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 637,
+              columnNumber: 15
+            }, this),
+            " 添加服务器"
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 636,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 634,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "mcp-server-table", children: [
+          draft?.mcp_servers.map(
+            (s, i) => /* @__PURE__ */ jsxDEV("div", { className: "mcp-server-row", children: [
+              /* @__PURE__ */ jsxDEV("span", { className: `mcp-status-dot ${s.enabled ? "on" : "off"}` }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 643,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { className: "mcp-server-main", children: [
+                /* @__PURE__ */ jsxDEV("div", { className: "mcp-server-name", children: s.name }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 645,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV("div", { className: "mcp-server-sub", children: [
+                  s.transport,
+                  s.transport === "stdio" ? ` · ${s.command} ${s.args.join(" ")}` : ` · ${s.url ?? ""}`
+                ] }, void 0, true, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 646,
+                  columnNumber: 19
+                }, this)
+              ] }, void 0, true, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 644,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("label", { className: "switch-row mcp-enable", title: s.enabled ? "点击禁用" : "点击启用", children: [
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "checkbox",
+                    className: "switch",
+                    checked: s.enabled,
+                    onChange: (e) => toggleServer(i, e.target.checked)
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                    lineNumber: 654,
+                    columnNumber: 19
+                  },
+                  this
+                ),
+                /* @__PURE__ */ jsxDEV("span", { className: "switch-ui", "aria-hidden": "true" }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 660,
+                  columnNumber: 19
+                }, this)
+              ] }, void 0, true, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 653,
+                columnNumber: 17
+              }, this),
+              /* @__PURE__ */ jsxDEV("div", { className: "mcp-actions", children: [
+                /* @__PURE__ */ jsxDEV("button", { className: "btn btn-sm", title: "测试连接", onClick: () => void probeServer(i), children: [
+                  /* @__PURE__ */ jsxDEV(Icon, { name: "refresh", size: 13 }, void 0, false, {
+                    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                    lineNumber: 664,
+                    columnNumber: 21
+                  }, this),
+                  " 测试"
+                ] }, void 0, true, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 663,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV("button", { className: "btn btn-sm", title: "编辑", onClick: () => startEdit(i), children: /* @__PURE__ */ jsxDEV(Icon, { name: "edit", size: 13 }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 667,
+                  columnNumber: 21
+                }, this) }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 666,
+                  columnNumber: 19
+                }, this),
+                /* @__PURE__ */ jsxDEV("button", { className: "btn btn-sm btn-danger", title: "删除", onClick: () => deleteServer(i), children: /* @__PURE__ */ jsxDEV(Icon, { name: "trash", size: 13 }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 670,
+                  columnNumber: 21
+                }, this) }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 669,
+                  columnNumber: 19
+                }, this)
+              ] }, void 0, true, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 662,
+                columnNumber: 17
+              }, this)
+            ] }, `${s.name}-${i}`, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 642,
+              columnNumber: 13
+            }, this)
+          ),
+          (draft?.mcp_servers.length ?? 0) === 0 && /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: "尚未配置 MCP 服务器，点击「添加服务器」接入外部工具。" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 676,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 640,
+          columnNumber: 11
+        }, this),
+        probe && /* @__PURE__ */ jsxDEV("div", { className: "mcp-probe-result", children: [
+          /* @__PURE__ */ jsxDEV("span", { className: `mcp-status-dot ${probe.status === "connected" ? "on" : "off"}` }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 682,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { children: [
+            /* @__PURE__ */ jsxDEV("div", { className: "mcp-probe-title", children: PROBE_LABELS[probe.status] ?? probe.status }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 684,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV("div", { className: "mcp-probe-detail", children: probe.status === "connected" && probe.tools && probe.tools.length > 0 ? `可用工具：${probe.tools.join(" · ")}` : probe.error ?? probe.status }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 685,
+              columnNumber: 17
+            }, this)
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 683,
+            columnNumber: 15
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 681,
+          columnNumber: 11
+        }, this),
+        form && /* @__PURE__ */ jsxDEV("div", { className: "mcp-server-form", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "mcp-form-head", children: [
+            /* @__PURE__ */ jsxDEV("span", { children: form.mode === "add" ? "添加 MCP 服务器" : `编辑 ${form.server.name}` }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 697,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV("button", { className: "btn btn-sm", title: "关闭", onClick: () => setForm(null), children: /* @__PURE__ */ jsxDEV(Icon, { name: "x", size: 14 }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 699,
+              columnNumber: 19
+            }, this) }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 698,
+              columnNumber: 17
+            }, this)
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 696,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "mcp-form-grid", children: [
+            /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: "名称 *" }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 704,
+                columnNumber: 19
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "input",
+                {
+                  type: "text",
+                  value: form.server.name,
+                  placeholder: "fetch",
+                  onChange: (e) => setForm({ ...form, server: { ...form.server, name: e.target.value } })
+                },
+                void 0,
+                false,
+                {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 705,
+                  columnNumber: 19
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 703,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: "传输方式" }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 713,
+                columnNumber: 19
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "select",
+                {
+                  value: form.server.transport,
+                  onChange: (e) => setForm({ ...form, server: { ...form.server, transport: e.target.value } }),
+                  children: TRANSPORTS.map(
+                    (t) => /* @__PURE__ */ jsxDEV("option", { value: t, children: t }, t, false, {
+                      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                      lineNumber: 719,
+                      columnNumber: 19
+                    }, this)
+                  )
+                },
+                void 0,
+                false,
+                {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 714,
+                  columnNumber: 19
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 712,
+              columnNumber: 17
+            }, this),
+            form.server.transport === "stdio" ? /* @__PURE__ */ jsxDEV(Fragment, { children: [
+              /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+                /* @__PURE__ */ jsxDEV("span", { children: "启动命令 *" }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 728,
+                  columnNumber: 23
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "text",
+                    value: form.server.command,
+                    placeholder: "uvx",
+                    onChange: (e) => setForm({ ...form, server: { ...form.server, command: e.target.value } })
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                    lineNumber: 729,
+                    columnNumber: 23
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 727,
+                columnNumber: 21
+              }, this),
+              /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+                /* @__PURE__ */ jsxDEV("span", { children: "参数（空格分隔）" }, void 0, false, {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 737,
+                  columnNumber: 23
+                }, this),
+                /* @__PURE__ */ jsxDEV(
+                  "input",
+                  {
+                    type: "text",
+                    value: argsToText(form.server.args),
+                    placeholder: "mcp-server-fetch",
+                    onChange: (e) => setForm({ ...form, server: { ...form.server, args: parseArgs(e.target.value) } })
+                  },
+                  void 0,
+                  false,
+                  {
+                    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                    lineNumber: 738,
+                    columnNumber: 23
+                  },
+                  this
+                )
+              ] }, void 0, true, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 736,
+                columnNumber: 21
+              }, this)
+            ] }, void 0, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 726,
+              columnNumber: 15
+            }, this) : /* @__PURE__ */ jsxDEV("label", { className: "field mcp-form-full", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: "URL *" }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 748,
+                columnNumber: 21
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "input",
+                {
+                  type: "text",
+                  value: form.server.url ?? "",
+                  placeholder: "http://127.0.0.1:9000/sse",
+                  onChange: (e) => setForm({ ...form, server: { ...form.server, url: e.target.value } })
+                },
+                void 0,
+                false,
+                {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 749,
+                  columnNumber: 21
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 747,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("label", { className: "field mcp-form-full", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: "Headers（每行 k: v）" }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 758,
+                columnNumber: 19
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "textarea",
+                {
+                  rows: 3,
+                  value: headersToText(form.server.headers),
+                  onChange: (e) => setForm({ ...form, server: { ...form.server, headers: parseHeaders(e.target.value) } })
+                },
+                void 0,
+                false,
+                {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 759,
+                  columnNumber: 19
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 757,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV("label", { className: "toggle-row mcp-form-full", children: [
+              /* @__PURE__ */ jsxDEV("span", { children: "启用该服务器" }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 766,
+                columnNumber: 19
+              }, this),
+              /* @__PURE__ */ jsxDEV(
+                "input",
+                {
+                  type: "checkbox",
+                  checked: form.server.enabled,
+                  onChange: (e) => setForm({ ...form, server: { ...form.server, enabled: e.target.checked } })
+                },
+                void 0,
+                false,
+                {
+                  fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                  lineNumber: 767,
+                  columnNumber: 19
+                },
+                this
+              )
+            ] }, void 0, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 765,
+              columnNumber: 17
+            }, this)
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 702,
+            columnNumber: 15
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "btn-row", children: [
+            /* @__PURE__ */ jsxDEV("button", { className: "btn btn-primary btn-sm", onClick: () => void submitServer(), children: form.mode === "add" ? "添加" : "保存" }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 775,
+              columnNumber: 17
+            }, this),
+            /* @__PURE__ */ jsxDEV("button", { className: "btn btn-sm", onClick: () => setForm(null), children: "取消" }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 778,
+              columnNumber: 17
+            }, this)
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 774,
+            columnNumber: 15
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 695,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: [
+          "stdio 服务器用本地命令启动（如 ",
+          /* @__PURE__ */ jsxDEV("code", { children: "uvx mcp-server-fetch" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 785,
+            columnNumber: 32
+          }, this),
+          "）；http/sse/websocket 用 URL。 每个服务器 fail-soft：单个失败不影响主链路。改完需重启后端生效。"
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 784,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 633,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+      lineNumber: 623,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("section", { className: "settings-card", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-head", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "settings-card-icon", children: /* @__PURE__ */ jsxDEV(Icon, { name: "database", size: 16 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 795,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 794,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "settings-card-title", children: [
+          /* @__PURE__ */ jsxDEV("h3", { children: "技能 / 子智能体 / 插件" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 798,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { children: "技能库、sub-agent 目录与 extensions 插件" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 799,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 797,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 793,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-body", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "目录" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 804,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "mcp-dir-list", children: [
+            /* @__PURE__ */ jsxDEV("span", { children: [
+              /* @__PURE__ */ jsxDEV("code", { children: "技能库" }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 806,
+                columnNumber: 21
+              }, this),
+              " ",
+              draft?.skills_root ?? "-"
+            ] }, void 0, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 806,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: [
+              /* @__PURE__ */ jsxDEV("code", { children: "子智能体" }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 807,
+                columnNumber: 21
+              }, this),
+              " ",
+              draft?.agents_root ?? "-"
+            ] }, void 0, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 807,
+              columnNumber: 15
+            }, this),
+            /* @__PURE__ */ jsxDEV("span", { children: [
+              /* @__PURE__ */ jsxDEV("code", { children: "插件" }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 808,
+                columnNumber: 21
+              }, this),
+              " ",
+              draft?.plugins_root ?? "-"
+            ] }, void 0, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 808,
+              columnNumber: 15
+            }, this)
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 805,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: "目录路径在 conf.yaml 的 task_platform 中修改。" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 810,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 803,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "toggle-row", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "技能语义检索（embedding）" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 813,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "checkbox",
+              checked: draft?.embedding_enabled ?? false,
+              onChange: (e) => setScalar("embedding_enabled", e.target.checked)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 814,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 812,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("label", { className: "field", children: [
+          /* @__PURE__ */ jsxDEV("span", { children: "检索 Top-K" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 821,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV(
+            "input",
+            {
+              type: "number",
+              min: 1,
+              max: 100,
+              value: draft?.embedding_top_k ?? 5,
+              onChange: (e) => setInt("embedding_top_k", e.target.value)
+            },
+            void 0,
+            false,
+            {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 822,
+              columnNumber: 13
+            },
+            this
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 820,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "btn-row", children: [
+          /* @__PURE__ */ jsxDEV("button", { className: "btn btn-primary btn-sm", disabled: saving, onClick: () => void saveScalars(EMBEDDING_KEYS), children: saving ? "保存中…" : "保存检索设置" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 831,
+            columnNumber: 13
+          }, this),
+          embeddingDirty > 0 && /* @__PURE__ */ jsxDEV("span", { className: "setting-note", children: [
+            "有 ",
+            embeddingDirty,
+            " 项未保存"
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 834,
+            columnNumber: 36
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 830,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "mcp-dir-section", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "mcp-dir-head", children: [
+            /* @__PURE__ */ jsxDEV(Icon, { name: "sparkles", size: 14 }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 839,
+              columnNumber: 15
+            }, this),
+            " 已加载技能（",
+            skills.length,
+            "）"
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 838,
+            columnNumber: 13
+          }, this),
+          skills.length === 0 ? /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: "无技能" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 842,
+            columnNumber: 13
+          }, this) : skills.map(
+            (s) => /* @__PURE__ */ jsxDEV("div", { className: "mcp-dir-item", children: [
+              /* @__PURE__ */ jsxDEV("span", { className: "mcp-dir-item-name", children: s.name }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 846,
+                columnNumber: 19
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "mcp-dir-item-desc", children: s.description }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 847,
+                columnNumber: 19
+              }, this)
+            ] }, s.name, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 845,
+              columnNumber: 13
+            }, this)
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 837,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "mcp-dir-section", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "mcp-dir-head", children: [
+            /* @__PURE__ */ jsxDEV(Icon, { name: "user", size: 14 }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 854,
+              columnNumber: 15
+            }, this),
+            " 子智能体（",
+            agents.length,
+            "）"
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 853,
+            columnNumber: 13
+          }, this),
+          agents.length === 0 ? /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: "无子智能体" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 857,
+            columnNumber: 13
+          }, this) : agents.map(
+            (a) => /* @__PURE__ */ jsxDEV("div", { className: "mcp-dir-item", children: [
+              /* @__PURE__ */ jsxDEV("span", { className: "mcp-dir-item-name", children: a.display_name || a.name }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 861,
+                columnNumber: 19
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "mcp-dir-item-desc", children: a.description }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 862,
+                columnNumber: 19
+              }, this)
+            ] }, a.name, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 860,
+              columnNumber: 13
+            }, this)
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 852,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "mcp-dir-section", children: [
+          /* @__PURE__ */ jsxDEV("div", { className: "mcp-dir-head", children: [
+            /* @__PURE__ */ jsxDEV(Icon, { name: "zap", size: 14 }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 869,
+              columnNumber: 15
+            }, this),
+            " 已加载插件（",
+            plugins.length,
+            "）"
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 868,
+            columnNumber: 13
+          }, this),
+          plugins.length === 0 ? /* @__PURE__ */ jsxDEV("div", { className: "setting-note", children: [
+            "无插件（在 ",
+            draft?.plugins_root ?? "plugins/",
+            " 添加 .py 文件，或改名 .disabled 禁用）"
+          ] }, void 0, true, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+            lineNumber: 872,
+            columnNumber: 13
+          }, this) : plugins.map(
+            (p) => /* @__PURE__ */ jsxDEV("div", { className: "mcp-dir-item", children: [
+              /* @__PURE__ */ jsxDEV("span", { className: "mcp-dir-item-name", children: p.name }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 876,
+                columnNumber: 19
+              }, this),
+              /* @__PURE__ */ jsxDEV("span", { className: "mcp-dir-item-desc", children: p.enabled ? "已启用" : "已禁用" }, void 0, false, {
+                fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+                lineNumber: 877,
+                columnNumber: 19
+              }, this)
+            ] }, p.name, true, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+              lineNumber: 875,
+              columnNumber: 13
+            }, this)
+          )
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+          lineNumber: 867,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+        lineNumber: 802,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+      lineNumber: 792,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV(SettingStatus, { message: status }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+      lineNumber: 885,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx",
+    lineNumber: 304,
+    columnNumber: 5
+  }, this);
+}
+_s(TaskPlatformSettings, "WrJ/fWTM490Iz86HvT6557+eodU=");
+_c = TaskPlatformSettings;
+var _c;
+$RefreshReg$(_c, "TaskPlatformSettings");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/settings/TaskPlatformSettings.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QUFvQixJQUFBd0g7QUFBQSxhQUFBQSxJQUFBIiwibmFtZXMiOlsidXNlRWZmZWN0IiwiUmVhY3RFbGVtZW50IiwidGFza1BsYXRmb3JtQXBpIiwiQXBpRXJyb3IiLCJJY29uIiwiU2V0dGluZ1N0YXR1cyIsImVycm9yTWVzc2FnZSIsImVyciIsIm1lc3NhZ2UiLCJFcnJvciIsIkdFTkVSQUxfS0VZUyIsIlNBTkRCT1hfS0VZUyIsIkVNQkVERElOR19LRVlTIiwiRURJVF9LRVlTIiwiV0VCX0tFWVMiLCJDT05URVhUX0tFWVMiLCJUUkFOU1BPUlRTIiwiZW1wdHlTZXJ2ZXIiLCJuYW1lIiwidHJhbnNwb3J0IiwiY29tbWFuZCIsImFyZ3MiLCJ1cmwiLCJoZWFkZXJzIiwiZW5hYmxlZCIsInBhcnNlQXJncyIsInRleHQiLCJzcGxpdCIsIm1hcCIsInMiLCJ0cmltIiwiZmlsdGVyIiwiQm9vbGVhbiIsImFyZ3NUb1RleHQiLCJqb2luIiwicGFyc2VIZWFkZXJzIiwib3V0IiwibGluZSIsImlkeCIsImluZGV4T2YiLCJrIiwic2xpY2UiLCJ2IiwiaGVhZGVyc1RvVGV4dCIsIk9iamVjdCIsImVudHJpZXMiLCJQUk9CRV9MQUJFTFMiLCJjb25uZWN0ZWQiLCJkaXNhYmxlZCIsIm1pc2NvbmZpZ3VyZWQiLCJlcnJvciIsIlRhc2tQbGF0Zm9ybVNldHRpbmdzIiwiX3MiLCJiYXNlIiwic2V0QmFzZSIsInVzZVN0YXRlIiwiZHJhZnQiLCJzZXREcmFmdCIsInNraWxscyIsInNldFNraWxscyIsImFnZW50cyIsInNldEFnZW50cyIsInBsdWdpbnMiLCJzZXRQbHVnaW5zIiwibG9hZGluZyIsInNldExvYWRpbmciLCJzYXZpbmciLCJzZXRTYXZpbmciLCJzdGF0dXMiLCJzZXRTdGF0dXMiLCJmb3JtIiwic2V0Rm9ybSIsInByb2JlIiwic2V0UHJvYmUiLCJsb2FkIiwidXNlQ2FsbGJhY2siLCJjZmdSZXMiLCJza2lsbHNSZXMiLCJhZ2VudHNSZXMiLCJwbHVnaW5zUmVzIiwiUHJvbWlzZSIsImFsbCIsImdldENvbmZpZyIsImxpc3RTa2lsbHMiLCJsaXN0QWdlbnRzIiwibGlzdFBsdWdpbnMiLCJjb25maWciLCJkaXJ0eUZvciIsImtleXMiLCJzZXRTY2FsYXIiLCJrZXkiLCJ2YWx1ZSIsImQiLCJzZXRJbnQiLCJyYXciLCJuIiwiTnVtYmVyIiwiaXNOYU4iLCJzZXRSYXRpbyIsIk1hdGgiLCJtaW4iLCJtYXgiLCJzYXZlU2NhbGFycyIsImRpcnR5IiwibGVuZ3RoIiwicGF0Y2giLCJmcm9tRW50cmllcyIsInIiLCJzYXZlQ29uZmlnIiwicmVzdGFydF9yZXF1aXJlZCIsInBlcnNpc3RTZXJ2ZXJzIiwic2VydmVycyIsIm1zZyIsInNhdmVNY3BTZXJ2ZXJzIiwiYiIsIm1jcF9zZXJ2ZXJzIiwidG9nZ2xlU2VydmVyIiwiaW5kZXgiLCJpIiwiZGVsZXRlU2VydmVyIiwiXyIsInN1Ym1pdFNlcnZlciIsInNlcnZlciIsImNsZWFuIiwibW9kZSIsInB1c2giLCJwcm9iZVNlcnZlciIsInByb2JlTWNwU2VydmVyIiwicmVzdWx0IiwidG9vbF9jb3VudCIsInN0YXJ0QWRkIiwic3RhcnRFZGl0IiwiZ2VuZXJhbERpcnR5Iiwic2FuZGJveERpcnR5IiwiZW1iZWRkaW5nRGlydHkiLCJlZGl0RGlydHkiLCJ3ZWJEaXJ0eSIsImNvbnRleHREaXJ0eSIsImUiLCJ0YXJnZXQiLCJjaGVja2VkIiwidGFza3Nfcm9vdCIsIm1heF9ub19wcm9ncmVzcyIsInRvb2xfdGltZW91dF9zZWMiLCJiYXNoX291dHB1dF9saW1pdCIsIndyaXRlX2xpbWl0X2J5dGVzIiwicmVhZF9saW1pdF9ieXRlcyIsImFsbG93X25ldHdvcmsiLCJyZWFkX2JlZm9yZV93cml0ZSIsImJhc2hfYXVkaXQiLCJ3ZWJfc2VhcmNoX2VuYWJsZWQiLCJ3ZWJfc2VhcmNoX3Byb3ZpZGVyIiwidGF2aWx5X2FwaV9rZXkiLCJqaW5hX2FwaV9rZXkiLCJ3ZWJfc2VhcmNoX21heF9yZXN1bHRzIiwid2ViX2ZldGNoX21heF9ieXRlcyIsImxsbV9jb250ZXh0X3dpbmRvdyIsInRva2VuX2J1ZGdldF93YXJuX3JhdGlvIiwidG9rZW5fYnVkZ2V0X2hhcmRfcmF0aW8iLCJtZW1vcnlfbWF4X2luamVjdGlvbl90b2tlbnMiLCJ0b29scyIsInQiLCJza2lsbHNfcm9vdCIsImFnZW50c19yb290IiwicGx1Z2luc19yb290IiwiZW1iZWRkaW5nX2VuYWJsZWQiLCJlbWJlZGRpbmdfdG9wX2siLCJkZXNjcmlwdGlvbiIsImEiLCJkaXNwbGF5X25hbWUiLCJwIiwiX2MiXSwiaWdub3JlTGlzdCI6W10sInNvdXJjZXMiOlsiVGFza1BsYXRmb3JtU2V0dGluZ3MudHN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB7IHVzZUNhbGxiYWNrLCB1c2VFZmZlY3QsIHVzZVN0YXRlLCB0eXBlIFJlYWN0RWxlbWVudCB9IGZyb20gJ3JlYWN0JztcbmltcG9ydCB7XG4gIHRhc2tQbGF0Zm9ybUFwaSxcbiAgQXBpRXJyb3IsXG4gIHR5cGUgQWdlbnRTdW1tYXJ5LFxuICB0eXBlIE1jcFNlcnZlckNvbmZpZyxcbiAgdHlwZSBNY3BTZXJ2ZXJQcm9iZVJlc3VsdCxcbiAgdHlwZSBQbHVnaW5TdW1tYXJ5LFxuICB0eXBlIFNraWxsU3VtbWFyeSxcbiAgdHlwZSBUYXNrUGxhdGZvcm1Db25maWcsXG59IGZyb20gJ0AvYXBpL3Jlc3QnO1xuaW1wb3J0IHsgSWNvbiB9IGZyb20gJ0AvdWkvaWNvbnMnO1xuaW1wb3J0IHsgU2V0dGluZ1N0YXR1cyB9IGZyb20gJy4vU2V0dGluZ1N0YXR1cyc7XG5cbmZ1bmN0aW9uIGVycm9yTWVzc2FnZShlcnI6IHVua25vd24pOiBzdHJpbmcge1xuICBpZiAoZXJyIGluc3RhbmNlb2YgQXBpRXJyb3IpIHJldHVybiBlcnIubWVzc2FnZTtcbiAgcmV0dXJuIGVyciBpbnN0YW5jZW9mIEVycm9yID8gZXJyLm1lc3NhZ2UgOiAn5Y+R55Sf5pyq55+l6ZSZ6K+vJztcbn1cblxuLyoqIOWQhOWNoeeJh+WPr+e8lui+keeahOagh+mHj+Wtl+aute+8iE1DUCDmnI3liqHlmajliJfooajljZXni6znrqHnkIbvvIzkuI3ov5vmoIfph48gZGlmZu+8ieOAgiAqL1xuY29uc3QgR0VORVJBTF9LRVlTOiAoa2V5b2YgVGFza1BsYXRmb3JtQ29uZmlnKVtdID0gWydlbmFibGVkJywgJ3Rhc2tzX3Jvb3QnLCAnbWF4X25vX3Byb2dyZXNzJ107XG5jb25zdCBTQU5EQk9YX0tFWVM6IChrZXlvZiBUYXNrUGxhdGZvcm1Db25maWcpW10gPSBbXG4gICd0b29sX3RpbWVvdXRfc2VjJyxcbiAgJ2Jhc2hfb3V0cHV0X2xpbWl0JyxcbiAgJ3dyaXRlX2xpbWl0X2J5dGVzJyxcbiAgJ3JlYWRfbGltaXRfYnl0ZXMnLFxuICAnYWxsb3dfbmV0d29yaycsXG5dO1xuY29uc3QgRU1CRURESU5HX0tFWVM6IChrZXlvZiBUYXNrUGxhdGZvcm1Db25maWcpW10gPSBbJ2VtYmVkZGluZ19lbmFibGVkJywgJ2VtYmVkZGluZ190b3BfayddO1xuLy8gLS0tLSB2MyDljYfnuqfvvIjlgJ/pibQgZGVlci1mbG93IC8gcGktYWdlbnTvvIktLS0tXG5jb25zdCBFRElUX0tFWVM6IChrZXlvZiBUYXNrUGxhdGZvcm1Db25maWcpW10gPSBbJ3JlYWRfYmVmb3JlX3dyaXRlJywgJ2Jhc2hfYXVkaXQnXTtcbmNvbnN0IFdFQl9LRVlTOiAoa2V5b2YgVGFza1BsYXRmb3JtQ29uZmlnKVtdID0gW1xuICAnd2ViX3NlYXJjaF9lbmFibGVkJyxcbiAgJ3dlYl9zZWFyY2hfcHJvdmlkZXInLFxuICAnd2ViX3NlYXJjaF9tYXhfcmVzdWx0cycsXG4gICd3ZWJfZmV0Y2hfbWF4X2J5dGVzJyxcbiAgJ3RhdmlseV9hcGlfa2V5JyxcbiAgJ2ppbmFfYXBpX2tleScsXG5dO1xuY29uc3QgQ09OVEVYVF9LRVlTOiAoa2V5b2YgVGFza1BsYXRmb3JtQ29uZmlnKVtdID0gW1xuICAnbGxtX2NvbnRleHRfd2luZG93JyxcbiAgJ3Rva2VuX2J1ZGdldF93YXJuX3JhdGlvJyxcbiAgJ3Rva2VuX2J1ZGdldF9oYXJkX3JhdGlvJyxcbiAgJ21lbW9yeV9tYXhfaW5qZWN0aW9uX3Rva2VucycsXG5dO1xuXG5jb25zdCBUUkFOU1BPUlRTID0gWydzdGRpbycsICdodHRwJywgJ3NzZScsICd3ZWJzb2NrZXQnLCAnc3RyZWFtYWJsZV9odHRwJ107XG5cbmZ1bmN0aW9uIGVtcHR5U2VydmVyKCk6IE1jcFNlcnZlckNvbmZpZyB7XG4gIHJldHVybiB7XG4gICAgbmFtZTogJycsXG4gICAgdHJhbnNwb3J0OiAnc3RkaW8nLFxuICAgIGNvbW1hbmQ6ICcnLFxuICAgIGFyZ3M6IFtdLFxuICAgIHVybDogJycsXG4gICAgaGVhZGVyczoge30sXG4gICAgZW5hYmxlZDogdHJ1ZSxcbiAgfTtcbn1cblxuZnVuY3Rpb24gcGFyc2VBcmdzKHRleHQ6IHN0cmluZyk6IHN0cmluZ1tdIHtcbiAgcmV0dXJuIHRleHRcbiAgICAuc3BsaXQoL1ss77yMXFxzXSsvKVxuICAgIC5tYXAoKHMpID0+IHMudHJpbSgpKVxuICAgIC5maWx0ZXIoQm9vbGVhbik7XG59XG5cbmZ1bmN0aW9uIGFyZ3NUb1RleHQoYXJnczogc3RyaW5nW10pOiBzdHJpbmcge1xuICByZXR1cm4gYXJncy5qb2luKCcgJyk7XG59XG5cbmZ1bmN0aW9uIHBhcnNlSGVhZGVycyh0ZXh0OiBzdHJpbmcpOiBSZWNvcmQ8c3RyaW5nLCBzdHJpbmc+IHtcbiAgY29uc3Qgb3V0OiBSZWNvcmQ8c3RyaW5nLCBzdHJpbmc+ID0ge307XG4gIGZvciAoY29uc3QgbGluZSBvZiB0ZXh0LnNwbGl0KCdcXG4nKSkge1xuICAgIGNvbnN0IGlkeCA9IGxpbmUuaW5kZXhPZignOicpO1xuICAgIGlmIChpZHggPD0gMCkgY29udGludWU7XG4gICAgY29uc3QgayA9IGxpbmUuc2xpY2UoMCwgaWR4KS50cmltKCk7XG4gICAgY29uc3QgdiA9IGxpbmUuc2xpY2UoaWR4ICsgMSkudHJpbSgpO1xuICAgIGlmIChrKSBvdXRba10gPSB2O1xuICB9XG4gIHJldHVybiBvdXQ7XG59XG5cbmZ1bmN0aW9uIGhlYWRlcnNUb1RleHQoaGVhZGVyczogUmVjb3JkPHN0cmluZywgc3RyaW5nPik6IHN0cmluZyB7XG4gIHJldHVybiBPYmplY3QuZW50cmllcyhoZWFkZXJzKVxuICAgIC5tYXAoKFtrLCB2XSkgPT4gYCR7a306ICR7dn1gKVxuICAgIC5qb2luKCdcXG4nKTtcbn1cblxuaW50ZXJmYWNlIE1jcEZvcm1TdGF0ZSB7XG4gIG1vZGU6ICdhZGQnIHwgJ2VkaXQnO1xuICBpbmRleDogbnVtYmVyO1xuICBzZXJ2ZXI6IE1jcFNlcnZlckNvbmZpZztcbn1cblxuY29uc3QgUFJPQkVfTEFCRUxTOiBSZWNvcmQ8TWNwU2VydmVyUHJvYmVSZXN1bHRbJ3N0YXR1cyddLCBzdHJpbmc+ID0ge1xuICBjb25uZWN0ZWQ6ICfov57mjqXmiJDlip8nLFxuICBkaXNhYmxlZDogJ+W3suemgeeUqCcsXG4gIG1pc2NvbmZpZ3VyZWQ6ICfphY3nva7kuI3lrozmlbQnLFxuICBlcnJvcjogJ+i/nuaOpeWksei0pScsXG59O1xuXG5leHBvcnQgZnVuY3Rpb24gVGFza1BsYXRmb3JtU2V0dGluZ3MoKTogUmVhY3RFbGVtZW50IHtcbiAgY29uc3QgW2Jhc2UsIHNldEJhc2VdID0gdXNlU3RhdGU8VGFza1BsYXRmb3JtQ29uZmlnIHwgbnVsbD4obnVsbCk7XG4gIGNvbnN0IFtkcmFmdCwgc2V0RHJhZnRdID0gdXNlU3RhdGU8VGFza1BsYXRmb3JtQ29uZmlnIHwgbnVsbD4obnVsbCk7XG4gIGNvbnN0IFtza2lsbHMsIHNldFNraWxsc10gPSB1c2VTdGF0ZTxTa2lsbFN1bW1hcnlbXT4oW10pO1xuICBjb25zdCBbYWdlbnRzLCBzZXRBZ2VudHNdID0gdXNlU3RhdGU8QWdlbnRTdW1tYXJ5W10+KFtdKTtcbiAgY29uc3QgW3BsdWdpbnMsIHNldFBsdWdpbnNdID0gdXNlU3RhdGU8UGx1Z2luU3VtbWFyeVtdPihbXSk7XG4gIGNvbnN0IFtsb2FkaW5nLCBzZXRMb2FkaW5nXSA9IHVzZVN0YXRlKHRydWUpO1xuICBjb25zdCBbc2F2aW5nLCBzZXRTYXZpbmddID0gdXNlU3RhdGUoZmFsc2UpO1xuICBjb25zdCBbc3RhdHVzLCBzZXRTdGF0dXNdID0gdXNlU3RhdGU8c3RyaW5nIHwgbnVsbD4obnVsbCk7XG4gIGNvbnN0IFtmb3JtLCBzZXRGb3JtXSA9IHVzZVN0YXRlPE1jcEZvcm1TdGF0ZSB8IG51bGw+KG51bGwpO1xuICBjb25zdCBbcHJvYmUsIHNldFByb2JlXSA9IHVzZVN0YXRlPE1jcFNlcnZlclByb2JlUmVzdWx0IHwgbnVsbD4obnVsbCk7XG5cbiAgY29uc3QgbG9hZCA9IHVzZUNhbGxiYWNrKGFzeW5jICgpOiBQcm9taXNlPHZvaWQ+ID0+IHtcbiAgICBzZXRMb2FkaW5nKHRydWUpO1xuICAgIHRyeSB7XG4gICAgICBjb25zdCBbY2ZnUmVzLCBza2lsbHNSZXMsIGFnZW50c1JlcywgcGx1Z2luc1Jlc10gPSBhd2FpdCBQcm9taXNlLmFsbChbXG4gICAgICAgIHRhc2tQbGF0Zm9ybUFwaS5nZXRDb25maWcoKSxcbiAgICAgICAgdGFza1BsYXRmb3JtQXBpLmxpc3RTa2lsbHMoKSxcbiAgICAgICAgdGFza1BsYXRmb3JtQXBpLmxpc3RBZ2VudHMoKSxcbiAgICAgICAgdGFza1BsYXRmb3JtQXBpLmxpc3RQbHVnaW5zKCksXG4gICAgICBdKTtcbiAgICAgIHNldEJhc2UoY2ZnUmVzLmNvbmZpZyk7XG4gICAgICBzZXREcmFmdChjZmdSZXMuY29uZmlnKTtcbiAgICAgIHNldFNraWxscyhza2lsbHNSZXMuc2tpbGxzKTtcbiAgICAgIHNldEFnZW50cyhhZ2VudHNSZXMuYWdlbnRzKTtcbiAgICAgIHNldFBsdWdpbnMocGx1Z2luc1Jlcy5wbHVnaW5zKTtcbiAgICAgIHNldFN0YXR1cyhudWxsKTtcbiAgICB9IGNhdGNoIChlcnIpIHtcbiAgICAgIHNldFN0YXR1cyhlcnJvck1lc3NhZ2UoZXJyKSk7XG4gICAgfSBmaW5hbGx5IHtcbiAgICAgIHNldExvYWRpbmcoZmFsc2UpO1xuICAgIH1cbiAgfSwgW10pO1xuXG4gIHVzZUVmZmVjdCgoKSA9PiB7XG4gICAgdm9pZCBsb2FkKCk7XG4gIH0sIFtsb2FkXSk7XG5cbiAgY29uc3QgZGlydHlGb3IgPSB1c2VDYWxsYmFjayhcbiAgICAoa2V5czogKGtleW9mIFRhc2tQbGF0Zm9ybUNvbmZpZylbXSk6IChrZXlvZiBUYXNrUGxhdGZvcm1Db25maWcpW10gPT4ge1xuICAgICAgaWYgKCFiYXNlIHx8ICFkcmFmdCkgcmV0dXJuIFtdO1xuICAgICAgcmV0dXJuIGtleXMuZmlsdGVyKChrKSA9PiBiYXNlW2tdICE9PSBkcmFmdFtrXSk7XG4gICAgfSxcbiAgICBbYmFzZSwgZHJhZnRdLFxuICApO1xuXG4gIGNvbnN0IHNldFNjYWxhciA9IDxLIGV4dGVuZHMga2V5b2YgVGFza1BsYXRmb3JtQ29uZmlnPihcbiAgICBrZXk6IEssXG4gICAgdmFsdWU6IFRhc2tQbGF0Zm9ybUNvbmZpZ1tLXSxcbiAgKTogdm9pZCA9PiB7XG4gICAgc2V0RHJhZnQoKGQpID0+IChkID8geyAuLi5kLCBba2V5XTogdmFsdWUgfSA6IGQpKTtcbiAgfTtcblxuICBjb25zdCBzZXRJbnQgPSAoXG4gICAga2V5OlxuICAgICAgfCAnbWF4X25vX3Byb2dyZXNzJ1xuICAgICAgfCAndG9vbF90aW1lb3V0X3NlYydcbiAgICAgIHwgJ2Jhc2hfb3V0cHV0X2xpbWl0J1xuICAgICAgfCAnd3JpdGVfbGltaXRfYnl0ZXMnXG4gICAgICB8ICdyZWFkX2xpbWl0X2J5dGVzJ1xuICAgICAgfCAnZW1iZWRkaW5nX3RvcF9rJ1xuICAgICAgfCAnbGxtX2NvbnRleHRfd2luZG93J1xuICAgICAgfCAnd2ViX3NlYXJjaF9tYXhfcmVzdWx0cydcbiAgICAgIHwgJ3dlYl9mZXRjaF9tYXhfYnl0ZXMnXG4gICAgICB8ICdtZW1vcnlfbWF4X2luamVjdGlvbl90b2tlbnMnLFxuICAgIHJhdzogc3RyaW5nLFxuICApOiB2b2lkID0+IHtcbiAgICBjb25zdCBuID0gTnVtYmVyKHJhdyk7XG4gICAgaWYgKE51bWJlci5pc05hTihuKSkgcmV0dXJuO1xuICAgIHNldFNjYWxhcihrZXksIG4gYXMgVGFza1BsYXRmb3JtQ29uZmlnW3R5cGVvZiBrZXldKTtcbiAgfTtcblxuICBjb25zdCBzZXRSYXRpbyA9IChrZXk6ICd0b2tlbl9idWRnZXRfd2Fybl9yYXRpbycgfCAndG9rZW5fYnVkZ2V0X2hhcmRfcmF0aW8nLCByYXc6IHN0cmluZyk6IHZvaWQgPT4ge1xuICAgIGNvbnN0IG4gPSBOdW1iZXIocmF3KTtcbiAgICBpZiAoTnVtYmVyLmlzTmFOKG4pKSByZXR1cm47XG4gICAgc2V0U2NhbGFyKGtleSwgTWF0aC5taW4oMSwgTWF0aC5tYXgoMCwgbikpIGFzIFRhc2tQbGF0Zm9ybUNvbmZpZ1t0eXBlb2Yga2V5XSk7XG4gIH07XG5cbiAgY29uc3Qgc2F2ZVNjYWxhcnMgPSBhc3luYyAoa2V5czogKGtleW9mIFRhc2tQbGF0Zm9ybUNvbmZpZylbXSk6IFByb21pc2U8dm9pZD4gPT4ge1xuICAgIGlmICghZHJhZnQpIHJldHVybjtcbiAgICBjb25zdCBkaXJ0eSA9IGRpcnR5Rm9yKGtleXMpO1xuICAgIGlmIChkaXJ0eS5sZW5ndGggPT09IDApIHtcbiAgICAgIHNldFN0YXR1cygn5rKh5pyJ6ZyA6KaB5L+d5a2Y55qE5L+u5pS5Jyk7XG4gICAgICByZXR1cm47XG4gICAgfVxuICAgIHNldFNhdmluZyh0cnVlKTtcbiAgICB0cnkge1xuICAgICAgY29uc3QgcGF0Y2ggPSBPYmplY3QuZnJvbUVudHJpZXMoZGlydHkubWFwKChrKSA9PiBbaywgZHJhZnRba11dKSk7XG4gICAgICBjb25zdCByID0gYXdhaXQgdGFza1BsYXRmb3JtQXBpLnNhdmVDb25maWcocGF0Y2gpO1xuICAgICAgc2V0QmFzZSh7IC4uLmRyYWZ0IH0pO1xuICAgICAgc2V0U3RhdHVzKHIucmVzdGFydF9yZXF1aXJlZCA/ICflt7Lkv53lrZjvvIzpnIDph43lkK/lkI7nq6/lkI7nlJ/mlYgnIDogJ+W3suS/neWtmCcpO1xuICAgIH0gY2F0Y2ggKGVycikge1xuICAgICAgc2V0U3RhdHVzKGVycm9yTWVzc2FnZShlcnIpKTtcbiAgICB9IGZpbmFsbHkge1xuICAgICAgc2V0U2F2aW5nKGZhbHNlKTtcbiAgICB9XG4gIH07XG5cbiAgLy8gLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tIC8vXG4gIC8vIE1DUCDmnI3liqHlmajnrqHnkIZcbiAgLy8gLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tIC8vXG4gIGNvbnN0IHBlcnNpc3RTZXJ2ZXJzID0gYXN5bmMgKHNlcnZlcnM6IE1jcFNlcnZlckNvbmZpZ1tdLCBtc2c/OiBzdHJpbmcpOiBQcm9taXNlPGJvb2xlYW4+ID0+IHtcbiAgICB0cnkge1xuICAgICAgY29uc3QgciA9IGF3YWl0IHRhc2tQbGF0Zm9ybUFwaS5zYXZlTWNwU2VydmVycyhzZXJ2ZXJzKTtcbiAgICAgIHNldEJhc2UoKGIpID0+IChiID8geyAuLi5iLCBtY3Bfc2VydmVyczogc2VydmVycyB9IDogYikpO1xuICAgICAgc2V0RHJhZnQoKGQpID0+IChkID8geyAuLi5kLCBtY3Bfc2VydmVyczogc2VydmVycyB9IDogZCkpO1xuICAgICAgc2V0U3RhdHVzKG1zZyA/PyAoci5yZXN0YXJ0X3JlcXVpcmVkID8gJ01DUCDmnI3liqHlmajlt7Lkv53lrZjvvIzpnIDph43lkK/lkI7nq6/nlJ/mlYgnIDogJ01DUCDmnI3liqHlmajlt7Lkv53lrZgnKSk7XG4gICAgICByZXR1cm4gdHJ1ZTtcbiAgICB9IGNhdGNoIChlcnIpIHtcbiAgICAgIHNldFN0YXR1cyhlcnJvck1lc3NhZ2UoZXJyKSk7XG4gICAgICByZXR1cm4gZmFsc2U7XG4gICAgfVxuICB9O1xuXG4gIGNvbnN0IHRvZ2dsZVNlcnZlciA9IChpbmRleDogbnVtYmVyLCBlbmFibGVkOiBib29sZWFuKTogdm9pZCA9PiB7XG4gICAgaWYgKCFkcmFmdCkgcmV0dXJuO1xuICAgIGNvbnN0IHNlcnZlcnMgPSBkcmFmdC5tY3Bfc2VydmVycy5tYXAoKHMsIGkpID0+IChpID09PSBpbmRleCA/IHsgLi4ucywgZW5hYmxlZCB9IDogcykpO1xuICAgIHZvaWQgcGVyc2lzdFNlcnZlcnMoc2VydmVycyk7XG4gIH07XG5cbiAgY29uc3QgZGVsZXRlU2VydmVyID0gKGluZGV4OiBudW1iZXIpOiB2b2lkID0+IHtcbiAgICBpZiAoIWRyYWZ0KSByZXR1cm47XG4gICAgY29uc3Qgc2VydmVycyA9IGRyYWZ0Lm1jcF9zZXJ2ZXJzLmZpbHRlcigoXywgaSkgPT4gaSAhPT0gaW5kZXgpO1xuICAgIHZvaWQgcGVyc2lzdFNlcnZlcnMoc2VydmVycywgJ01DUCDmnI3liqHlmajlt7LliKDpmaTvvIzpnIDph43lkK/lkI7nq6/nlJ/mlYgnKTtcbiAgfTtcblxuICBjb25zdCBzdWJtaXRTZXJ2ZXIgPSBhc3luYyAoKTogUHJvbWlzZTx2b2lkPiA9PiB7XG4gICAgaWYgKCFkcmFmdCB8fCAhZm9ybSkgcmV0dXJuO1xuICAgIGNvbnN0IHMgPSBmb3JtLnNlcnZlcjtcbiAgICBpZiAoIXMubmFtZS50cmltKCkpIHtcbiAgICAgIHNldFN0YXR1cygn6K+35aGr5YaZ5pyN5Yqh5Zmo5ZCN56ewJyk7XG4gICAgICByZXR1cm47XG4gICAgfVxuICAgIGlmIChzLnRyYW5zcG9ydCA9PT0gJ3N0ZGlvJyAmJiAhcy5jb21tYW5kLnRyaW0oKSkge1xuICAgICAgc2V0U3RhdHVzKCdzdGRpbyDmnI3liqHlmajpnIDopoHloavlhpnlkK/liqjlkb3ku6QnKTtcbiAgICAgIHJldHVybjtcbiAgICB9XG4gICAgaWYgKHMudHJhbnNwb3J0ICE9PSAnc3RkaW8nICYmICFzLnVybD8udHJpbSgpKSB7XG4gICAgICBzZXRTdGF0dXMoJ+i/nOeoi+acjeWKoeWZqOmcgOimgeWhq+WGmSBVUkwnKTtcbiAgICAgIHJldHVybjtcbiAgICB9XG4gICAgY29uc3Qgc2VydmVycyA9IFsuLi5kcmFmdC5tY3Bfc2VydmVyc107XG4gICAgY29uc3QgY2xlYW46IE1jcFNlcnZlckNvbmZpZyA9IHsgLi4ucywgbmFtZTogcy5uYW1lLnRyaW0oKSB9O1xuICAgIGlmIChmb3JtLm1vZGUgPT09ICdhZGQnKSBzZXJ2ZXJzLnB1c2goY2xlYW4pO1xuICAgIGVsc2Ugc2VydmVyc1tmb3JtLmluZGV4XSA9IGNsZWFuO1xuICAgIHNldEZvcm0obnVsbCk7XG4gICAgc2V0UHJvYmUobnVsbCk7XG4gICAgYXdhaXQgcGVyc2lzdFNlcnZlcnMoXG4gICAgICBzZXJ2ZXJzLFxuICAgICAgZm9ybS5tb2RlID09PSAnYWRkJyA/ICdNQ1Ag5pyN5Yqh5Zmo5bey5re75Yqg77yM6ZyA6YeN5ZCv5ZCO56uv55Sf5pWIJyA6ICdNQ1Ag5pyN5Yqh5Zmo5bey5pu05paw77yM6ZyA6YeN5ZCv5ZCO56uv55Sf5pWIJyxcbiAgICApO1xuICB9O1xuXG4gIGNvbnN0IHByb2JlU2VydmVyID0gYXN5bmMgKGluZGV4OiBudW1iZXIpOiBQcm9taXNlPHZvaWQ+ID0+IHtcbiAgICBpZiAoIWRyYWZ0KSByZXR1cm47XG4gICAgY29uc3Qgc2VydmVyID0gZHJhZnQubWNwX3NlcnZlcnNbaW5kZXhdO1xuICAgIGlmICghc2VydmVyKSByZXR1cm47XG4gICAgc2V0U3RhdHVzKGDmraPlnKjmtYvor5UgJHtzZXJ2ZXIubmFtZX0g4oCmYCk7XG4gICAgc2V0UHJvYmUobnVsbCk7XG4gICAgdHJ5IHtcbiAgICAgIGNvbnN0IHIgPSBhd2FpdCB0YXNrUGxhdGZvcm1BcGkucHJvYmVNY3BTZXJ2ZXIoc2VydmVyKTtcbiAgICAgIHNldFByb2JlKHIucmVzdWx0KTtcbiAgICAgIHNldFN0YXR1cyhcbiAgICAgICAgci5yZXN1bHQuc3RhdHVzID09PSAnY29ubmVjdGVkJ1xuICAgICAgICAgID8gYCR7ci5yZXN1bHQubmFtZX0g6L+e5o6l5oiQ5Yqf77yM5Y+v55So5bel5YW3ICR7ci5yZXN1bHQudG9vbF9jb3VudCA/PyAwfSDkuKpgXG4gICAgICAgICAgOiBgJHtyLnJlc3VsdC5uYW1lfe+8miR7ci5yZXN1bHQuZXJyb3IgPz8gUFJPQkVfTEFCRUxTW3IucmVzdWx0LnN0YXR1c119YCxcbiAgICAgICk7XG4gICAgfSBjYXRjaCAoZXJyKSB7XG4gICAgICBzZXRTdGF0dXMoZXJyb3JNZXNzYWdlKGVycikpO1xuICAgIH1cbiAgfTtcblxuICBjb25zdCBzdGFydEFkZCA9ICgpOiB2b2lkID0+IHtcbiAgICBzZXRGb3JtKHsgbW9kZTogJ2FkZCcsIGluZGV4OiAtMSwgc2VydmVyOiBlbXB0eVNlcnZlcigpIH0pO1xuICAgIHNldFByb2JlKG51bGwpO1xuICB9O1xuXG4gIGNvbnN0IHN0YXJ0RWRpdCA9IChpbmRleDogbnVtYmVyKTogdm9pZCA9PiB7XG4gICAgaWYgKCFkcmFmdCkgcmV0dXJuO1xuICAgIHNldEZvcm0oeyBtb2RlOiAnZWRpdCcsIGluZGV4LCBzZXJ2ZXI6IHsgLi4uZHJhZnQubWNwX3NlcnZlcnNbaW5kZXhdIH0gfSk7XG4gICAgc2V0UHJvYmUobnVsbCk7XG4gIH07XG5cbiAgLy8gLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tIC8vXG4gIC8vIOa4suafk1xuICAvLyAtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0gLy9cbiAgaWYgKGxvYWRpbmcpIHtcbiAgICByZXR1cm4gKFxuICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1zZWN0aW9uIHRhc2stcGxhdGZvcm0tc2V0dGluZ3NcIj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5nLXN0YXR1c1wiPuato+WcqOWKoOi9veS7u+WKoeW5s+WPsOmFjee9ruKApjwvZGl2PlxuICAgICAgPC9kaXY+XG4gICAgKTtcbiAgfVxuICBjb25zdCBnZW5lcmFsRGlydHkgPSBkaXJ0eUZvcihHRU5FUkFMX0tFWVMpLmxlbmd0aDtcbiAgY29uc3Qgc2FuZGJveERpcnR5ID0gZGlydHlGb3IoU0FOREJPWF9LRVlTKS5sZW5ndGg7XG4gIGNvbnN0IGVtYmVkZGluZ0RpcnR5ID0gZGlydHlGb3IoRU1CRURESU5HX0tFWVMpLmxlbmd0aDtcbiAgY29uc3QgZWRpdERpcnR5ID0gZGlydHlGb3IoRURJVF9LRVlTKS5sZW5ndGg7XG4gIGNvbnN0IHdlYkRpcnR5ID0gZGlydHlGb3IoV0VCX0tFWVMpLmxlbmd0aDtcbiAgY29uc3QgY29udGV4dERpcnR5ID0gZGlydHlGb3IoQ09OVEVYVF9LRVlTKS5sZW5ndGg7XG5cbiAgcmV0dXJuIChcbiAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLXNlY3Rpb24gdGFzay1wbGF0Zm9ybS1zZXR0aW5nc1wiPlxuICAgICAgey8qIOWNoeeJhyAx77ya6YCa55SoICovfVxuICAgICAgPHNlY3Rpb24gY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZFwiPlxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtaGVhZFwiPlxuICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtaWNvblwiPlxuICAgICAgICAgICAgPEljb24gbmFtZT1cInRvb2xcIiBzaXplPXsxNn0gLz5cbiAgICAgICAgICA8L3NwYW4+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLXRpdGxlXCI+XG4gICAgICAgICAgICA8aDM+6YCa55SoPC9oMz5cbiAgICAgICAgICAgIDxwPuS7u+WKoeaooeW8j+aAu+W8gOWFsyDCtyDpu5jorqTnm67lvZUgwrcg5peg6L+b5bGV5LiK6ZmQPC9wPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWJvZHlcIj5cbiAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwidG9nZ2xlLXJvd1wiPlxuICAgICAgICAgICAgPHNwYW4+5ZCv55So5Lu75Yqh5bmz5Y+wPC9zcGFuPlxuICAgICAgICAgICAgPGlucHV0XG4gICAgICAgICAgICAgIHR5cGU9XCJjaGVja2JveFwiXG4gICAgICAgICAgICAgIGNoZWNrZWQ9e2RyYWZ0Py5lbmFibGVkID8/IGZhbHNlfVxuICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldFNjYWxhcignZW5hYmxlZCcsIGUudGFyZ2V0LmNoZWNrZWQpfVxuICAgICAgICAgICAgLz5cbiAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmaWVsZFwiPlxuICAgICAgICAgICAgPHNwYW4+6buY6K6k5Lu75Yqh5qC555uu5b2VPC9zcGFuPlxuICAgICAgICAgICAgPGlucHV0XG4gICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcbiAgICAgICAgICAgICAgdmFsdWU9e2RyYWZ0Py50YXNrc19yb290ID8/ICcnfVxuICAgICAgICAgICAgICBwbGFjZWhvbGRlcj1cInRhc2tzL1wiXG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0U2NhbGFyKCd0YXNrc19yb290JywgZS50YXJnZXQudmFsdWUpfVxuICAgICAgICAgICAgLz5cbiAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmaWVsZFwiPlxuICAgICAgICAgICAgPHNwYW4+5peg6L+b5bGV6L2u5pWw5LiK6ZmQ77yIMS0xMDDvvIk8L3NwYW4+XG4gICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgdHlwZT1cIm51bWJlclwiXG4gICAgICAgICAgICAgIG1pbj17MX1cbiAgICAgICAgICAgICAgbWF4PXsxMDB9XG4gICAgICAgICAgICAgIHZhbHVlPXtkcmFmdD8ubWF4X25vX3Byb2dyZXNzID8/IDV9XG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0SW50KCdtYXhfbm9fcHJvZ3Jlc3MnLCBlLnRhcmdldC52YWx1ZSl9XG4gICAgICAgICAgICAvPlxuICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJidG4tcm93XCI+XG4gICAgICAgICAgICA8YnV0dG9uIGNsYXNzTmFtZT1cImJ0biBidG4tcHJpbWFyeSBidG4tc21cIiBkaXNhYmxlZD17c2F2aW5nfSBvbkNsaWNrPXsoKSA9PiB2b2lkIHNhdmVTY2FsYXJzKEdFTkVSQUxfS0VZUyl9PlxuICAgICAgICAgICAgICB7c2F2aW5nID8gJ+S/neWtmOS4reKApicgOiAn5L+d5a2Y6YCa55So6YWN572uJ31cbiAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAge2dlbmVyYWxEaXJ0eSA+IDAgJiYgPHNwYW4gY2xhc3NOYW1lPVwic2V0dGluZy1ub3RlXCI+5pyJIHtnZW5lcmFsRGlydHl9IOmhueacquS/neWtmDwvc3Bhbj59XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5nLW5vdGVcIj7ku7vliqHlubPlj7DphY3nva7mlLnlrozpnIDph43lkK/lkI7nq6/nlJ/mlYjvvJvlhbPpl63lkI7ku7vliqHmqKHlvI/lsIbkuI3lj6/nlKjjgII8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L3NlY3Rpb24+XG5cbiAgICAgIHsvKiDljaHniYcgMu+8muaymeeusemZkOWItiAqL31cbiAgICAgIDxzZWN0aW9uIGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmRcIj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWhlYWRcIj5cbiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWljb25cIj5cbiAgICAgICAgICAgIDxJY29uIG5hbWU9XCJtb25pdG9yXCIgc2l6ZT17MTZ9IC8+XG4gICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC10aXRsZVwiPlxuICAgICAgICAgICAgPGgzPuaymeeusemZkOWItjwvaDM+XG4gICAgICAgICAgICA8cD7ku7vliqHmmbrog73kvZPmiafooYzlt6Xlhbfml7bnmoTotYTmupDkuIrpmZA8L3A+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtYm9keVwiPlxuICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmaWVsZFwiPlxuICAgICAgICAgICAgPHNwYW4+YmFzaCDotoXml7bvvIjnp5LvvIk8L3NwYW4+XG4gICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgdHlwZT1cIm51bWJlclwiXG4gICAgICAgICAgICAgIG1pbj17MX1cbiAgICAgICAgICAgICAgbWF4PXszNjAwfVxuICAgICAgICAgICAgICB2YWx1ZT17ZHJhZnQ/LnRvb2xfdGltZW91dF9zZWMgPz8gMTIwfVxuICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldEludCgndG9vbF90aW1lb3V0X3NlYycsIGUudGFyZ2V0LnZhbHVlKX1cbiAgICAgICAgICAgIC8+XG4gICAgICAgICAgPC9sYWJlbD5cbiAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZmllbGRcIj5cbiAgICAgICAgICAgIDxzcGFuPmJhc2gg6L6T5Ye65oiq5pat77yI5a2X6IqC77yJPC9zcGFuPlxuICAgICAgICAgICAgPGlucHV0XG4gICAgICAgICAgICAgIHR5cGU9XCJudW1iZXJcIlxuICAgICAgICAgICAgICBtaW49ezEwMjR9XG4gICAgICAgICAgICAgIG1heD17MTAwMDAwMDB9XG4gICAgICAgICAgICAgIHZhbHVlPXtkcmFmdD8uYmFzaF9vdXRwdXRfbGltaXQgPz8gNjU1MzZ9XG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0SW50KCdiYXNoX291dHB1dF9saW1pdCcsIGUudGFyZ2V0LnZhbHVlKX1cbiAgICAgICAgICAgIC8+XG4gICAgICAgICAgPC9sYWJlbD5cbiAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZmllbGRcIj5cbiAgICAgICAgICAgIDxzcGFuPuWGmeaWh+S7tuS4iumZkO+8iOWtl+iKgu+8iTwvc3Bhbj5cbiAgICAgICAgICAgIDxpbnB1dFxuICAgICAgICAgICAgICB0eXBlPVwibnVtYmVyXCJcbiAgICAgICAgICAgICAgbWluPXsxMDI0fVxuICAgICAgICAgICAgICBtYXg9ezEwMDAwMDAwMH1cbiAgICAgICAgICAgICAgdmFsdWU9e2RyYWZ0Py53cml0ZV9saW1pdF9ieXRlcyA/PyAxMDQ4NTc2fVxuICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldEludCgnd3JpdGVfbGltaXRfYnl0ZXMnLCBlLnRhcmdldC52YWx1ZSl9XG4gICAgICAgICAgICAvPlxuICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZpZWxkXCI+XG4gICAgICAgICAgICA8c3Bhbj7or7vmlofku7bkuIrpmZDvvIjlrZfoioLvvIk8L3NwYW4+XG4gICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgdHlwZT1cIm51bWJlclwiXG4gICAgICAgICAgICAgIG1pbj17MTAyNH1cbiAgICAgICAgICAgICAgbWF4PXsxMDAwMDAwMDB9XG4gICAgICAgICAgICAgIHZhbHVlPXtkcmFmdD8ucmVhZF9saW1pdF9ieXRlcyA/PyA1MjQyODh9XG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0SW50KCdyZWFkX2xpbWl0X2J5dGVzJywgZS50YXJnZXQudmFsdWUpfVxuICAgICAgICAgICAgLz5cbiAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJ0b2dnbGUtcm93XCI+XG4gICAgICAgICAgICA8c3Bhbj7lhYHorrjku7vliqEgYWdlbnQg6IGU572RPC9zcGFuPlxuICAgICAgICAgICAgPGlucHV0XG4gICAgICAgICAgICAgIHR5cGU9XCJjaGVja2JveFwiXG4gICAgICAgICAgICAgIGNoZWNrZWQ9e2RyYWZ0Py5hbGxvd19uZXR3b3JrID8/IHRydWV9XG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0U2NhbGFyKCdhbGxvd19uZXR3b3JrJywgZS50YXJnZXQuY2hlY2tlZCl9XG4gICAgICAgICAgICAvPlxuICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJidG4tcm93XCI+XG4gICAgICAgICAgICA8YnV0dG9uIGNsYXNzTmFtZT1cImJ0biBidG4tcHJpbWFyeSBidG4tc21cIiBkaXNhYmxlZD17c2F2aW5nfSBvbkNsaWNrPXsoKSA9PiB2b2lkIHNhdmVTY2FsYXJzKFNBTkRCT1hfS0VZUyl9PlxuICAgICAgICAgICAgICB7c2F2aW5nID8gJ+S/neWtmOS4reKApicgOiAn5L+d5a2Y5rKZ566x6ZmQ5Yi2J31cbiAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAge3NhbmRib3hEaXJ0eSA+IDAgJiYgPHNwYW4gY2xhc3NOYW1lPVwic2V0dGluZy1ub3RlXCI+5pyJIHtzYW5kYm94RGlydHl9IOmhueacquS/neWtmDwvc3Bhbj59XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5nLW5vdGVcIj7ov5nkupvpmZDliLbpmLLmraLku7vliqHmmbrog73kvZPor6/mk43kvZzmiormnLrlmajmkJ7mjILvvJvmlLnlrozpnIDph43lkK/lkI7nq6/nlJ/mlYjjgII8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L3NlY3Rpb24+XG5cbiAgICAgIHsvKiDljaHniYcgM++8muaZuuiDveS9k+iDveWKm++8iHYz77ya5paH5Lu257yW6L6RIC8gYmFzaCDlrqHorqHvvIkgKi99XG4gICAgICA8c2VjdGlvbiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkXCI+XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC1oZWFkXCI+XG4gICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC1pY29uXCI+XG4gICAgICAgICAgICA8SWNvbiBuYW1lPVwiemFwXCIgc2l6ZT17MTZ9IC8+XG4gICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC10aXRsZVwiPlxuICAgICAgICAgICAgPGgzPuaZuuiDveS9k+iDveWKmzwvaDM+XG4gICAgICAgICAgICA8cD7lhpnliY3or7vniYjmnKzpl6ggwrcgYmFzaCDpq5jljbHlkb3ku6TlrqHorqHvvIjlgJ/pibQgZGVlci1mbG93IC8gcGktYWdlbnTvvIk8L3A+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtYm9keVwiPlxuICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJ0b2dnbGUtcm93XCI+XG4gICAgICAgICAgICA8c3Bhbj7lhpnliY3lv4Xpobvor7vov4fvvIhyZWFkX2JlZm9yZV93cml0Ze+8iTwvc3Bhbj5cbiAgICAgICAgICAgIDxpbnB1dFxuICAgICAgICAgICAgICB0eXBlPVwiY2hlY2tib3hcIlxuICAgICAgICAgICAgICBjaGVja2VkPXtkcmFmdD8ucmVhZF9iZWZvcmVfd3JpdGUgPz8gdHJ1ZX1cbiAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRTY2FsYXIoJ3JlYWRfYmVmb3JlX3dyaXRlJywgZS50YXJnZXQuY2hlY2tlZCl9XG4gICAgICAgICAgICAvPlxuICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5nLW5vdGVcIj5cbiAgICAgICAgICAgIOS/ruaUueW3suacieaWh+S7tuWJjeW/hemhu+WFiCByZWFkX2ZpbGUg6K+75Y+W5b2T5YmN54mI5pys77yI5YaF5a655ZOI5biM5q+U5a+577yJ77yM6Ziy5q2i6KaG55uW5aSW6YOo5pS55Yqo44CC6K+v5Lyk5Y+v5YWz6Zet44CCXG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRvZ2dsZS1yb3dcIj5cbiAgICAgICAgICAgIDxzcGFuPmJhc2gg6auY5Y2x5ZG95Luk5a6h6K6hPC9zcGFuPlxuICAgICAgICAgICAgPGlucHV0XG4gICAgICAgICAgICAgIHR5cGU9XCJjaGVja2JveFwiXG4gICAgICAgICAgICAgIGNoZWNrZWQ9e2RyYWZ0Py5iYXNoX2F1ZGl0ID8/IHRydWV9XG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0U2NhbGFyKCdiYXNoX2F1ZGl0JywgZS50YXJnZXQuY2hlY2tlZCl9XG4gICAgICAgICAgICAvPlxuICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5nLW5vdGVcIj5cbiAgICAgICAgICAgIOaLpuaIqiA8Y29kZT5ybSAtcmYgLzwvY29kZT7jgIE8Y29kZT5jdXJsIHwgc2g8L2NvZGU+44CBZm9yayDngrjlvLnnrYnpq5jljbHlkb3ku6TvvJtwaXAvc3VkbyDnrYnpq5jpo47pmanmk43kvZzmiafooYzkvYbov73liqDorablkYrjgIJcbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImJ0bi1yb3dcIj5cbiAgICAgICAgICAgIDxidXR0b24gY2xhc3NOYW1lPVwiYnRuIGJ0bi1wcmltYXJ5IGJ0bi1zbVwiIGRpc2FibGVkPXtzYXZpbmd9IG9uQ2xpY2s9eygpID0+IHZvaWQgc2F2ZVNjYWxhcnMoRURJVF9LRVlTKX0+XG4gICAgICAgICAgICAgIHtzYXZpbmcgPyAn5L+d5a2Y5Lit4oCmJyA6ICfkv53lrZjog73lipvorr7nva4nfVxuICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgICB7ZWRpdERpcnR5ID4gMCAmJiA8c3BhbiBjbGFzc05hbWU9XCJzZXR0aW5nLW5vdGVcIj7mnIkge2VkaXREaXJ0eX0g6aG55pyq5L+d5a2YPC9zcGFuPn1cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmctbm90ZVwiPuaUueWujOmcgOmHjeWQr+WQjuerr+eUn+aViOOAgjwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgIDwvc2VjdGlvbj5cblxuICAgICAgey8qIOWNoeeJhyA077ya572R6aG15pCc57Si77yIdjPvvIkgKi99XG4gICAgICA8c2VjdGlvbiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkXCI+XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC1oZWFkXCI+XG4gICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC1pY29uXCI+XG4gICAgICAgICAgICA8SWNvbiBuYW1lPVwic2VhcmNoXCIgc2l6ZT17MTZ9IC8+XG4gICAgICAgICAgPC9zcGFuPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC10aXRsZVwiPlxuICAgICAgICAgICAgPGgzPue9kemhteaQnOe0ojwvaDM+XG4gICAgICAgICAgICA8cD7ku7vliqHmmbrog73kvZPogZTnvZHmn6XotYTmlpnvvJpUYXZpbHnvvIjmjqjojZDvvIzmnIkga2V577yJ4oaSIER1Y2tEdWNrR28g5YWN6LS55YWc5bqVICsgSmluYSDmipPmraPmloc8L3A+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtYm9keVwiPlxuICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJ0b2dnbGUtcm93XCI+XG4gICAgICAgICAgICA8c3Bhbj7lkK/nlKjnvZHpobXmkJzntKLvvIh3ZWJfc2VhcmNoIC8gd2ViX2ZldGNoIOW3peWFt++8iTwvc3Bhbj5cbiAgICAgICAgICAgIDxpbnB1dFxuICAgICAgICAgICAgICB0eXBlPVwiY2hlY2tib3hcIlxuICAgICAgICAgICAgICBjaGVja2VkPXtkcmFmdD8ud2ViX3NlYXJjaF9lbmFibGVkID8/IHRydWV9XG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0U2NhbGFyKCd3ZWJfc2VhcmNoX2VuYWJsZWQnLCBlLnRhcmdldC5jaGVja2VkKX1cbiAgICAgICAgICAgIC8+XG4gICAgICAgICAgPC9sYWJlbD5cbiAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZmllbGRcIj5cbiAgICAgICAgICAgIDxzcGFuPuaQnOe0oua6kDwvc3Bhbj5cbiAgICAgICAgICAgIDxzZWxlY3RcbiAgICAgICAgICAgICAgdmFsdWU9e2RyYWZ0Py53ZWJfc2VhcmNoX3Byb3ZpZGVyID8/ICdhdXRvJ31cbiAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRTY2FsYXIoJ3dlYl9zZWFyY2hfcHJvdmlkZXInLCBlLnRhcmdldC52YWx1ZSBhcyBUYXNrUGxhdGZvcm1Db25maWdbJ3dlYl9zZWFyY2hfcHJvdmlkZXInXSl9XG4gICAgICAgICAgICA+XG4gICAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJhdXRvXCI+YXV0b++8iOaciSBUYXZpbHkga2V5IOeUqCBUYXZpbHnvvIzlkKbliJkgRERH77yJPC9vcHRpb24+XG4gICAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJ0YXZpbHlcIj50YXZpbHnvvIjku4UgVGF2aWx577yJPC9vcHRpb24+XG4gICAgICAgICAgICAgIDxvcHRpb24gdmFsdWU9XCJkZGdcIj5kZGfvvIjku4UgRHVja0R1Y2tHb++8jOaXoOmcgCBrZXnvvIk8L29wdGlvbj5cbiAgICAgICAgICAgIDwvc2VsZWN0PlxuICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZpZWxkXCI+XG4gICAgICAgICAgICA8c3Bhbj5UYXZpbHkgQVBJIEtleTwvc3Bhbj5cbiAgICAgICAgICAgIDxpbnB1dFxuICAgICAgICAgICAgICB0eXBlPVwicGFzc3dvcmRcIlxuICAgICAgICAgICAgICB2YWx1ZT17ZHJhZnQ/LnRhdmlseV9hcGlfa2V5ID8/ICcnfVxuICAgICAgICAgICAgICBwbGFjZWhvbGRlcj1cInR2bHkt4oCm77yI55WZ56m65YiZ55SoIERER++8m+aUr+aMgeeOr+Wig+WPmOmHjyBUQVZJTFlfQVBJX0tFWe+8iVwiXG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0U2NhbGFyKCd0YXZpbHlfYXBpX2tleScsIGUudGFyZ2V0LnZhbHVlKX1cbiAgICAgICAgICAgIC8+XG4gICAgICAgICAgPC9sYWJlbD5cbiAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZmllbGRcIj5cbiAgICAgICAgICAgIDxzcGFuPkppbmEgUmVhZGVyIEFQSSBLZXnvvIjlj6/pgInvvIzmipPnvZHpobXmraPmlofnlKjvvIk8L3NwYW4+XG4gICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgdHlwZT1cInBhc3N3b3JkXCJcbiAgICAgICAgICAgICAgdmFsdWU9e2RyYWZ0Py5qaW5hX2FwaV9rZXkgPz8gJyd9XG4gICAgICAgICAgICAgIHBsYWNlaG9sZGVyPVwiamluYV/igKbvvIjnlZnnqbrljL/lkI3vvIzpmZDmtYHmm7TkuKXvvIlcIlxuICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldFNjYWxhcignamluYV9hcGlfa2V5JywgZS50YXJnZXQudmFsdWUpfVxuICAgICAgICAgICAgLz5cbiAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmaWVsZFwiPlxuICAgICAgICAgICAgPHNwYW4+5Y2V5qyh5pCc57Si57uT5p6c5pWw77yIMS0yMO+8iTwvc3Bhbj5cbiAgICAgICAgICAgIDxpbnB1dFxuICAgICAgICAgICAgICB0eXBlPVwibnVtYmVyXCJcbiAgICAgICAgICAgICAgbWluPXsxfVxuICAgICAgICAgICAgICBtYXg9ezIwfVxuICAgICAgICAgICAgICB2YWx1ZT17ZHJhZnQ/LndlYl9zZWFyY2hfbWF4X3Jlc3VsdHMgPz8gNX1cbiAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRJbnQoJ3dlYl9zZWFyY2hfbWF4X3Jlc3VsdHMnLCBlLnRhcmdldC52YWx1ZSl9XG4gICAgICAgICAgICAvPlxuICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZpZWxkXCI+XG4gICAgICAgICAgICA8c3Bhbj7mipPlj5bmraPmlofkuIrpmZDvvIjlrZfoioLvvIk8L3NwYW4+XG4gICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgdHlwZT1cIm51bWJlclwiXG4gICAgICAgICAgICAgIG1pbj17MTAyNH1cbiAgICAgICAgICAgICAgbWF4PXsxMDAwMDAwMH1cbiAgICAgICAgICAgICAgdmFsdWU9e2RyYWZ0Py53ZWJfZmV0Y2hfbWF4X2J5dGVzID8/IDUyNDI4OH1cbiAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRJbnQoJ3dlYl9mZXRjaF9tYXhfYnl0ZXMnLCBlLnRhcmdldC52YWx1ZSl9XG4gICAgICAgICAgICAvPlxuICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJidG4tcm93XCI+XG4gICAgICAgICAgICA8YnV0dG9uIGNsYXNzTmFtZT1cImJ0biBidG4tcHJpbWFyeSBidG4tc21cIiBkaXNhYmxlZD17c2F2aW5nfSBvbkNsaWNrPXsoKSA9PiB2b2lkIHNhdmVTY2FsYXJzKFdFQl9LRVlTKX0+XG4gICAgICAgICAgICAgIHtzYXZpbmcgPyAn5L+d5a2Y5Lit4oCmJyA6ICfkv53lrZjmkJzntKLorr7nva4nfVxuICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgICB7d2ViRGlydHkgPiAwICYmIDxzcGFuIGNsYXNzTmFtZT1cInNldHRpbmctbm90ZVwiPuaciSB7d2ViRGlydHl9IOmhueacquS/neWtmDwvc3Bhbj59XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5nLW5vdGVcIj5cbiAgICAgICAgICAgIEFQSSBrZXkg5L+d5a2Y5Zyo5pys5ZywIGNvbmYueWFtbO+8iOWQq+ecn+WunuWvhumSpe+8jOawuOS4jeaPkOS6pO+8ieOAguS+nei1luOAjOaymeeusemZkOWItiDihpIg5YWB6K645Lu75YqhIGFnZW50IOiBlOe9keOAjeOAglxuICAgICAgICAgICAg5pS55a6M6ZyA6YeN5ZCv5ZCO56uv55Sf5pWI44CCXG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuICAgICAgPC9zZWN0aW9uPlxuXG4gICAgICB7Lyog5Y2h54mHIDXvvJrkuIrkuIvmlofkuI7orrDlv4bvvIh2M++8iSAqL31cbiAgICAgIDxzZWN0aW9uIGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmRcIj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWhlYWRcIj5cbiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWljb25cIj5cbiAgICAgICAgICAgIDxJY29uIG5hbWU9XCJkYXRhYmFzZVwiIHNpemU9ezE2fSAvPlxuICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtdGl0bGVcIj5cbiAgICAgICAgICAgIDxoMz7kuIrkuIvmlofkuI7orrDlv4Y8L2gzPlxuICAgICAgICAgICAgPHA+dG9rZW4g6aKE566X5YmN5567IMK3IOS4iuS4i+aWh+eql+WPoyDCtyDpobnnm67nuqforrDlv4bvvIhEZWVyTWVt77yJPC9wPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWJvZHlcIj5cbiAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZmllbGRcIj5cbiAgICAgICAgICAgIDxzcGFuPuS4iuS4i+aWh+eql+WPo++8iHRva2Vu77yMMD3mjInmqKHlnovoh6rliqjmjqLmtYvvvIk8L3NwYW4+XG4gICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgdHlwZT1cIm51bWJlclwiXG4gICAgICAgICAgICAgIG1pbj17MH1cbiAgICAgICAgICAgICAgbWF4PXsyMDAwMDAwfVxuICAgICAgICAgICAgICB2YWx1ZT17ZHJhZnQ/LmxsbV9jb250ZXh0X3dpbmRvdyA/PyAwfVxuICAgICAgICAgICAgICBwbGFjZWhvbGRlcj1cIjDvvIhEZWVwU2VlayDoh6rliqggMU3vvIlcIlxuICAgICAgICAgICAgICBvbkNoYW5nZT17KGUpID0+IHNldEludCgnbGxtX2NvbnRleHRfd2luZG93JywgZS50YXJnZXQudmFsdWUpfVxuICAgICAgICAgICAgLz5cbiAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZy1ub3RlXCI+MCDml7bmjInmqKHlnovlkI3oh6rliqjmjqLmtYvvvIhkZWVwc2Vlay1jaGF0L3JlYXNvbmVyID0gMU3vvIzmnKrnn6XmqKHlnovlm57pgIAgNjRr77yJ44CCPC9kaXY+XG4gICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZpZWxkXCI+XG4gICAgICAgICAgICA8c3Bhbj7ova/orablkYrpmIjlgLzvvIgwLTHvvIzpu5jorqQgMC4477yJPC9zcGFuPlxuICAgICAgICAgICAgPGlucHV0XG4gICAgICAgICAgICAgIHR5cGU9XCJudW1iZXJcIlxuICAgICAgICAgICAgICBtaW49ezB9XG4gICAgICAgICAgICAgIG1heD17MX1cbiAgICAgICAgICAgICAgc3RlcD17MC4wNX1cbiAgICAgICAgICAgICAgdmFsdWU9e2RyYWZ0Py50b2tlbl9idWRnZXRfd2Fybl9yYXRpbyA/PyAwLjh9XG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0UmF0aW8oJ3Rva2VuX2J1ZGdldF93YXJuX3JhdGlvJywgZS50YXJnZXQudmFsdWUpfVxuICAgICAgICAgICAgLz5cbiAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmaWVsZFwiPlxuICAgICAgICAgICAgPHNwYW4+56Gs5YGc6ZiI5YC877yIMC0x77yM6buY6K6kIDAuOTXvvIk8L3NwYW4+XG4gICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgdHlwZT1cIm51bWJlclwiXG4gICAgICAgICAgICAgIG1pbj17MH1cbiAgICAgICAgICAgICAgbWF4PXsxfVxuICAgICAgICAgICAgICBzdGVwPXswLjA1fVxuICAgICAgICAgICAgICB2YWx1ZT17ZHJhZnQ/LnRva2VuX2J1ZGdldF9oYXJkX3JhdGlvID8/IDAuOTV9XG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0UmF0aW8oJ3Rva2VuX2J1ZGdldF9oYXJkX3JhdGlvJywgZS50YXJnZXQudmFsdWUpfVxuICAgICAgICAgICAgLz5cbiAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZy1ub3RlXCI+XG4gICAgICAgICAgICDotoXov4fova/pmIjlgLzlkI7mj5DnpLogL2NvbXBhY3TvvJvotoXov4fnoazpmIjlgLzoh6rliqjmmoLlgZzku7vliqHvvIjliaXnprvlt6XlhbfosIPnlKjpmLLmrovnvLrlj4LmlbDmiafooYzvvInjgIJcbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZmllbGRcIj5cbiAgICAgICAgICAgIDxzcGFuPumhueebruiusOW/huazqOWFpeS4iumZkO+8iHRva2Vu77yJPC9zcGFuPlxuICAgICAgICAgICAgPGlucHV0XG4gICAgICAgICAgICAgIHR5cGU9XCJudW1iZXJcIlxuICAgICAgICAgICAgICBtaW49ezEwMH1cbiAgICAgICAgICAgICAgbWF4PXsxMDAwMDB9XG4gICAgICAgICAgICAgIHZhbHVlPXtkcmFmdD8ubWVtb3J5X21heF9pbmplY3Rpb25fdG9rZW5zID8/IDE1MDB9XG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0SW50KCdtZW1vcnlfbWF4X2luamVjdGlvbl90b2tlbnMnLCBlLnRhcmdldC52YWx1ZSl9XG4gICAgICAgICAgICAvPlxuICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5nLW5vdGVcIj5cbiAgICAgICAgICAgIOiusOW/huWtmOS6jiA8Y29kZT57Jzzlt6XkvZznm67lvZU+Ly5waS9tZW1vcnkvJ308L2NvZGU+77yI6Leo5Lu75Yqh56ev57Sv77yM5Lu75Yqh5a6M5oiQ6Ieq5Yqo5YaZ5YWl77yJ44CCXG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJidG4tcm93XCI+XG4gICAgICAgICAgICA8YnV0dG9uIGNsYXNzTmFtZT1cImJ0biBidG4tcHJpbWFyeSBidG4tc21cIiBkaXNhYmxlZD17c2F2aW5nfSBvbkNsaWNrPXsoKSA9PiB2b2lkIHNhdmVTY2FsYXJzKENPTlRFWFRfS0VZUyl9PlxuICAgICAgICAgICAgICB7c2F2aW5nID8gJ+S/neWtmOS4reKApicgOiAn5L+d5a2Y5LiK5LiL5paH6K6+572uJ31cbiAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAge2NvbnRleHREaXJ0eSA+IDAgJiYgPHNwYW4gY2xhc3NOYW1lPVwic2V0dGluZy1ub3RlXCI+5pyJIHtjb250ZXh0RGlydHl9IOmhueacquS/neWtmDwvc3Bhbj59XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5nLW5vdGVcIj7mlLnlrozpnIDph43lkK/lkI7nq6/nlJ/mlYjjgII8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L3NlY3Rpb24+XG5cbiAgICAgIHsvKiDljaHniYcgNu+8mk1DUCDmnI3liqHlmajvvIjmm7/ku6Pml6cgdXNlX21jcHDvvIkgKi99XG4gICAgICA8c2VjdGlvbiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkXCI+XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC1oZWFkXCI+XG4gICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC1pY29uXCI+XG4gICAgICAgICAgICA8SWNvbiBuYW1lPVwid2lmaVwiIHNpemU9ezE2fSAvPlxuICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtdGl0bGVcIj5cbiAgICAgICAgICAgIDxoMz5NQ1Ag5pyN5Yqh5ZmoPC9oMz5cbiAgICAgICAgICAgIDxwPuWklumDqOW3peWFt+aOpeWFpe+8iOiBlOe9keaKk+WPliAvIOaXtumXtCAvIOiHquWumuS5ie+8ie+8jOabv+S7o+aXp+eahCB1c2VfbWNwcCDlvIDlhbM8L3A+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtYm9keVwiPlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibWNwLXNlcnZlci1oZWFkXCI+XG4gICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJtY3Atc2VydmVyLWNvdW50XCI+e2RyYWZ0Py5tY3Bfc2VydmVycy5sZW5ndGggPz8gMH0g5Liq5pyN5Yqh5ZmoPC9zcGFuPlxuICAgICAgICAgICAgPGJ1dHRvbiBjbGFzc05hbWU9XCJidG4gYnRuLXNtIGJ0bi1wcmltYXJ5XCIgb25DbGljaz17c3RhcnRBZGR9PlxuICAgICAgICAgICAgICA8SWNvbiBuYW1lPVwicGx1c1wiIHNpemU9ezE0fSAvPiDmt7vliqDmnI3liqHlmahcbiAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibWNwLXNlcnZlci10YWJsZVwiPlxuICAgICAgICAgICAge2RyYWZ0Py5tY3Bfc2VydmVycy5tYXAoKHMsIGkpID0+IChcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtY3Atc2VydmVyLXJvd1wiIGtleT17YCR7cy5uYW1lfS0ke2l9YH0+XG4gICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPXtgbWNwLXN0YXR1cy1kb3QgJHtzLmVuYWJsZWQgPyAnb24nIDogJ29mZid9YH0gLz5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1jcC1zZXJ2ZXItbWFpblwiPlxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtY3Atc2VydmVyLW5hbWVcIj57cy5uYW1lfTwvZGl2PlxuICAgICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtY3Atc2VydmVyLXN1YlwiPlxuICAgICAgICAgICAgICAgICAgICB7cy50cmFuc3BvcnR9XG4gICAgICAgICAgICAgICAgICAgIHtzLnRyYW5zcG9ydCA9PT0gJ3N0ZGlvJ1xuICAgICAgICAgICAgICAgICAgICAgID8gYCDCtyAke3MuY29tbWFuZH0gJHtzLmFyZ3Muam9pbignICcpfWBcbiAgICAgICAgICAgICAgICAgICAgICA6IGAgwrcgJHtzLnVybCA/PyAnJ31gfVxuICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInN3aXRjaC1yb3cgbWNwLWVuYWJsZVwiIHRpdGxlPXtzLmVuYWJsZWQgPyAn54K55Ye756aB55SoJyA6ICfngrnlh7vlkK/nlKgnfT5cbiAgICAgICAgICAgICAgICAgIDxpbnB1dFxuICAgICAgICAgICAgICAgICAgICB0eXBlPVwiY2hlY2tib3hcIlxuICAgICAgICAgICAgICAgICAgICBjbGFzc05hbWU9XCJzd2l0Y2hcIlxuICAgICAgICAgICAgICAgICAgICBjaGVja2VkPXtzLmVuYWJsZWR9XG4gICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gdG9nZ2xlU2VydmVyKGksIGUudGFyZ2V0LmNoZWNrZWQpfVxuICAgICAgICAgICAgICAgICAgLz5cbiAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInN3aXRjaC11aVwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiIC8+XG4gICAgICAgICAgICAgICAgPC9sYWJlbD5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1jcC1hY3Rpb25zXCI+XG4gICAgICAgICAgICAgICAgICA8YnV0dG9uIGNsYXNzTmFtZT1cImJ0biBidG4tc21cIiB0aXRsZT1cIua1i+ivlei/nuaOpVwiIG9uQ2xpY2s9eygpID0+IHZvaWQgcHJvYmVTZXJ2ZXIoaSl9PlxuICAgICAgICAgICAgICAgICAgICA8SWNvbiBuYW1lPVwicmVmcmVzaFwiIHNpemU9ezEzfSAvPiDmtYvor5VcbiAgICAgICAgICAgICAgICAgIDwvYnV0dG9uPlxuICAgICAgICAgICAgICAgICAgPGJ1dHRvbiBjbGFzc05hbWU9XCJidG4gYnRuLXNtXCIgdGl0bGU9XCLnvJbovpFcIiBvbkNsaWNrPXsoKSA9PiBzdGFydEVkaXQoaSl9PlxuICAgICAgICAgICAgICAgICAgICA8SWNvbiBuYW1lPVwiZWRpdFwiIHNpemU9ezEzfSAvPlxuICAgICAgICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgICAgICAgICA8YnV0dG9uIGNsYXNzTmFtZT1cImJ0biBidG4tc20gYnRuLWRhbmdlclwiIHRpdGxlPVwi5Yig6ZmkXCIgb25DbGljaz17KCkgPT4gZGVsZXRlU2VydmVyKGkpfT5cbiAgICAgICAgICAgICAgICAgICAgPEljb24gbmFtZT1cInRyYXNoXCIgc2l6ZT17MTN9IC8+XG4gICAgICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICApKX1cbiAgICAgICAgICAgIHsoZHJhZnQ/Lm1jcF9zZXJ2ZXJzLmxlbmd0aCA/PyAwKSA9PT0gMCAmJiAoXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZy1ub3RlXCI+5bCa5pyq6YWN572uIE1DUCDmnI3liqHlmajvvIzngrnlh7vjgIzmt7vliqDmnI3liqHlmajjgI3mjqXlhaXlpJbpg6jlt6XlhbfjgII8L2Rpdj5cbiAgICAgICAgICAgICl9XG4gICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICB7cHJvYmUgJiYgKFxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtY3AtcHJvYmUtcmVzdWx0XCI+XG4gICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT17YG1jcC1zdGF0dXMtZG90ICR7cHJvYmUuc3RhdHVzID09PSAnY29ubmVjdGVkJyA/ICdvbicgOiAnb2ZmJ31gfSAvPlxuICAgICAgICAgICAgICA8ZGl2PlxuICAgICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibWNwLXByb2JlLXRpdGxlXCI+e1BST0JFX0xBQkVMU1twcm9iZS5zdGF0dXNdID8/IHByb2JlLnN0YXR1c308L2Rpdj5cbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1jcC1wcm9iZS1kZXRhaWxcIj5cbiAgICAgICAgICAgICAgICAgIHtwcm9iZS5zdGF0dXMgPT09ICdjb25uZWN0ZWQnICYmIHByb2JlLnRvb2xzICYmIHByb2JlLnRvb2xzLmxlbmd0aCA+IDBcbiAgICAgICAgICAgICAgICAgICAgPyBg5Y+v55So5bel5YW377yaJHtwcm9iZS50b29scy5qb2luKCcgwrcgJyl9YFxuICAgICAgICAgICAgICAgICAgICA6IChwcm9iZS5lcnJvciA/PyBwcm9iZS5zdGF0dXMpfVxuICAgICAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDwvZGl2PlxuICAgICAgICAgICl9XG5cbiAgICAgICAgICB7Zm9ybSAmJiAoXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1jcC1zZXJ2ZXItZm9ybVwiPlxuICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1jcC1mb3JtLWhlYWRcIj5cbiAgICAgICAgICAgICAgICA8c3Bhbj57Zm9ybS5tb2RlID09PSAnYWRkJyA/ICfmt7vliqAgTUNQIOacjeWKoeWZqCcgOiBg57yW6L6RICR7Zm9ybS5zZXJ2ZXIubmFtZX1gfTwvc3Bhbj5cbiAgICAgICAgICAgICAgICA8YnV0dG9uIGNsYXNzTmFtZT1cImJ0biBidG4tc21cIiB0aXRsZT1cIuWFs+mXrVwiIG9uQ2xpY2s9eygpID0+IHNldEZvcm0obnVsbCl9PlxuICAgICAgICAgICAgICAgICAgPEljb24gbmFtZT1cInhcIiBzaXplPXsxNH0gLz5cbiAgICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibWNwLWZvcm0tZ3JpZFwiPlxuICAgICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmaWVsZFwiPlxuICAgICAgICAgICAgICAgICAgPHNwYW4+5ZCN56ewICo8L3NwYW4+XG4gICAgICAgICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgICAgICAgdHlwZT1cInRleHRcIlxuICAgICAgICAgICAgICAgICAgICB2YWx1ZT17Zm9ybS5zZXJ2ZXIubmFtZX1cbiAgICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJmZXRjaFwiXG4gICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0Rm9ybSh7IC4uLmZvcm0sIHNlcnZlcjogeyAuLi5mb3JtLnNlcnZlciwgbmFtZTogZS50YXJnZXQudmFsdWUgfSB9KX1cbiAgICAgICAgICAgICAgICAgIC8+XG4gICAgICAgICAgICAgICAgPC9sYWJlbD5cbiAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZmllbGRcIj5cbiAgICAgICAgICAgICAgICAgIDxzcGFuPuS8oOi+k+aWueW8jzwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgIDxzZWxlY3RcbiAgICAgICAgICAgICAgICAgICAgdmFsdWU9e2Zvcm0uc2VydmVyLnRyYW5zcG9ydH1cbiAgICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtKHsgLi4uZm9ybSwgc2VydmVyOiB7IC4uLmZvcm0uc2VydmVyLCB0cmFuc3BvcnQ6IGUudGFyZ2V0LnZhbHVlIH0gfSl9XG4gICAgICAgICAgICAgICAgICA+XG4gICAgICAgICAgICAgICAgICAgIHtUUkFOU1BPUlRTLm1hcCgodCkgPT4gKFxuICAgICAgICAgICAgICAgICAgICAgIDxvcHRpb24ga2V5PXt0fSB2YWx1ZT17dH0+XG4gICAgICAgICAgICAgICAgICAgICAgICB7dH1cbiAgICAgICAgICAgICAgICAgICAgICA8L29wdGlvbj5cbiAgICAgICAgICAgICAgICAgICAgKSl9XG4gICAgICAgICAgICAgICAgICA8L3NlbGVjdD5cbiAgICAgICAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgICAgICAgIHtmb3JtLnNlcnZlci50cmFuc3BvcnQgPT09ICdzdGRpbycgPyAoXG4gICAgICAgICAgICAgICAgICA8PlxuICAgICAgICAgICAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwiZmllbGRcIj5cbiAgICAgICAgICAgICAgICAgICAgICA8c3Bhbj7lkK/liqjlkb3ku6QgKjwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcbiAgICAgICAgICAgICAgICAgICAgICAgIHZhbHVlPXtmb3JtLnNlcnZlci5jb21tYW5kfVxuICAgICAgICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJ1dnhcIlxuICAgICAgICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtKHsgLi4uZm9ybSwgc2VydmVyOiB7IC4uLmZvcm0uc2VydmVyLCBjb21tYW5kOiBlLnRhcmdldC52YWx1ZSB9IH0pfVxuICAgICAgICAgICAgICAgICAgICAgIC8+XG4gICAgICAgICAgICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgICAgICAgICAgIDxsYWJlbCBjbGFzc05hbWU9XCJmaWVsZFwiPlxuICAgICAgICAgICAgICAgICAgICAgIDxzcGFuPuWPguaVsO+8iOepuuagvOWIhumalO+8iTwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcbiAgICAgICAgICAgICAgICAgICAgICAgIHZhbHVlPXthcmdzVG9UZXh0KGZvcm0uc2VydmVyLmFyZ3MpfVxuICAgICAgICAgICAgICAgICAgICAgICAgcGxhY2Vob2xkZXI9XCJtY3Atc2VydmVyLWZldGNoXCJcbiAgICAgICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0Rm9ybSh7IC4uLmZvcm0sIHNlcnZlcjogeyAuLi5mb3JtLnNlcnZlciwgYXJnczogcGFyc2VBcmdzKGUudGFyZ2V0LnZhbHVlKSB9IH0pfVxuICAgICAgICAgICAgICAgICAgICAgIC8+XG4gICAgICAgICAgICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgICAgICAgICA8Lz5cbiAgICAgICAgICAgICAgICApIDogKFxuICAgICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZpZWxkIG1jcC1mb3JtLWZ1bGxcIj5cbiAgICAgICAgICAgICAgICAgICAgPHNwYW4+VVJMICo8L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgIDxpbnB1dFxuICAgICAgICAgICAgICAgICAgICAgIHR5cGU9XCJ0ZXh0XCJcbiAgICAgICAgICAgICAgICAgICAgICB2YWx1ZT17Zm9ybS5zZXJ2ZXIudXJsID8/ICcnfVxuICAgICAgICAgICAgICAgICAgICAgIHBsYWNlaG9sZGVyPVwiaHR0cDovLzEyNy4wLjAuMTo5MDAwL3NzZVwiXG4gICAgICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtKHsgLi4uZm9ybSwgc2VydmVyOiB7IC4uLmZvcm0uc2VydmVyLCB1cmw6IGUudGFyZ2V0LnZhbHVlIH0gfSl9XG4gICAgICAgICAgICAgICAgICAgIC8+XG4gICAgICAgICAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgICAgICAgICl9XG4gICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZpZWxkIG1jcC1mb3JtLWZ1bGxcIj5cbiAgICAgICAgICAgICAgICAgIDxzcGFuPkhlYWRlcnPvvIjmr4/ooYwgazogdu+8iTwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgIDx0ZXh0YXJlYVxuICAgICAgICAgICAgICAgICAgICByb3dzPXszfVxuICAgICAgICAgICAgICAgICAgICB2YWx1ZT17aGVhZGVyc1RvVGV4dChmb3JtLnNlcnZlci5oZWFkZXJzKX1cbiAgICAgICAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRGb3JtKHsgLi4uZm9ybSwgc2VydmVyOiB7IC4uLmZvcm0uc2VydmVyLCBoZWFkZXJzOiBwYXJzZUhlYWRlcnMoZS50YXJnZXQudmFsdWUpIH0gfSl9XG4gICAgICAgICAgICAgICAgICAvPlxuICAgICAgICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cInRvZ2dsZS1yb3cgbWNwLWZvcm0tZnVsbFwiPlxuICAgICAgICAgICAgICAgICAgPHNwYW4+5ZCv55So6K+l5pyN5Yqh5ZmoPC9zcGFuPlxuICAgICAgICAgICAgICAgICAgPGlucHV0XG4gICAgICAgICAgICAgICAgICAgIHR5cGU9XCJjaGVja2JveFwiXG4gICAgICAgICAgICAgICAgICAgIGNoZWNrZWQ9e2Zvcm0uc2VydmVyLmVuYWJsZWR9XG4gICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0Rm9ybSh7IC4uLmZvcm0sIHNlcnZlcjogeyAuLi5mb3JtLnNlcnZlciwgZW5hYmxlZDogZS50YXJnZXQuY2hlY2tlZCB9IH0pfVxuICAgICAgICAgICAgICAgICAgLz5cbiAgICAgICAgICAgICAgICA8L2xhYmVsPlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJidG4tcm93XCI+XG4gICAgICAgICAgICAgICAgPGJ1dHRvbiBjbGFzc05hbWU9XCJidG4gYnRuLXByaW1hcnkgYnRuLXNtXCIgb25DbGljaz17KCkgPT4gdm9pZCBzdWJtaXRTZXJ2ZXIoKX0+XG4gICAgICAgICAgICAgICAgICB7Zm9ybS5tb2RlID09PSAnYWRkJyA/ICfmt7vliqAnIDogJ+S/neWtmCd9XG4gICAgICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgICAgICAgPGJ1dHRvbiBjbGFzc05hbWU9XCJidG4gYnRuLXNtXCIgb25DbGljaz17KCkgPT4gc2V0Rm9ybShudWxsKX0+XG4gICAgICAgICAgICAgICAgICDlj5bmtohcbiAgICAgICAgICAgICAgICA8L2J1dHRvbj5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICApfVxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZy1ub3RlXCI+XG4gICAgICAgICAgICBzdGRpbyDmnI3liqHlmajnlKjmnKzlnLDlkb3ku6TlkK/liqjvvIjlpoIgPGNvZGU+dXZ4IG1jcC1zZXJ2ZXItZmV0Y2g8L2NvZGU+77yJ77ybaHR0cC9zc2Uvd2Vic29ja2V0IOeUqCBVUkzjgIJcbiAgICAgICAgICAgIOavj+S4quacjeWKoeWZqCBmYWlsLXNvZnTvvJrljZXkuKrlpLHotKXkuI3lvbHlk43kuLvpk77ot6/jgILmlLnlrozpnIDph43lkK/lkI7nq6/nlJ/mlYjjgIJcbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L3NlY3Rpb24+XG5cbiAgICAgIHsvKiDljaHniYcgNO+8muaKgOiDvSAvIOWtkOaZuuiDveS9kyAvIOaPkuS7tiAqL31cbiAgICAgIDxzZWN0aW9uIGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmRcIj5cbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWhlYWRcIj5cbiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWljb25cIj5cbiAgICAgICAgICAgIDxJY29uIG5hbWU9XCJkYXRhYmFzZVwiIHNpemU9ezE2fSAvPlxuICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtdGl0bGVcIj5cbiAgICAgICAgICAgIDxoMz7mioDog70gLyDlrZDmmbrog73kvZMgLyDmj5Lku7Y8L2gzPlxuICAgICAgICAgICAgPHA+5oqA6IO95bqT44CBc3ViLWFnZW50IOebruW9leS4jiBleHRlbnNpb25zIOaPkuS7tjwvcD5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC1ib2R5XCI+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJmaWVsZFwiPlxuICAgICAgICAgICAgPHNwYW4+55uu5b2VPC9zcGFuPlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtY3AtZGlyLWxpc3RcIj5cbiAgICAgICAgICAgICAgPHNwYW4+PGNvZGU+5oqA6IO95bqTPC9jb2RlPiB7ZHJhZnQ/LnNraWxsc19yb290ID8/ICctJ308L3NwYW4+XG4gICAgICAgICAgICAgIDxzcGFuPjxjb2RlPuWtkOaZuuiDveS9kzwvY29kZT4ge2RyYWZ0Py5hZ2VudHNfcm9vdCA/PyAnLSd9PC9zcGFuPlxuICAgICAgICAgICAgICA8c3Bhbj48Y29kZT7mj5Lku7Y8L2NvZGU+IHtkcmFmdD8ucGx1Z2luc19yb290ID8/ICctJ308L3NwYW4+XG4gICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZy1ub3RlXCI+55uu5b2V6Lev5b6E5ZyoIGNvbmYueWFtbCDnmoQgdGFza19wbGF0Zm9ybSDkuK3kv67mlLnjgII8L2Rpdj5cbiAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICA8bGFiZWwgY2xhc3NOYW1lPVwidG9nZ2xlLXJvd1wiPlxuICAgICAgICAgICAgPHNwYW4+5oqA6IO96K+t5LmJ5qOA57Si77yIZW1iZWRkaW5n77yJPC9zcGFuPlxuICAgICAgICAgICAgPGlucHV0XG4gICAgICAgICAgICAgIHR5cGU9XCJjaGVja2JveFwiXG4gICAgICAgICAgICAgIGNoZWNrZWQ9e2RyYWZ0Py5lbWJlZGRpbmdfZW5hYmxlZCA/PyBmYWxzZX1cbiAgICAgICAgICAgICAgb25DaGFuZ2U9eyhlKSA9PiBzZXRTY2FsYXIoJ2VtYmVkZGluZ19lbmFibGVkJywgZS50YXJnZXQuY2hlY2tlZCl9XG4gICAgICAgICAgICAvPlxuICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgPGxhYmVsIGNsYXNzTmFtZT1cImZpZWxkXCI+XG4gICAgICAgICAgICA8c3Bhbj7mo4DntKIgVG9wLUs8L3NwYW4+XG4gICAgICAgICAgICA8aW5wdXRcbiAgICAgICAgICAgICAgdHlwZT1cIm51bWJlclwiXG4gICAgICAgICAgICAgIG1pbj17MX1cbiAgICAgICAgICAgICAgbWF4PXsxMDB9XG4gICAgICAgICAgICAgIHZhbHVlPXtkcmFmdD8uZW1iZWRkaW5nX3RvcF9rID8/IDV9XG4gICAgICAgICAgICAgIG9uQ2hhbmdlPXsoZSkgPT4gc2V0SW50KCdlbWJlZGRpbmdfdG9wX2snLCBlLnRhcmdldC52YWx1ZSl9XG4gICAgICAgICAgICAvPlxuICAgICAgICAgIDwvbGFiZWw+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJidG4tcm93XCI+XG4gICAgICAgICAgICA8YnV0dG9uIGNsYXNzTmFtZT1cImJ0biBidG4tcHJpbWFyeSBidG4tc21cIiBkaXNhYmxlZD17c2F2aW5nfSBvbkNsaWNrPXsoKSA9PiB2b2lkIHNhdmVTY2FsYXJzKEVNQkVERElOR19LRVlTKX0+XG4gICAgICAgICAgICAgIHtzYXZpbmcgPyAn5L+d5a2Y5Lit4oCmJyA6ICfkv53lrZjmo4DntKLorr7nva4nfVxuICAgICAgICAgICAgPC9idXR0b24+XG4gICAgICAgICAgICB7ZW1iZWRkaW5nRGlydHkgPiAwICYmIDxzcGFuIGNsYXNzTmFtZT1cInNldHRpbmctbm90ZVwiPuaciSB7ZW1iZWRkaW5nRGlydHl9IOmhueacquS/neWtmDwvc3Bhbj59XG4gICAgICAgICAgPC9kaXY+XG5cbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1jcC1kaXItc2VjdGlvblwiPlxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtY3AtZGlyLWhlYWRcIj5cbiAgICAgICAgICAgICAgPEljb24gbmFtZT1cInNwYXJrbGVzXCIgc2l6ZT17MTR9IC8+IOW3suWKoOi9veaKgOiDve+8iHtza2lsbHMubGVuZ3Rofe+8iVxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICB7c2tpbGxzLmxlbmd0aCA9PT0gMCA/IChcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5nLW5vdGVcIj7ml6DmioDog708L2Rpdj5cbiAgICAgICAgICAgICkgOiAoXG4gICAgICAgICAgICAgIHNraWxscy5tYXAoKHMpID0+IChcbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1jcC1kaXItaXRlbVwiIGtleT17cy5uYW1lfT5cbiAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cIm1jcC1kaXItaXRlbS1uYW1lXCI+e3MubmFtZX08L3NwYW4+XG4gICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJtY3AtZGlyLWl0ZW0tZGVzY1wiPntzLmRlc2NyaXB0aW9ufTwvc3Bhbj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgKSlcbiAgICAgICAgICAgICl9XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtY3AtZGlyLXNlY3Rpb25cIj5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibWNwLWRpci1oZWFkXCI+XG4gICAgICAgICAgICAgIDxJY29uIG5hbWU9XCJ1c2VyXCIgc2l6ZT17MTR9IC8+IOWtkOaZuuiDveS9k++8iHthZ2VudHMubGVuZ3Rofe+8iVxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICB7YWdlbnRzLmxlbmd0aCA9PT0gMCA/IChcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5nLW5vdGVcIj7ml6DlrZDmmbrog73kvZM8L2Rpdj5cbiAgICAgICAgICAgICkgOiAoXG4gICAgICAgICAgICAgIGFnZW50cy5tYXAoKGEpID0+IChcbiAgICAgICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cIm1jcC1kaXItaXRlbVwiIGtleT17YS5uYW1lfT5cbiAgICAgICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cIm1jcC1kaXItaXRlbS1uYW1lXCI+e2EuZGlzcGxheV9uYW1lIHx8IGEubmFtZX08L3NwYW4+XG4gICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJtY3AtZGlyLWl0ZW0tZGVzY1wiPnthLmRlc2NyaXB0aW9ufTwvc3Bhbj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgKSlcbiAgICAgICAgICAgICl9XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtY3AtZGlyLXNlY3Rpb25cIj5cbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwibWNwLWRpci1oZWFkXCI+XG4gICAgICAgICAgICAgIDxJY29uIG5hbWU9XCJ6YXBcIiBzaXplPXsxNH0gLz4g5bey5Yqg6L295o+S5Lu277yIe3BsdWdpbnMubGVuZ3Rofe+8iVxuICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICB7cGx1Z2lucy5sZW5ndGggPT09IDAgPyAoXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZy1ub3RlXCI+5peg5o+S5Lu277yI5ZyoIHtkcmFmdD8ucGx1Z2luc19yb290ID8/ICdwbHVnaW5zLyd9IOa3u+WKoCAucHkg5paH5Lu277yM5oiW5pS55ZCNIC5kaXNhYmxlZCDnpoHnlKjvvIk8L2Rpdj5cbiAgICAgICAgICAgICkgOiAoXG4gICAgICAgICAgICAgIHBsdWdpbnMubWFwKChwKSA9PiAoXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJtY3AtZGlyLWl0ZW1cIiBrZXk9e3AubmFtZX0+XG4gICAgICAgICAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJtY3AtZGlyLWl0ZW0tbmFtZVwiPntwLm5hbWV9PC9zcGFuPlxuICAgICAgICAgICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwibWNwLWRpci1pdGVtLWRlc2NcIj57cC5lbmFibGVkID8gJ+W3suWQr+eUqCcgOiAn5bey56aB55SoJ308L3NwYW4+XG4gICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICkpXG4gICAgICAgICAgICApfVxuICAgICAgICAgIDwvZGl2PlxuICAgICAgICA8L2Rpdj5cbiAgICAgIDwvc2VjdGlvbj5cblxuICAgICAgPFNldHRpbmdTdGF0dXMgbWVzc2FnZT17c3RhdHVzfSAvPlxuICAgIDwvZGl2PlxuICApO1xufVxuIl0sImZpbGUiOiJDOi9Vc2Vycy9FbHlzaWEvRGVza3RvcC9Qcm9qZWN0L1B5Y2hhcm0vTW9vbmxpZ2h0L2Zyb250ZW5kL3NyYy9zZXR0aW5ncy9UYXNrUGxhdGZvcm1TZXR0aW5ncy50c3gifQ==

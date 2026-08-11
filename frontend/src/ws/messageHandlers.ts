@@ -87,42 +87,126 @@ function handleFullText(msg: Extract<ServerMessage, { type: 'full-text' }>, deps
   if (text === 'Thinking...' || text.includes('AI wants to speak')) {
     deps.dispatch({ type: 'SET_THINKING', thinking: true });
   } else if (text && text !== 'Connection established') {
-    addAiMessage(deps, text);
+    if (msg.quote) {
+      // 预设台词（关键词触发/点击互动）：完整句子，独立新气泡。
+      addAiMessage(deps, text);
+      return;
+    }
+    // v6 文本流式：LLM 句子逐句到达（后端不再等 TTS 合成完才发文本）。
+    // 最后一条 AI 消息仍在流式且未绑定语音 → 追加到同一气泡（打字机效果）；
+    // 否则（新回复段/上一段语音已绑定）→ 开新流式气泡。
+    const messages = deps.getState().messages;
+    const last = messages.length > 0 ? messages[messages.length - 1] : undefined;
+    if (last && last.role === 'ai' && last.streaming && !last.audioBound) {
+      deps.dispatch({ type: 'APPEND_MESSAGE_TEXT', id: last.id, text });
+    } else {
+      addAiMessage(deps, text);
+    }
   }
 }
 
 function handleAudio(msg: AudioMessage, deps: WsHandlerDeps): void {
   const displayText = msg.display_text?.text ?? '';
-  const expression = msg.actions?.expressions?.[0] ?? null;
+  // 表情源：优先 LLM 动作标签（actions.expressions）；为空时依次用
+  // emotion_meta（Phase 1 LLM/规则分类，最准）→ msg.emotion（规则分析）兜底——
+  // 否则 DeepSeek 不带动作标签时表情永远不动（只有口型）。
+  const actionExpression = msg.actions?.expressions?.[0] ?? null;
+  const metaEmotion =
+    msg.emotion_meta?.emotion && msg.emotion_meta.emotion !== 'neutral'
+      ? msg.emotion_meta.emotion
+      : null;
+  const fallbackEmotion =
+    msg.emotion && msg.emotion !== 'neutral' ? msg.emotion : null;
+  const expression = actionExpression ?? metaEmotion ?? fallbackEmotion;
+
+  // 音频数据快照（2026-08-10）：存到消息供气泡「再次播放」——
+  // 后端 TTS wav 播完即删（tts_manager finally remove_file），前端必须自己留一份。
+  // msg.audio 为 null（静默 payload）时不留，气泡不显示重播。
+  const audioReplay: import('@/state/types').AudioReplayData | null = msg.audio
+    ? {
+        base64: msg.audio,
+        volumes: msg.volumes ?? [],
+        visemes: msg.visemes ?? null,
+        sliceLengthMs: msg.slice_length || 20,
+        expression: msg.actions?.expressions ?? null,
+      }
+    : null;
+  const replayPayload = audioReplay ?? undefined;
 
   if (displayText) {
-    deps.dispatch({
-      type: 'ADD_MESSAGE',
-      message: {
-        id: nextId(),
-        role: 'ai',
-        text: displayText,
-        // 字幕翻译附在消息上作显示层小字（与原文不同才带，避免同语言重复）
+    // v6 语音绑定：文本已由 full-text 流式上屏，audio 到达后绑定到气泡播放，
+    // 不再「语音+文本一起出现」、也不为同一段文本重复建气泡。
+    const messages = deps.getState().messages;
+    // 1) 有未绑定语音的 AI 气泡（流式文本刚显示完）→ 绑定（结束流式 + 补字幕）。
+    // 2026-08-10 修复：排除已有音频快照的消息（audioData）——纯 audio 播报气泡
+    // （外壳播报/主动搭话）自带音频，不应再成为后续 audio 的绑定目标，否则任务
+    // 完成的 run_end 播报会被「吞」进 run_start 的「好呀主人」气泡里不可见。
+    const pending = [...messages]
+      .reverse()
+      .find((m) => m.role === 'ai' && !m.audioBound && !m.audioData);
+    if (pending) {
+      deps.dispatch({
+        type: 'BIND_AUDIO_TO_MESSAGE',
+        id: pending.id,
         subtitle:
           msg.subtitle_text && msg.subtitle_text !== displayText
             ? msg.subtitle_text
             : undefined,
-        name: (msg.display_text?.name ?? deps.getState().confName) || 'AI',
-        avatar: msg.display_text?.avatar ?? undefined,
-        streaming: true,
-        timestamp: Date.now(),
-      },
-    });
+        audio: replayPayload,
+      });
+    } else {
+      // 2) 多段回复的后续段落：该段文本已包含在已有气泡里 → 只播放，不重复建气泡。
+      const tail = messages[messages.length - 1];
+      const alreadyShown = !!tail && tail.role === 'ai' && tail.text.includes(displayText);
+      if (alreadyShown) {
+        deps.dispatch({
+          type: 'BIND_AUDIO_TO_MESSAGE',
+          id: tail.id,
+          audio: replayPayload,
+        });
+      } else {
+        // 3) 纯 audio 路径（无 full-text 先行，如主动搭话/外壳播报）：按旧行为新建气泡。
+        // 2026-08-10：新建即标 audioBound:true——该气泡的音频已作为 audioData 快照
+        // 保存（供「再次播放」），后续 audio 消息不应再绑定到它（多段播报各自成气泡）。
+        deps.dispatch({
+          type: 'ADD_MESSAGE',
+          message: {
+            id: nextId(),
+            role: 'ai',
+            text: displayText,
+            subtitle:
+              msg.subtitle_text && msg.subtitle_text !== displayText
+                ? msg.subtitle_text
+                : undefined,
+            name: (msg.display_text?.name ?? deps.getState().confName) || 'AI',
+            avatar: msg.display_text?.avatar ?? undefined,
+            streaming: false,
+            audioBound: true,
+            timestamp: Date.now(),
+            audioData: replayPayload,
+          },
+        });
+      }
+    }
   }
 
   const emotion = expressionToEmotion(expression, deps.getState().modelInfo);
-  if (emotion !== 'neutral') deps.dispatch({ type: 'SET_EMOTION', emotion });
+  if (emotion !== 'neutral') {
+    deps.dispatch({
+      type: 'SET_EMOTION',
+      emotion,
+      intensity: msg.emotion_meta?.intensity ?? null,
+      source: msg.emotion_meta?.source ?? null,
+    });
+  }
 
   deps.bumpPendingAudio(1);
   deps.audioPlayer()?.enqueue({
     id: nextId(),
     base64: msg.audio,
     volumes: msg.volumes ?? [],
+    visemes: msg.visemes ?? null,
+    emotionMeta: msg.emotion_meta ?? null,
     sliceLengthMs: msg.slice_length || 20,
     expression: msg.actions?.expressions ?? null,
     displayText: displayText || null,
@@ -172,10 +256,12 @@ function handleControl(msg: ControlMessage, deps: WsHandlerDeps): void {
     case 'conversation-chain-end':
       deps.dispatch({ type: 'SET_THINKING', thinking: false });
       deps.dispatch({ type: 'SET_SUBTITLE', text: '' });
+      deps.dispatch({ type: 'SET_TOOL_STATUS', text: null });
       break;
     case 'interrupt':
       deps.audioPlayer()?.stop();
       deps.dispatch({ type: 'SET_THINKING', thinking: false });
+      deps.dispatch({ type: 'SET_TOOL_STATUS', text: null });
       break;
     case 'start-mic':
     case 'mic-audio-end':
@@ -194,6 +280,7 @@ function handleBackendSynthComplete(_msg: Extract<ServerMessage, { type: 'backen
 function handleForceNewMessage(_msg: Extract<ServerMessage, { type: 'force-new-message' }>, deps: WsHandlerDeps): void {
   deps.dispatch({ type: 'SET_THINKING', thinking: false });
   deps.dispatch({ type: 'SET_SUBTITLE', text: '' });
+  deps.dispatch({ type: 'SET_TOOL_STATUS', text: null });
   finalizeLastAiMessage(deps);
 }
 
@@ -202,6 +289,7 @@ function handleError(msg: ErrorMessage, deps: WsHandlerDeps): void {
   // state.lastError + errorCode）。message 文案来自后端（用户可读中文）。
   deps.dispatch({ type: 'SET_ERROR', message: msg.message ?? '未知错误', code: msg.code });
   deps.dispatch({ type: 'SET_THINKING', thinking: false });
+  deps.dispatch({ type: 'SET_TOOL_STATUS', text: null });
 }
 
 function handleHistoryList(msg: Extract<ServerMessage, { type: 'history-list' }>, deps: WsHandlerDeps): void {
@@ -246,17 +334,79 @@ function handleHistoryTitleUpdated(msg: Extract<ServerMessage, { type: 'history-
   deps.dispatch({ type: 'SET_HISTORY_LIST', historyList: list });
 }
 
+/** v5：会话移动到另一个工作目录 → 更新本地列表（分组随刷新重排）。 */
+function handleHistoryWorkspaceUpdated(
+  msg: Extract<ServerMessage, { type: 'history-workspace-updated' }>,
+  deps: WsHandlerDeps,
+): void {
+  if (!msg.success || !msg.history_uid) return;
+  const uid = msg.history_uid;
+  const list = deps
+    .getState()
+    .historyList.map((h) =>
+      String(h.uid ?? h.history_uid ?? '') === uid ? { ...h, workspace: msg.workspace } : h,
+    );
+  deps.dispatch({ type: 'SET_HISTORY_LIST', historyList: list });
+}
+
+/** v5：存量会话全部清空 → 重置列表与当前会话。 */
+function handleHistoriesCleared(_msg: Extract<ServerMessage, { type: 'histories-cleared' }>, deps: WsHandlerDeps): void {
+  deps.dispatch({ type: 'SET_HISTORY_LIST', historyList: [] });
+  deps.dispatch({ type: 'SET_HISTORY_UID', uid: null });
+  deps.dispatch({ type: 'CLEAR_MESSAGES' });
+}
+
 function handleHistoryData(msg: Extract<ServerMessage, { type: 'history-data' }>, deps: WsHandlerDeps): void {
+  // Moonlight（2026-08-10 修复）：点击旧会话加载后必须同步 currentHistoryUid——
+  // 后端 _handle_fetch_history 会设置 context.history_uid，但前端 state 之前
+  // 从未更新，导致输入时 !currentHistoryUid 误弹"选择工作目录"。
+  if (msg.history_uid) {
+    deps.dispatch({ type: 'SET_HISTORY_UID', uid: msg.history_uid });
+  }
   const messages = (msg.messages ?? []).map((m) => ({
     id: nextId(),
     role: m.role === 'human' ? ('user' as const) : ('ai' as const),
     text: m.content ?? '',
     name: m.name,
     avatar: m.avatar,
+    // 2026-08-10：透传消息类别与任务 id —— 任务简报渲染为折叠卡片而非普通气泡。
+    kind: m.kind,
+    taskId: m.task_id,
     timestamp: Date.now(),
   }));
   deps.dispatch({ type: 'CLEAR_MESSAGES' });
   messages.forEach((m) => deps.dispatch({ type: 'ADD_MESSAGE', message: m }));
+}
+
+function handleToolCallStatus(msg: Extract<ServerMessage, { type: 'tool_call_status' }>, deps: WsHandlerDeps): void {
+  // text 非空 = 工具执行中（聊天区显示状态条）；空串 = 结束清除。
+  const text = (msg.text ?? '').trim();
+  deps.dispatch({ type: 'SET_TOOL_STATUS', text: text || null });
+  if (text) {
+    deps.dispatch({ type: 'SET_THINKING', thinking: false });
+  }
+}
+
+/** 2026-08-09：delegate 任务完整结果直达聊天区 —— 直接渲染为 AI 气泡。
+ *  不等 LLM 逐句复述，任务清单/表格立刻可见；文本带 Markdown 由 ChatBubble 渲染。 */
+function handleTaskResult(msg: Extract<ServerMessage, { type: 'task-result' }>, deps: WsHandlerDeps): void {
+  const text = (msg.text ?? '').trim();
+  if (!text) return;
+  deps.dispatch({
+    type: 'ADD_MESSAGE',
+    message: {
+      id: nextId(),
+      role: 'ai',
+      text,
+      name: msg.name || deps.getState().confName || 'AI',
+      avatar: msg.avatar,
+      streaming: false,
+      timestamp: Date.now(),
+    },
+  });
+  // 任务结果已直达展示，把可能残留的"思考中"状态清掉。
+  deps.dispatch({ type: 'SET_THINKING', thinking: false });
+  deps.dispatch({ type: 'SET_TOOL_STATUS', text: null });
 }
 
 /** 后端已定义但前端当前不消费的消息类型 —— 显式登记为 no-op，防漏审。 */
@@ -283,12 +433,16 @@ export const serverMessageHandlers: Record<ServerMessage['type'], (msg: ServerMe
   'new-history-created': handleNewHistoryCreated as never,
   'history-deleted': handleHistoryDeleted as never,
   'history-title-updated': handleHistoryTitleUpdated as never,
+  'history-workspace-updated': handleHistoryWorkspaceUpdated as never,
+  'histories-cleared': handleHistoriesCleared as never,
   'history-data': handleHistoryData as never,
   'config-files': noop as never,
   'group-update': noop as never,
   'config-switched': noop as never,
   'heartbeat-ack': noop as never,
   'config-updated': noop as never,
+  'tool_call_status': handleToolCallStatus as never,
+  'task-result': handleTaskResult as never,
 };
 
 /**

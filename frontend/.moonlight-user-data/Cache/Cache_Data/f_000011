@@ -1,0 +1,286 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/TitleBar.tsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=b90f1a35"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.__vite_plugin_react_preamble_installed__) {
+    throw new Error("@vitejs/plugin-react can't detect preamble. Something is wrong. See https://github.com/vitejs/vite-plugin-react/pull/11#discussion_r430879201");
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = (type, id) => {
+    RefreshRuntime.register(type, "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx " + id);
+  };
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import __vite__cjsImport3_react from "/node_modules/.vite/deps/react.js?v=b90f1a35"; const useEffect = __vite__cjsImport3_react["useEffect"]; const useState = __vite__cjsImport3_react["useState"];
+import { Icon } from "/src/ui/icons.tsx";
+function MinIcon() {
+  return /* @__PURE__ */ jsxDEV("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: /* @__PURE__ */ jsxDEV("path", { d: "M2 6.5h8", fill: "none", stroke: "currentColor", strokeWidth: "1.2", strokeLinecap: "round" }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+    lineNumber: 18,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+    lineNumber: 17,
+    columnNumber: 5
+  }, this);
+}
+_c = MinIcon;
+function MaxIcon() {
+  return /* @__PURE__ */ jsxDEV("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: /* @__PURE__ */ jsxDEV("rect", { x: "2.5", y: "2.5", width: "7", height: "7", rx: "1.2", fill: "none", stroke: "currentColor", strokeWidth: "1.2" }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+    lineNumber: 26,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+    lineNumber: 25,
+    columnNumber: 5
+  }, this);
+}
+_c2 = MaxIcon;
+function RestoreIcon() {
+  return /* @__PURE__ */ jsxDEV("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: [
+    /* @__PURE__ */ jsxDEV("path", { d: "M4.5 3.5V2.5h5v5h-1", fill: "none", stroke: "currentColor", strokeWidth: "1.2", strokeLinecap: "round", strokeLinejoin: "round" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+      lineNumber: 34,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("rect", { x: "2.5", y: "4.5", width: "5", height: "5", rx: "1.2", fill: "none", stroke: "currentColor", strokeWidth: "1.2" }, void 0, false, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+      lineNumber: 35,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+    lineNumber: 33,
+    columnNumber: 5
+  }, this);
+}
+_c3 = RestoreIcon;
+function CloseIcon() {
+  return /* @__PURE__ */ jsxDEV("svg", { width: "12", height: "12", viewBox: "0 0 12 12", "aria-hidden": "true", children: /* @__PURE__ */ jsxDEV("path", { d: "M2.5 2.5l7 7M9.5 2.5l-7 7", fill: "none", stroke: "currentColor", strokeWidth: "1.2", strokeLinecap: "round" }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+    lineNumber: 43,
+    columnNumber: 7
+  }, this) }, void 0, false, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+    lineNumber: 42,
+    columnNumber: 5
+  }, this);
+}
+_c4 = CloseIcon;
+export function TitleBar({
+  onToggleMode,
+  onOpenSettings
+}) {
+  _s();
+  const [maximized, setMaximized] = useState(false);
+  useEffect(() => window.moonlight?.onMaximizeChanged(setMaximized), []);
+  return /* @__PURE__ */ jsxDEV("header", { className: "window-titlebar", children: [
+    /* @__PURE__ */ jsxDEV("div", { className: "window-titlebar-left", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "window-titlebar-brand", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "window-titlebar-logo", "aria-hidden": "true", children: /* @__PURE__ */ jsxDEV("svg", { width: "12", height: "12", viewBox: "0 0 12 12", children: /* @__PURE__ */ jsxDEV(
+          "path",
+          {
+            d: "M8.6 1.6a4.9 4.9 0 1 0 1.8 6.1A3.9 3.9 0 0 1 8.6 1.6Z",
+            fill: "none",
+            stroke: "currentColor",
+            strokeWidth: "1.1",
+            strokeLinejoin: "round"
+          },
+          void 0,
+          false,
+          {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+            lineNumber: 62,
+            columnNumber: 15
+          },
+          this
+        ) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+          lineNumber: 61,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+          lineNumber: 60,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("span", { className: "window-titlebar-name", children: "Moonlight" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+          lineNumber: 71,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+        lineNumber: 59,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "window-titlebar-actions", children: [
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            className: "titlebar-action",
+            "aria-label": "切换模式",
+            title: "切换模式",
+            onClick: onToggleMode,
+            children: /* @__PURE__ */ jsxDEV(Icon, { name: "switch", size: 14 }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+              lineNumber: 83,
+              columnNumber: 13
+            }, this)
+          },
+          void 0,
+          false,
+          {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+            lineNumber: 76,
+            columnNumber: 11
+          },
+          this
+        ),
+        /* @__PURE__ */ jsxDEV(
+          "button",
+          {
+            type: "button",
+            className: "titlebar-action",
+            "aria-label": "设置",
+            title: "设置",
+            onClick: onOpenSettings,
+            children: /* @__PURE__ */ jsxDEV(Icon, { name: "settings", size: 14 }, void 0, false, {
+              fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+              lineNumber: 92,
+              columnNumber: 13
+            }, this)
+          },
+          void 0,
+          false,
+          {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+            lineNumber: 85,
+            columnNumber: 11
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+        lineNumber: 75,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+      lineNumber: 58,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("div", { className: "window-titlebar-controls", children: [
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          type: "button",
+          className: "win-control",
+          "aria-label": "最小化",
+          title: "最小化",
+          onClick: () => void window.moonlight?.minimizeWindow(),
+          children: /* @__PURE__ */ jsxDEV(MinIcon, {}, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+            lineNumber: 105,
+            columnNumber: 11
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+          lineNumber: 98,
+          columnNumber: 9
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          type: "button",
+          className: "win-control",
+          "aria-label": maximized ? "还原" : "最大化",
+          title: maximized ? "还原" : "最大化",
+          onClick: () => void window.moonlight?.toggleMaximize(),
+          children: maximized ? /* @__PURE__ */ jsxDEV(RestoreIcon, {}, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+            lineNumber: 114,
+            columnNumber: 24
+          }, this) : /* @__PURE__ */ jsxDEV(MaxIcon, {}, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+            lineNumber: 114,
+            columnNumber: 42
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+          lineNumber: 107,
+          columnNumber: 9
+        },
+        this
+      ),
+      /* @__PURE__ */ jsxDEV(
+        "button",
+        {
+          type: "button",
+          className: "win-control win-control-close",
+          "aria-label": "关闭",
+          title: "关闭",
+          onClick: () => void window.moonlight?.closeWindow(),
+          children: /* @__PURE__ */ jsxDEV(CloseIcon, {}, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+            lineNumber: 123,
+            columnNumber: 11
+          }, this)
+        },
+        void 0,
+        false,
+        {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+          lineNumber: 116,
+          columnNumber: 9
+        },
+        this
+      )
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+      lineNumber: 97,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx",
+    lineNumber: 57,
+    columnNumber: 5
+  }, this);
+}
+_s(TitleBar, "PlJlTxWV2O5mB3blIO9o9LxVD9o=");
+_c5 = TitleBar;
+var _c, _c2, _c3, _c4, _c5;
+$RefreshReg$(_c, "MinIcon");
+$RefreshReg$(_c2, "MaxIcon");
+$RefreshReg$(_c3, "RestoreIcon");
+$RefreshReg$(_c4, "CloseIcon");
+$RefreshReg$(_c5, "TitleBar");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/components/TitleBar.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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QztBQUFBO0FBQUEsVUFDQyxNQUFLO0FBQUEsVUFDTCxXQUFVO0FBQUEsVUFDVixjQUFZTCxZQUFZLE9BQU87QUFBQSxVQUMvQixPQUFPQSxZQUFZLE9BQU87QUFBQSxVQUMxQixTQUFTLE1BQU0sS0FBS0UsT0FBT0MsV0FBV0csZUFBZTtBQUFBLFVBRXBETixzQkFBWSx1QkFBQyxpQkFBRDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFZLElBQU0sdUJBQUMsYUFBRDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFRO0FBQUE7QUFBQSxRQVB6QztBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUEsTUFRQTtBQUFBLE1BQ0E7QUFBQSxRQUFDO0FBQUE7QUFBQSxVQUNDLE1BQUs7QUFBQSxVQUNMLFdBQVU7QUFBQSxVQUNWLGNBQVc7QUFBQSxVQUNYLE9BQU07QUFBQSxVQUNOLFNBQVMsTUFBTSxLQUFLRSxPQUFPQyxXQUFXSSxZQUFZO0FBQUEsVUFFbEQsaUNBQUMsZUFBRDtBQUFBO0FBQUE7QUFBQTtBQUFBLGlCQUFVO0FBQUE7QUFBQSxRQVBaO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQTtBQUFBO0FBQUE7QUFBQSxNQVFBO0FBQUEsU0EzQkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQTRCQTtBQUFBLE9BcEVGO0FBQUE7QUFBQTtBQUFBO0FBQUEsU0FxRUE7QUFFSjtBQUFDUixHQWhGZUgsVUFBUTtBQUFBLE1BQVJBO0FBQVEsSUFBQVAsSUFBQUUsS0FBQUUsS0FBQUUsS0FBQWE7QUFBQSxhQUFBbkIsSUFBQTtBQUFBLGFBQUFFLEtBQUE7QUFBQSxhQUFBRSxLQUFBO0FBQUEsYUFBQUUsS0FBQTtBQUFBLGFBQUFhLEtBQUEiLCJuYW1lcyI6WyJ1c2VFZmZlY3QiLCJ1c2VTdGF0ZSIsIkljb24iLCJNaW5JY29uIiwiX2MiLCJNYXhJY29uIiwiX2MyIiwiUmVzdG9yZUljb24iLCJfYzMiLCJDbG9zZUljb24iLCJfYzQiLCJUaXRsZUJhciIsIm9uVG9nZ2xlTW9kZSIsIm9uT3BlblNldHRpbmdzIiwiX3MiLCJtYXhpbWl6ZWQiLCJzZXRNYXhpbWl6ZWQiLCJ3aW5kb3ciLCJtb29ubGlnaHQiLCJvbk1heGltaXplQ2hhbmdlZCIsIm1pbmltaXplV2luZG93IiwidG9nZ2xlTWF4aW1pemUiLCJjbG9zZVdpbmRvdyIsIl9jNSJdLCJpZ25vcmVMaXN0IjpbXSwic291cmNlcyI6WyJUaXRsZUJhci50c3giXSwic291cmNlc0NvbnRlbnQiOlsiLyoqXHJcbiAqIFRpdGxlQmFyIOKAlCDnqpflj6PmqKHlvI/vvIh3aW5kb3ctbW9kZe+8ieiHquWumuS5ieagh+mimOagj++8jOWPguiAgyBDb2RleCDmoYzpnaLnq6/luIPlsYDvvJpcclxuICog5bem5L6n5ZOB54mM5Yy677yIbG9nbyArIOWQjeensO+8ieS4juaTjeS9nOWFpeWPo++8iOWIh+aNouaooeW8jyAvIOiuvue9riAvIOaJk+aWre+8ie+8jFxyXG4gKiDlj7PkvqfmnIDlsI/ljJYgLyDmnIDlpKfljJbov5jljp8gLyDlhbPpl63kuInkuKrnqpflj6PmjqfliLbjgIJcclxuICog5qCH6aKY5qCP5pys6Lqr5piv5ouW5ou95Yy677yILXdlYmtpdC1hcHAtcmVnaW9uOiBkcmFn77yJ77yM5oyJ6ZKu5pi+5byPIG5vLWRyYWfjgIJcclxuICovXHJcbmltcG9ydCB7IHVzZUVmZmVjdCwgdXNlU3RhdGUsIHR5cGUgUmVhY3RFbGVtZW50IH0gZnJvbSAncmVhY3QnO1xyXG5pbXBvcnQgeyBJY29uIH0gZnJvbSAnQC91aS9pY29ucyc7XHJcblxyXG5leHBvcnQgaW50ZXJmYWNlIFRpdGxlQmFyUHJvcHMge1xyXG4gIG9uVG9nZ2xlTW9kZTogKCkgPT4gdm9pZDtcclxuICBvbk9wZW5TZXR0aW5nczogKCkgPT4gdm9pZDtcclxufVxyXG5cclxuZnVuY3Rpb24gTWluSWNvbigpOiBSZWFjdEVsZW1lbnQge1xyXG4gIHJldHVybiAoXHJcbiAgICA8c3ZnIHdpZHRoPVwiMTJcIiBoZWlnaHQ9XCIxMlwiIHZpZXdCb3g9XCIwIDAgMTIgMTJcIiBhcmlhLWhpZGRlbj1cInRydWVcIj5cclxuICAgICAgPHBhdGggZD1cIk0yIDYuNWg4XCIgZmlsbD1cIm5vbmVcIiBzdHJva2U9XCJjdXJyZW50Q29sb3JcIiBzdHJva2VXaWR0aD1cIjEuMlwiIHN0cm9rZUxpbmVjYXA9XCJyb3VuZFwiIC8+XHJcbiAgICA8L3N2Zz5cclxuICApO1xyXG59XHJcblxyXG5mdW5jdGlvbiBNYXhJY29uKCk6IFJlYWN0RWxlbWVudCB7XHJcbiAgcmV0dXJuIChcclxuICAgIDxzdmcgd2lkdGg9XCIxMlwiIGhlaWdodD1cIjEyXCIgdmlld0JveD1cIjAgMCAxMiAxMlwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiPlxyXG4gICAgICA8cmVjdCB4PVwiMi41XCIgeT1cIjIuNVwiIHdpZHRoPVwiN1wiIGhlaWdodD1cIjdcIiByeD1cIjEuMlwiIGZpbGw9XCJub25lXCIgc3Ryb2tlPVwiY3VycmVudENvbG9yXCIgc3Ryb2tlV2lkdGg9XCIxLjJcIiAvPlxyXG4gICAgPC9zdmc+XHJcbiAgKTtcclxufVxyXG5cclxuZnVuY3Rpb24gUmVzdG9yZUljb24oKTogUmVhY3RFbGVtZW50IHtcclxuICByZXR1cm4gKFxyXG4gICAgPHN2ZyB3aWR0aD1cIjEyXCIgaGVpZ2h0PVwiMTJcIiB2aWV3Qm94PVwiMCAwIDEyIDEyXCIgYXJpYS1oaWRkZW49XCJ0cnVlXCI+XHJcbiAgICAgIDxwYXRoIGQ9XCJNNC41IDMuNVYyLjVoNXY1aC0xXCIgZmlsbD1cIm5vbmVcIiBzdHJva2U9XCJjdXJyZW50Q29sb3JcIiBzdHJva2VXaWR0aD1cIjEuMlwiIHN0cm9rZUxpbmVjYXA9XCJyb3VuZFwiIHN0cm9rZUxpbmVqb2luPVwicm91bmRcIiAvPlxyXG4gICAgICA8cmVjdCB4PVwiMi41XCIgeT1cIjQuNVwiIHdpZHRoPVwiNVwiIGhlaWdodD1cIjVcIiByeD1cIjEuMlwiIGZpbGw9XCJub25lXCIgc3Ryb2tlPVwiY3VycmVudENvbG9yXCIgc3Ryb2tlV2lkdGg9XCIxLjJcIiAvPlxyXG4gICAgPC9zdmc+XHJcbiAgKTtcclxufVxyXG5cclxuZnVuY3Rpb24gQ2xvc2VJY29uKCk6IFJlYWN0RWxlbWVudCB7XHJcbiAgcmV0dXJuIChcclxuICAgIDxzdmcgd2lkdGg9XCIxMlwiIGhlaWdodD1cIjEyXCIgdmlld0JveD1cIjAgMCAxMiAxMlwiIGFyaWEtaGlkZGVuPVwidHJ1ZVwiPlxyXG4gICAgICA8cGF0aCBkPVwiTTIuNSAyLjVsNyA3TTkuNSAyLjVsLTcgN1wiIGZpbGw9XCJub25lXCIgc3Ryb2tlPVwiY3VycmVudENvbG9yXCIgc3Ryb2tlV2lkdGg9XCIxLjJcIiBzdHJva2VMaW5lY2FwPVwicm91bmRcIiAvPlxyXG4gICAgPC9zdmc+XHJcbiAgKTtcclxufVxyXG5cclxuZXhwb3J0IGZ1bmN0aW9uIFRpdGxlQmFyKHtcclxuICBvblRvZ2dsZU1vZGUsXHJcbiAgb25PcGVuU2V0dGluZ3MsXHJcbn06IFRpdGxlQmFyUHJvcHMpOiBSZWFjdEVsZW1lbnQge1xyXG4gIGNvbnN0IFttYXhpbWl6ZWQsIHNldE1heGltaXplZF0gPSB1c2VTdGF0ZShmYWxzZSk7XHJcblxyXG4gIHVzZUVmZmVjdCgoKSA9PiB3aW5kb3cubW9vbmxpZ2h0Py5vbk1heGltaXplQ2hhbmdlZChzZXRNYXhpbWl6ZWQpLCBbXSk7XHJcblxyXG4gIHJldHVybiAoXHJcbiAgICA8aGVhZGVyIGNsYXNzTmFtZT1cIndpbmRvdy10aXRsZWJhclwiPlxyXG4gICAgICA8ZGl2IGNsYXNzTmFtZT1cIndpbmRvdy10aXRsZWJhci1sZWZ0XCI+XHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ3aW5kb3ctdGl0bGViYXItYnJhbmRcIj5cclxuICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cIndpbmRvdy10aXRsZWJhci1sb2dvXCIgYXJpYS1oaWRkZW49XCJ0cnVlXCI+XHJcbiAgICAgICAgICAgIDxzdmcgd2lkdGg9XCIxMlwiIGhlaWdodD1cIjEyXCIgdmlld0JveD1cIjAgMCAxMiAxMlwiPlxyXG4gICAgICAgICAgICAgIDxwYXRoXHJcbiAgICAgICAgICAgICAgICBkPVwiTTguNiAxLjZhNC45IDQuOSAwIDEgMCAxLjggNi4xQTMuOSAzLjkgMCAwIDEgOC42IDEuNlpcIlxyXG4gICAgICAgICAgICAgICAgZmlsbD1cIm5vbmVcIlxyXG4gICAgICAgICAgICAgICAgc3Ryb2tlPVwiY3VycmVudENvbG9yXCJcclxuICAgICAgICAgICAgICAgIHN0cm9rZVdpZHRoPVwiMS4xXCJcclxuICAgICAgICAgICAgICAgIHN0cm9rZUxpbmVqb2luPVwicm91bmRcIlxyXG4gICAgICAgICAgICAgIC8+XHJcbiAgICAgICAgICAgIDwvc3ZnPlxyXG4gICAgICAgICAgPC9zcGFuPlxyXG4gICAgICAgICAgPHNwYW4gY2xhc3NOYW1lPVwid2luZG93LXRpdGxlYmFyLW5hbWVcIj5Nb29ubGlnaHQ8L3NwYW4+XHJcbiAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgIHsvKiDmk43kvZzlhaXlj6PvvJrliIfmjaLmqKHlvI8gLyDorr7nva4gKi99XHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJ3aW5kb3ctdGl0bGViYXItYWN0aW9uc1wiPlxyXG4gICAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcclxuICAgICAgICAgICAgY2xhc3NOYW1lPVwidGl0bGViYXItYWN0aW9uXCJcclxuICAgICAgICAgICAgYXJpYS1sYWJlbD1cIuWIh+aNouaooeW8j1wiXHJcbiAgICAgICAgICAgIHRpdGxlPVwi5YiH5o2i5qih5byPXCJcclxuICAgICAgICAgICAgb25DbGljaz17b25Ub2dnbGVNb2RlfVxyXG4gICAgICAgICAgPlxyXG4gICAgICAgICAgICA8SWNvbiBuYW1lPVwic3dpdGNoXCIgc2l6ZT17MTR9IC8+XHJcbiAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgIDxidXR0b25cclxuICAgICAgICAgICAgdHlwZT1cImJ1dHRvblwiXHJcbiAgICAgICAgICAgIGNsYXNzTmFtZT1cInRpdGxlYmFyLWFjdGlvblwiXHJcbiAgICAgICAgICAgIGFyaWEtbGFiZWw9XCLorr7nva5cIlxyXG4gICAgICAgICAgICB0aXRsZT1cIuiuvue9rlwiXHJcbiAgICAgICAgICAgIG9uQ2xpY2s9e29uT3BlblNldHRpbmdzfVxyXG4gICAgICAgICAgPlxyXG4gICAgICAgICAgICA8SWNvbiBuYW1lPVwic2V0dGluZ3NcIiBzaXplPXsxNH0gLz5cclxuICAgICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgIDwvZGl2PlxyXG4gICAgICA8L2Rpdj5cclxuXHJcbiAgICAgIDxkaXYgY2xhc3NOYW1lPVwid2luZG93LXRpdGxlYmFyLWNvbnRyb2xzXCI+XHJcbiAgICAgICAgPGJ1dHRvblxyXG4gICAgICAgICAgdHlwZT1cImJ1dHRvblwiXHJcbiAgICAgICAgICBjbGFzc05hbWU9XCJ3aW4tY29udHJvbFwiXHJcbiAgICAgICAgICBhcmlhLWxhYmVsPVwi5pyA5bCP5YyWXCJcclxuICAgICAgICAgIHRpdGxlPVwi5pyA5bCP5YyWXCJcclxuICAgICAgICAgIG9uQ2xpY2s9eygpID0+IHZvaWQgd2luZG93Lm1vb25saWdodD8ubWluaW1pemVXaW5kb3coKX1cclxuICAgICAgICA+XHJcbiAgICAgICAgICA8TWluSWNvbiAvPlxyXG4gICAgICAgIDwvYnV0dG9uPlxyXG4gICAgICAgIDxidXR0b25cclxuICAgICAgICAgIHR5cGU9XCJidXR0b25cIlxyXG4gICAgICAgICAgY2xhc3NOYW1lPVwid2luLWNvbnRyb2xcIlxyXG4gICAgICAgICAgYXJpYS1sYWJlbD17bWF4aW1pemVkID8gJ+i/mOWOnycgOiAn5pyA5aSn5YyWJ31cclxuICAgICAgICAgIHRpdGxlPXttYXhpbWl6ZWQgPyAn6L+Y5Y6fJyA6ICfmnIDlpKfljJYnfVxyXG4gICAgICAgICAgb25DbGljaz17KCkgPT4gdm9pZCB3aW5kb3cubW9vbmxpZ2h0Py50b2dnbGVNYXhpbWl6ZSgpfVxyXG4gICAgICAgID5cclxuICAgICAgICAgIHttYXhpbWl6ZWQgPyA8UmVzdG9yZUljb24gLz4gOiA8TWF4SWNvbiAvPn1cclxuICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICA8YnV0dG9uXHJcbiAgICAgICAgICB0eXBlPVwiYnV0dG9uXCJcclxuICAgICAgICAgIGNsYXNzTmFtZT1cIndpbi1jb250cm9sIHdpbi1jb250cm9sLWNsb3NlXCJcclxuICAgICAgICAgIGFyaWEtbGFiZWw9XCLlhbPpl61cIlxyXG4gICAgICAgICAgdGl0bGU9XCLlhbPpl61cIlxyXG4gICAgICAgICAgb25DbGljaz17KCkgPT4gdm9pZCB3aW5kb3cubW9vbmxpZ2h0Py5jbG9zZVdpbmRvdygpfVxyXG4gICAgICAgID5cclxuICAgICAgICAgIDxDbG9zZUljb24gLz5cclxuICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgPC9kaXY+XHJcbiAgICA8L2hlYWRlcj5cclxuICApO1xyXG59XHJcbiJdLCJmaWxlIjoiQzovVXNlcnMvRWx5c2lhL0Rlc2t0b3AvUHJvamVjdC9QeWNoYXJtL01vb25saWdodC9mcm9udGVuZC9zcmMvY29tcG9uZW50cy9UaXRsZUJhci50c3gifQ==

@@ -1,0 +1,267 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/dashboard/SystemInfo.tsx");import __vite__cjsImport0_react_jsxDevRuntime from "/node_modules/.vite/deps/react_jsx-dev-runtime.js?v=b90f1a35"; const jsxDEV = __vite__cjsImport0_react_jsxDevRuntime["jsxDEV"];
+import RefreshRuntime from "/@react-refresh";
+const inWebWorker = typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScope;
+let prevRefreshReg;
+let prevRefreshSig;
+if (import.meta.hot && !inWebWorker) {
+  if (!window.__vite_plugin_react_preamble_installed__) {
+    throw new Error("@vitejs/plugin-react can't detect preamble. Something is wrong. See https://github.com/vitejs/vite-plugin-react/pull/11#discussion_r430879201");
+  }
+  prevRefreshReg = window.$RefreshReg$;
+  prevRefreshSig = window.$RefreshSig$;
+  window.$RefreshReg$ = (type, id) => {
+    RefreshRuntime.register(type, "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx " + id);
+  };
+  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+}
+var _s = $RefreshSig$();
+import { useAppState } from "/src/state/AppStateContext.tsx";
+import { Icon } from "/src/ui/icons.tsx";
+const STATUS_LABEL = {
+  connected: "已连接",
+  connecting: "连接中…",
+  disconnected: "未连接"
+};
+export function SystemInfo() {
+  _s();
+  const { state, dispatch } = useAppState();
+  return /* @__PURE__ */ jsxDEV("div", { className: "settings-section general-settings", children: [
+    /* @__PURE__ */ jsxDEV("section", { className: "settings-card", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-head", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "settings-card-icon", children: /* @__PURE__ */ jsxDEV(Icon, { name: "wifi", size: 16 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 19,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 18,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "settings-card-title", children: [
+          /* @__PURE__ */ jsxDEV("h3", { children: "连接状态" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+            lineNumber: 22,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { children: "WebSocket 与后端的实时连接情况" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+            lineNumber: 23,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 21,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+        lineNumber: 17,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-body", children: /* @__PURE__ */ jsxDEV("div", { className: "system-card", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "system-card-title", children: "WebSocket 连接" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 28,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "system-card-value", children: [
+          /* @__PURE__ */ jsxDEV("span", { className: `conn-dot inline ${state.connStatus}`, "data-status": state.connStatus }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+            lineNumber: 30,
+            columnNumber: 15
+          }, this),
+          STATUS_LABEL[state.connStatus] ?? state.connStatus
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 29,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+        lineNumber: 27,
+        columnNumber: 11
+      }, this) }, void 0, false, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+        lineNumber: 26,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+      lineNumber: 16,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("section", { className: "settings-card", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-head", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "settings-card-icon", children: /* @__PURE__ */ jsxDEV(Icon, { name: "sparkles", size: 16 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 40,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 39,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "settings-card-title", children: [
+          /* @__PURE__ */ jsxDEV("h3", { children: "当前角色" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+            lineNumber: 43,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { children: "正在运行的桌面伙伴" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+            lineNumber: 44,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 42,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+        lineNumber: 38,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-body", children: /* @__PURE__ */ jsxDEV("div", { className: "system-card", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "system-card-title", children: "角色配置" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 49,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "system-card-value", children: state.confName || "—" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 50,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "system-card-title", style: { marginTop: 8 }, children: "conf_uid" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 51,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "system-card-value", children: state.confUid || "—" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 54,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "system-card-title", style: { marginTop: 8 }, children: "Live2D 模型" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 55,
+          columnNumber: 13
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "system-card-value", children: state.modelInfo?.name || "—" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 58,
+          columnNumber: 13
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+        lineNumber: 48,
+        columnNumber: 11
+      }, this) }, void 0, false, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+        lineNumber: 47,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+      lineNumber: 37,
+      columnNumber: 7
+    }, this),
+    /* @__PURE__ */ jsxDEV("section", { className: "settings-card", children: [
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-head", children: [
+        /* @__PURE__ */ jsxDEV("span", { className: "settings-card-icon", children: /* @__PURE__ */ jsxDEV(Icon, { name: "alert", size: 16 }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 66,
+          columnNumber: 13
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 65,
+          columnNumber: 11
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "settings-card-title", children: [
+          /* @__PURE__ */ jsxDEV("h3", { children: "最近错误" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+            lineNumber: 69,
+            columnNumber: 13
+          }, this),
+          /* @__PURE__ */ jsxDEV("p", { children: "运行中记录的异常信息" }, void 0, false, {
+            fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+            lineNumber: 70,
+            columnNumber: 13
+          }, this)
+        ] }, void 0, true, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 68,
+          columnNumber: 11
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+        lineNumber: 64,
+        columnNumber: 9
+      }, this),
+      /* @__PURE__ */ jsxDEV("div", { className: "settings-card-body", children: state.lastError ? /* @__PURE__ */ jsxDEV("div", { className: "system-card system-card-error", children: [
+        /* @__PURE__ */ jsxDEV("div", { className: "system-card-title", children: "错误信息" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 76,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "system-card-value", children: state.lastError }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 77,
+          columnNumber: 15
+        }, this),
+        /* @__PURE__ */ jsxDEV("div", { className: "btn-row", children: /* @__PURE__ */ jsxDEV("button", { className: "btn", onClick: () => dispatch({ type: "SET_ERROR", message: null }), children: "清除" }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 79,
+          columnNumber: 17
+        }, this) }, void 0, false, {
+          fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+          lineNumber: 78,
+          columnNumber: 15
+        }, this)
+      ] }, void 0, true, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+        lineNumber: 75,
+        columnNumber: 11
+      }, this) : /* @__PURE__ */ jsxDEV("div", { className: "empty-state", children: "无错误记录" }, void 0, false, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+        lineNumber: 85,
+        columnNumber: 11
+      }, this) }, void 0, false, {
+        fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+        lineNumber: 73,
+        columnNumber: 9
+      }, this)
+    ] }, void 0, true, {
+      fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+      lineNumber: 63,
+      columnNumber: 7
+    }, this)
+  ] }, void 0, true, {
+    fileName: "C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx",
+    lineNumber: 15,
+    columnNumber: 5
+  }, this);
+}
+_s(SystemInfo, "L66qTK03RYxfiOBDKeOI21Rw1hM=", false, function() {
+  return [useAppState];
+});
+_c = SystemInfo;
+var _c;
+$RefreshReg$(_c, "SystemInfo");
+if (import.meta.hot && !inWebWorker) {
+  window.$RefreshReg$ = prevRefreshReg;
+  window.$RefreshSig$ = prevRefreshSig;
+}
+if (import.meta.hot && !inWebWorker) {
+  RefreshRuntime.__hmr_import(import.meta.url).then((currentExports) => {
+    RefreshRuntime.registerExportsForReactRefresh("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx", currentExports);
+    import.meta.hot.accept((nextExports) => {
+      if (!nextExports) return;
+      const invalidateMessage = RefreshRuntime.validateRefreshBoundaryAndEnqueueUpdate("C:/Users/Elysia/Desktop/Project/Pycharm/Moonlight/frontend/src/dashboard/SystemInfo.tsx", currentExports, nextExports);
+      if (invalidateMessage) import.meta.hot.invalidate(invalidateMessage);
+    });
+  });
+}
+
+//# sourceMappingURL=data:application/json;base64,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MUM7QUFBQTtBQUFBO0FBQUE7QUFBQSxlQUFvRDtBQUFBLFFBQ3BELHVCQUFDLFNBQUksV0FBVSxXQUNiLGlDQUFDLFlBQU8sV0FBVSxPQUFNLFNBQVMsTUFBTVAsU0FBUyxFQUFFUSxNQUFNLGFBQWFDLFNBQVMsS0FBSyxDQUFDLEdBQUcsa0JBQXZGO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFFQSxLQUhGO0FBQUE7QUFBQTtBQUFBO0FBQUEsZUFJQTtBQUFBLFdBUEY7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQVFBLElBRUEsdUJBQUMsU0FBSSxXQUFVLGVBQWMscUJBQTdCO0FBQUE7QUFBQTtBQUFBO0FBQUEsYUFBa0MsS0FadEM7QUFBQTtBQUFBO0FBQUE7QUFBQSxhQWNBO0FBQUEsU0F4QkY7QUFBQTtBQUFBO0FBQUE7QUFBQSxXQXlCQTtBQUFBLE9BekVGO0FBQUE7QUFBQTtBQUFBO0FBQUEsU0EwRUE7QUFFSjtBQUFDWCxHQWhGZUQsWUFBVTtBQUFBLFVBQ0lOLFdBQVc7QUFBQTtBQUFBLEtBRHpCTTtBQUFVLElBQUFhO0FBQUEsYUFBQUEsSUFBQSIsIm5hbWVzIjpbIlJlYWN0RWxlbWVudCIsInVzZUFwcFN0YXRlIiwiSWNvbiIsIlNUQVRVU19MQUJFTCIsImNvbm5lY3RlZCIsImNvbm5lY3RpbmciLCJkaXNjb25uZWN0ZWQiLCJTeXN0ZW1JbmZvIiwiX3MiLCJzdGF0ZSIsImRpc3BhdGNoIiwiY29ublN0YXR1cyIsImNvbmZOYW1lIiwibWFyZ2luVG9wIiwiY29uZlVpZCIsIm1vZGVsSW5mbyIsIm5hbWUiLCJsYXN0RXJyb3IiLCJ0eXBlIiwibWVzc2FnZSIsIl9jIl0sImlnbm9yZUxpc3QiOltdLCJzb3VyY2VzIjpbIlN5c3RlbUluZm8udHN4Il0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCB0eXBlIHsgUmVhY3RFbGVtZW50IH0gZnJvbSAncmVhY3QnO1xyXG5pbXBvcnQgeyB1c2VBcHBTdGF0ZSB9IGZyb20gJ0Avc3RhdGUvQXBwU3RhdGVDb250ZXh0JztcclxuaW1wb3J0IHsgSWNvbiB9IGZyb20gJ0AvdWkvaWNvbnMnO1xyXG5cclxuY29uc3QgU1RBVFVTX0xBQkVMOiBSZWNvcmQ8c3RyaW5nLCBzdHJpbmc+ID0ge1xyXG4gIGNvbm5lY3RlZDogJ+W3sui/nuaOpScsXHJcbiAgY29ubmVjdGluZzogJ+i/nuaOpeS4reKApicsXHJcbiAgZGlzY29ubmVjdGVkOiAn5pyq6L+e5o6lJyxcclxufTtcclxuXHJcbmV4cG9ydCBmdW5jdGlvbiBTeXN0ZW1JbmZvKCk6IFJlYWN0RWxlbWVudCB7XHJcbiAgY29uc3QgeyBzdGF0ZSwgZGlzcGF0Y2ggfSA9IHVzZUFwcFN0YXRlKCk7XHJcblxyXG4gIHJldHVybiAoXHJcbiAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLXNlY3Rpb24gZ2VuZXJhbC1zZXR0aW5nc1wiPlxyXG4gICAgICA8c2VjdGlvbiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkXCI+XHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWhlYWRcIj5cclxuICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtaWNvblwiPlxyXG4gICAgICAgICAgICA8SWNvbiBuYW1lPVwid2lmaVwiIHNpemU9ezE2fSAvPlxyXG4gICAgICAgICAgPC9zcGFuPlxyXG4gICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLXRpdGxlXCI+XHJcbiAgICAgICAgICAgIDxoMz7ov57mjqXnirbmgIE8L2gzPlxyXG4gICAgICAgICAgICA8cD5XZWJTb2NrZXQg5LiO5ZCO56uv55qE5a6e5pe26L+e5o6l5oOF5Ya1PC9wPlxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWJvZHlcIj5cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3lzdGVtLWNhcmRcIj5cclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzeXN0ZW0tY2FyZC10aXRsZVwiPldlYlNvY2tldCDov57mjqU8L2Rpdj5cclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzeXN0ZW0tY2FyZC12YWx1ZVwiPlxyXG4gICAgICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT17YGNvbm4tZG90IGlubGluZSAke3N0YXRlLmNvbm5TdGF0dXN9YH0gZGF0YS1zdGF0dXM9e3N0YXRlLmNvbm5TdGF0dXN9IC8+XHJcbiAgICAgICAgICAgICAge1NUQVRVU19MQUJFTFtzdGF0ZS5jb25uU3RhdHVzXSA/PyBzdGF0ZS5jb25uU3RhdHVzfVxyXG4gICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgIDwvZGl2PlxyXG4gICAgICA8L3NlY3Rpb24+XHJcblxyXG4gICAgICA8c2VjdGlvbiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkXCI+XHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWhlYWRcIj5cclxuICAgICAgICAgIDxzcGFuIGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtaWNvblwiPlxyXG4gICAgICAgICAgICA8SWNvbiBuYW1lPVwic3BhcmtsZXNcIiBzaXplPXsxNn0gLz5cclxuICAgICAgICAgIDwvc3Bhbj5cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC10aXRsZVwiPlxyXG4gICAgICAgICAgICA8aDM+5b2T5YmN6KeS6ImyPC9oMz5cclxuICAgICAgICAgICAgPHA+5q2j5Zyo6L+Q6KGM55qE5qGM6Z2i5LyZ5Ly0PC9wPlxyXG4gICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWJvZHlcIj5cclxuICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3lzdGVtLWNhcmRcIj5cclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzeXN0ZW0tY2FyZC10aXRsZVwiPuinkuiJsumFjee9rjwvZGl2PlxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInN5c3RlbS1jYXJkLXZhbHVlXCI+e3N0YXRlLmNvbmZOYW1lIHx8ICfigJQnfTwvZGl2PlxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInN5c3RlbS1jYXJkLXRpdGxlXCIgc3R5bGU9e3sgbWFyZ2luVG9wOiA4IH19PlxyXG4gICAgICAgICAgICAgIGNvbmZfdWlkXHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInN5c3RlbS1jYXJkLXZhbHVlXCI+e3N0YXRlLmNvbmZVaWQgfHwgJ+KAlCd9PC9kaXY+XHJcbiAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3lzdGVtLWNhcmQtdGl0bGVcIiBzdHlsZT17eyBtYXJnaW5Ub3A6IDggfX0+XHJcbiAgICAgICAgICAgICAgTGl2ZTJEIOaooeWei1xyXG4gICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzeXN0ZW0tY2FyZC12YWx1ZVwiPntzdGF0ZS5tb2RlbEluZm8/Lm5hbWUgfHwgJ+KAlCd9PC9kaXY+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICA8L2Rpdj5cclxuICAgICAgPC9zZWN0aW9uPlxyXG5cclxuICAgICAgPHNlY3Rpb24gY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZFwiPlxyXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC1oZWFkXCI+XHJcbiAgICAgICAgICA8c3BhbiBjbGFzc05hbWU9XCJzZXR0aW5ncy1jYXJkLWljb25cIj5cclxuICAgICAgICAgICAgPEljb24gbmFtZT1cImFsZXJ0XCIgc2l6ZT17MTZ9IC8+XHJcbiAgICAgICAgICA8L3NwYW4+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInNldHRpbmdzLWNhcmQtdGl0bGVcIj5cclxuICAgICAgICAgICAgPGgzPuacgOi/kemUmeivrzwvaDM+XHJcbiAgICAgICAgICAgIDxwPui/kOihjOS4reiusOW9leeahOW8guW4uOS/oeaBrzwvcD5cclxuICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgIDwvZGl2PlxyXG4gICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic2V0dGluZ3MtY2FyZC1ib2R5XCI+XHJcbiAgICAgICAgICB7c3RhdGUubGFzdEVycm9yID8gKFxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cInN5c3RlbS1jYXJkIHN5c3RlbS1jYXJkLWVycm9yXCI+XHJcbiAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzeXN0ZW0tY2FyZC10aXRsZVwiPumUmeivr+S/oeaBrzwvZGl2PlxyXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwic3lzdGVtLWNhcmQtdmFsdWVcIj57c3RhdGUubGFzdEVycm9yfTwvZGl2PlxyXG4gICAgICAgICAgICAgIDxkaXYgY2xhc3NOYW1lPVwiYnRuLXJvd1wiPlxyXG4gICAgICAgICAgICAgICAgPGJ1dHRvbiBjbGFzc05hbWU9XCJidG5cIiBvbkNsaWNrPXsoKSA9PiBkaXNwYXRjaCh7IHR5cGU6ICdTRVRfRVJST1InLCBtZXNzYWdlOiBudWxsIH0pfT5cclxuICAgICAgICAgICAgICAgICAg5riF6ZmkXHJcbiAgICAgICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgICAgICA8L2Rpdj5cclxuICAgICAgICAgICAgPC9kaXY+XHJcbiAgICAgICAgICApIDogKFxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzTmFtZT1cImVtcHR5LXN0YXRlXCI+5peg6ZSZ6K+v6K6w5b2VPC9kaXY+XHJcbiAgICAgICAgICApfVxyXG4gICAgICAgIDwvZGl2PlxyXG4gICAgICA8L3NlY3Rpb24+XHJcbiAgICA8L2Rpdj5cclxuICApO1xyXG59XHJcbiJdLCJmaWxlIjoiQzovVXNlcnMvRWx5c2lhL0Rlc2t0b3AvUHJvamVjdC9QeWNoYXJtL01vb25saWdodC9mcm9udGVuZC9zcmMvZGFzaGJvYXJkL1N5c3RlbUluZm8udHN4In0=

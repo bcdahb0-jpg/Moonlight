@@ -1,0 +1,30 @@
+{
+ "Version": 3,
+ "Type": "Live2D Expression",
+ "Parameters": [
+  {
+   "Id": "ParamAngleZ",
+   "Value": 0.1
+  },
+  {
+   "Id": "ParamBrowLAngle",
+   "Value": -0.3
+  },
+  {
+   "Id": "ParamBrowRAngle",
+   "Value": 0.3
+  },
+  {
+   "Id": "ParamEyeLOpen",
+   "Value": 0.8
+  },
+  {
+   "Id": "ParamEyeROpen",
+   "Value": 0.8
+  },
+  {
+   "Id": "ParamMouthForm",
+   "Value": 0.2
+  }
+ ]
+}

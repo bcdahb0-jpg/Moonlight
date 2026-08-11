@@ -1,6 +1,6 @@
 import asyncio
 import re
-from typing import Optional, Union, Any, List, Dict
+from typing import Optional, Union, Any, List, Dict, Callable, Awaitable
 import numpy as np
 import json
 from loguru import logger
@@ -16,6 +16,7 @@ from ..live2d_model import Live2dModel
 from ..tts.tts_interface import TTSInterface
 from ..utils.stream_audio import prepare_audio_payload
 from ..utils.tts_preprocessor import strip_action_notes
+from ..translate.translate_interface import TranslationError
 
 
 # Coarse language buckets used by both the voice-language derivation (V) and the
@@ -52,6 +53,21 @@ def _detect_lang(text: str) -> Optional[str]:
     if _RE_LATIN.search(text):
         return "en"
     return None
+
+
+# 排除纯标点/空白后仍含「实质文字」才视为可翻译内容。纯 emoji/表情（如 😊）、
+# 纯符号（如 —— 或（笑）被 strip 后的空串）送去翻译引擎会得到垃圾输出：
+# 实测 LLM 翻译 '😊' -> 'Smile.'（语音）/「請傳送要翻譯的中文台詞...」（字幕）。
+_RE_MEANINGFUL = re.compile(r"[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7afA-Za-z0-9]")
+
+
+def _has_meaningful_text(text: str) -> bool:
+    """文本含 CJK/日韩假名/拉丁字母/数字中任一实质字符即视为有意义。
+
+    - 空串 / 纯空白 / 纯标点 / 纯 emoji → False（跳过翻译，保留原文直读）。
+    - 只有 emoji 或符号组成的句子不是「台词」，翻译引擎会把提示语当结果返回。
+    """
+    return bool(_RE_MEANINGFUL.search(text or ""))
 
 
 def _normalize_lang(raw: Optional[str]) -> Optional[str]:
@@ -223,6 +239,88 @@ async def process_agent_output(
     return full_response
 
 
+#: LLM 情绪预取节流：3s 内最多一次（句子多时避免刷 LLM）
+_emotion_prefetch_lock_ts = 0.0
+_EMOTION_PREFETCH_MIN_INTERVAL = 3.0
+
+
+def _prefetch_emotion_async(text: str) -> None:
+    """句子级 LLM 情绪预取（fire-and-forget，零阻塞）。
+
+    规则快路径由 prepare_audio_payload 同步完成；这里只做慢路径增强：
+    规则低置信/未命中时调 LLM 分类，结果写入 tracker 的 LLM 缓存
+    （text_fingerprint 指纹），音频 payload 生成时命中即用。
+    """
+    global _emotion_prefetch_lock_ts
+    if not text or not text.strip():
+        return
+    import time as _time
+
+    now = _time.monotonic()
+    if now - _emotion_prefetch_lock_ts < _EMOTION_PREFETCH_MIN_INTERVAL:
+        return
+    _emotion_prefetch_lock_ts = now
+
+    async def _run() -> None:
+        try:
+            from ..emotion.emotion_classifier import classify, text_fingerprint
+            from ..emotion import get_emotion_tracker
+
+            result = await classify(text)
+            if result.source == "llm" and result.emotion != "neutral":
+                get_emotion_tracker().set_llm_cache(
+                    text_fingerprint(text),
+                    result.emotion,
+                    result.intensity,
+                    result.duration_ms,
+                )
+        except Exception:
+            # 预取失败静默：规则结果始终兜底，不阻塞主链路
+            pass
+
+    try:
+        asyncio.get_running_loop().create_task(_run())
+    except RuntimeError:
+        pass
+
+
+# 整段翻译 hook（方案 1，2026-08-10）：由 TTSTaskManager.flush() 在整段合成前调用。
+# 句子先在 TTS 管理器的聚合缓冲（100 字）里攒着，满阈值/回复结束时整段调一次翻译——
+# 之前逐句 LLM 翻译每句一次 API 往返（8~9s/句），4 句回复 ≈ 60s+；整段一次降到
+# 1~2 次调用。hook 内部做 V != R 判断，同语言直接跳过；跨语言翻译失败时返回 None，
+# 由 flush() 跳过该段语音（避免把原文喂给外语 TTS 出杂音），文字仍由 full-text 上屏。
+def make_translate_hook(
+    translate_engine: Optional[Any], voice_lang: Optional[str]
+) -> Callable[[str], Awaitable[Optional[str]]]:
+    async def _hook(text: str) -> Optional[str]:
+        if translate_engine is None or not _has_meaningful_text(text):
+            return text
+        reply_lang = _detect_lang(text)
+        if voice_lang and reply_lang and reply_lang != voice_lang:
+            try:
+                translated = await translate_engine.translate_async(text)
+            except TranslationError as e:
+                # 跨语言翻译失败（限流/连接拒/解析错）→ 跳过该段语音，不出杂音；
+                # 文字已由 full-text 上屏，对话不中断。
+                logger.warning(
+                    f"🚫 Audio translation failed (R={reply_lang} != V={voice_lang}), "
+                    f"skipping TTS for this segment: {e}"
+                )
+                return None
+            logger.info(
+                f"🏃 Audio translated (R={reply_lang} != V={voice_lang}, "
+                f"{len(text)} chars): '''{translated[:40]}'''..."
+            )
+            return translated
+        logger.debug(
+            f"🚫 Audio translation skipped (R={reply_lang}, V={voice_lang}); "
+            "speaking reply verbatim."
+        )
+        return text
+
+    return _hook
+
+
 async def handle_sentence_output(
     output: SentenceOutput,
     live2d_model: Live2dModel,
@@ -252,44 +350,63 @@ async def handle_sentence_output(
       explicit subtitle language pick (built in init_translate). The canonical reply
       text (``display_text.text`` == R) is NEVER mutated, so ``full_response`` — the sole
       source for memory + history — stays on the original reply.
+
+    PERFORMANCE (2026-08-10 重构，解决「聊天回复慢」根因):
+    - 文本先上屏：``full-text`` 在翻译**之前**立即发送原文 R，用户无需等翻译完成
+      才能看到文字（之前逐句翻译 8~9s/句，感知延迟 = 翻译延迟）。
+    - 整段聚合翻译：语音翻译交给 tts_manager 的聚合缓冲（flush 时整段调一次
+      ``translate_async``），不再逐句调 API。见 ``make_translate_hook``。
+    - 异步化：``translate_async`` 用 httpx.AsyncClient，不再同步阻塞事件循环。
     """
+    # 注入整段翻译 hook（每句调用幂等；group 对话同路径自动受益）
+    tts_manager.set_translator(make_translate_hook(translate_engine, voice_lang))
+
     full_response = ""
     async for display_text, tts_text, actions in output:
         logger.debug(f"🏃 Processing output: '''{tts_text}'''...")
 
-        if translate_engine:
-            # Per-sentence AUTO gate: translate only when there is non-trivial content
-            # AND the voice language V differs from the detected reply language R.
-            if len(re.sub(r'[\s.,!?，。！？\'"』」）】\s]+', "", tts_text)):
-                reply_lang = _detect_lang(tts_text)
-                if voice_lang and reply_lang and reply_lang != voice_lang:
-                    tts_text = translate_engine.translate(tts_text)
-                    logger.info(
-                        f"🏃 Audio translated (R={reply_lang} != V={voice_lang}): "
-                        f"'''{tts_text}'''..."
-                    )
-                else:
-                    logger.debug(
-                        f"🚫 Audio translation skipped (R={reply_lang}, V={voice_lang}); "
-                        "speaking reply verbatim."
-                    )
-        else:
-            logger.debug("🚫 No translation engine available. Skipping translation.")
-
         # Canonical reply text (R). Accumulated for memory/history — DO NOT mutate.
         full_response += display_text.text
+
+        # Phase 1（面部表情）：LLM 情绪慢路径预取（fire-and-forget，零阻塞）。
+        # 规则快路径在 prepare_audio_payload 同步跑；这里对每句做 LLM 增强分类
+        # 并写入 tracker 缓存（带文本指纹），音频 payload 生成时命中即用——
+        # 让「句子级情绪 + 强度 + 时长」能驱动下一拍的表情（微表情基础）。
+        _prefetch_emotion_async(display_text.text)
+
+        # 文本流式先行（v6 增强）：LLM 句子一到【立即】上屏原文（full-text），
+        # 完全不等翻译。翻译只影响语音文本（tts_text），display_text.text 永远是
+        # 原文 R（memory/history 唯一来源）——full-text 永远推原文。
+        await send_message(websocket_send, {"type": "full-text", "text": display_text.text})
 
         # Display-only subtitle translation: compute a SEPARATE field; never touch
         # display_text.text. If no subtitle engine, the subtitle stays = R.
         # 输入先剥离动作/表情描写（如（微笑）、[叹气]），只翻译台词正文——
         # 否则翻译器会把动作翻成 (smiling) 等冗长内容，导致字幕比中文气泡长得多。
+        # 纯 emoji/表情（如 😊）没有实质文字，送去翻译会得到 LLM 的「提示语」垃圾
+        # （实测 '😊' -> '請傳送要翻譯的中文台詞...'）——必须跳过。
+        # 字幕逐句异步翻译（translate_subtitle 默认关闭；开启时避免同步阻塞）。
         subtitle_text = display_text.text
         if subtitle_translate_engine:
             subtitle_source = strip_action_notes(display_text.text)
-            if len(re.sub(r'[\s.,!?，。！？\'"』」）】\s]+', "", subtitle_source)):
-                subtitle_text = subtitle_translate_engine.translate(subtitle_source)
+            if _has_meaningful_text(subtitle_source):
+                try:
+                    # Subtitle translation is optional display polish. Bound it
+                    # tightly so a slow/remote translator cannot hold the LLM/TTS
+                    # stream hostage for several seconds per sentence.
+                    subtitle_text = await asyncio.wait_for(
+                        subtitle_translate_engine.translate_async(subtitle_source),
+                        timeout=1.0,
+                    )
+                except (TranslationError, asyncio.TimeoutError) as e:
+                    # 字幕翻译失败：回退原文（纯显示，无副作用），不阻断对话。
+                    logger.warning(
+                        f"🚫 Subtitle translation failed, falling back to original: {e}"
+                    )
             logger.info(f"🏃 Subtitle after translation: '''{subtitle_text}'''...")
 
+        # 交给 TTS 管理器：tts_text（中文原文）先入聚合缓冲，满阈值/回复结束时
+        # flush() 整段翻译（hook）+ 整段合成——语音按「段落」而非「句子」播放。
         await tts_manager.speak(
             tts_text=tts_text,
             display_text=display_text,

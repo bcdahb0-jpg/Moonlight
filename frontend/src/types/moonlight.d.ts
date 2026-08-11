@@ -44,6 +44,8 @@ export interface MoonlightAPI {
   onToggleVisibility(callback: () => void): () => void;
   onOpenSettings(callback: () => void): () => void;
   onScreenAwareness(callback: (info: MoonlightScreenAwareness) => void): () => void;
+  /** v5：原生目录选择对话框（取消返回 null）。 */
+  selectDirectory(): Promise<string | null>;
 }
 
 declare global {

@@ -35,6 +35,7 @@ type IconName =
   | 'plus' // 新建
   | 'trash' // 删除
   | 'history' // 历史
+  | 'folder' // 工作目录
   | 'x' // 关闭
   | 'chevronDown' // 更多
   | 'panelLeftOpen' // 展开会话侧边栏
@@ -208,6 +209,11 @@ const ICON_PATHS: Record<IconName, ReactElement> = {
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <path d="M9.5 4v16" />
       <path d="M14 9l-3 3 3 3" />
+    </>
+  ),
+  folder: (
+    <>
+      <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4l2 2.5h9A1.5 1.5 0 0 1 21 9v8.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" />
     </>
   ),
   check: (

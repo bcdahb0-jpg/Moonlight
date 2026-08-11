@@ -28,6 +28,43 @@ from ...mcpp.tool_manager import ToolManager
 from ...mcpp.json_detector import StreamJSONDetector
 from ...mcpp.types import ToolCallObject
 from ...mcpp.tool_executor import ToolExecutor
+from loguru import logger as _logger
+
+#: 内置工具：委托任务内核执行（sub-agent 委派范式，2026-08-09）
+#: 解决"聊天 AI 不能用工具"——basic_memory_agent 默认无 MCP 服务器，
+#: 通过此内置工具在需要查证/搜索/操作文件时调用任务内核（有 bash + skill +
+#: delegate agents + MCP 全能力），结果作为 tool_message 注入聊天上下文。
+#: OpenAI function calling 格式（Claude 暂不支持内置工具，仅 OpenAI）。
+DELEGATE_TASK_TOOL_NAME = "delegate_to_task"
+DELEGATE_TASK_TOOL_SCHEMA: list[dict] = [
+    {
+        "type": "function",
+        "function": {
+            "name": DELEGATE_TASK_TOOL_NAME,
+            "description": (
+                "委派任务内核执行轻量子任务：用于查证事实/搜索网络/检索资料/操作本地文件/执行命令。"
+                "任务内核拥有 bash / skill / delegate agents / MCP 等完整能力，会在工作目录里真去执行，"
+                "返回真实结果（不是编造）。当用户问题需要客观查证、具体搜索或文件操作时必须调用此工具；"
+                "纯闲聊、问候、情感、观点讨论等不需要调用。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "goal": {
+                        "type": "string",
+                        "description": (
+                            "明确、可执行的执行目标，例："
+                            "'查询 DeepSeek V4 Flash 是否已正式发布'"
+                            "'读取当前目录下 README.md 前 50 行并总结'"
+                            "'搜索 github 上 Moonlight 项目的最新 release 版本'"
+                        ),
+                    },
+                },
+                "required": ["goal"],
+            },
+        },
+    }
+]
 
 
 class BasicMemoryAgent(AgentInterface):
@@ -70,23 +107,36 @@ class BasicMemoryAgent(AgentInterface):
 
         self._formatted_tools_openai = []
         self._formatted_tools_claude = []
+
+        self._set_llm(llm)
+        self.set_system(system if system else self._system)
+
+        # 2026-08-09：内置委托任务工具（始终启用，不依赖 MCP 服务器）——
+        # 解决"聊天 AI 不能用工具"。OpenAI 路径注入 delegate_to_task schema；
+        # Claude 路径暂不支持内置工具（保留 MCP 路线）。需在 _set_llm 之后装配
+        # （_llm 已赋值才能判类型）。
+        if isinstance(self._llm, OpenAICompatibleAsyncLLM):
+            self._formatted_tools_openai = list(DELEGATE_TASK_TOOL_SCHEMA)
         if self._tool_manager:
-            self._formatted_tools_openai = self._tool_manager.get_formatted_tools(
-                "OpenAI"
-            )
-            self._formatted_tools_claude = self._tool_manager.get_formatted_tools(
-                "Claude"
-            )
+            tm_openai = self._tool_manager.get_formatted_tools("OpenAI")
+            tm_claude = self._tool_manager.get_formatted_tools("Claude")
+            # 合并：MCP 工具 + 内置委托任务工具（去重）
+            existing_names = {t.get("function", {}).get("name") for t in self._formatted_tools_openai}
+            self._formatted_tools_openai = self._formatted_tools_openai + [
+                t for t in tm_openai if t.get("function", {}).get("name") not in existing_names
+            ]
+            self._formatted_tools_claude = tm_claude
             logger.debug(
                 f"Agent received pre-formatted tools - OpenAI: {len(self._formatted_tools_openai)}, Claude: {len(self._formatted_tools_claude)}"
+            )
+        elif self._formatted_tools_openai:
+            logger.debug(
+                f"Built-in delegate_to_task enabled (OpenAI). Claude path: unsupported."
             )
         else:
             logger.debug(
                 "ToolManager not provided, agent will not have pre-formatted tools."
             )
-
-        self._set_llm(llm)
-        self.set_system(system if system else self._system)
 
         if self._use_mcpp and not all(
             [
@@ -124,6 +174,95 @@ class BasicMemoryAgent(AgentInterface):
             system = f"{system}\n\nIf you received `[interrupted by user]` signal, you were interrupted."
 
         self._system = system
+
+    async def _call_delegate_task(self, goal: str) -> dict:
+        """内置工具 delegate_to_task 的执行器（2026-08-09 / 2026-08-10 结构化）。
+
+        异步 HTTP POST 调用 task_platform 的 /api/chat/delegate-task 端点，
+        在当前会话工作目录创建临时任务、start_run、轮询直到完成，返回最后 AI 文本。
+
+        2026-08-10 改造：
+        - **返回结构化 dict**（不再拼裸字符串）：成功/失败可区分，调用方据此决定
+          结果直达聊天区还是让 LLM 口语转述（避免 HTTP 502 等原始错误暴露给用户）。
+        - **瞬时故障重试**：5xx / 网络异常最多重试 2 次（指数退避 1s/2s），
+          减少一次抖动就让用户看到失败（截图场景：追问"文件在哪"撞上 502）。
+
+        返回：
+        {
+          "ok": bool,              # 任务是否成功完成
+          "status": str,           # completed / error / timeout / ...
+          "summary": str,          # 成功时的最后 AI 文本（仅 ok=True 非空）
+          "error": str,            # 失败原因（给 LLM 的技术描述，含可操作信息）
+        }
+        """
+        import asyncio
+        import json as _json
+        try:
+            import httpx  # 异步 HTTP 客户端（项目已在用）
+        except ImportError:
+            return {"ok": False, "status": "error", "summary": "", "error": "后端缺 httpx，无法委派任务。"}
+
+        conf_uid = ""
+        history_uid = ""
+        try:
+            if getattr(self, "_character_config", None):
+                conf_uid = str(self._character_config.conf_uid or "")
+            history_uid = str(getattr(self, "_history_uid", "") or "")
+        except Exception:
+            pass
+        if not conf_uid or not history_uid:
+            return {"ok": False, "status": "error", "summary": "", "error": "缺少 conf_uid / history_uid 上下文，无法确定工作目录。"}
+
+        # 瞬时故障重试：5xx / 连接异常最多重试 2 次（指数退避 1s/2s）。
+        # 4xx（参数/鉴权问题）与明确的任务失败不重试，直接返回。
+        last_err = ""
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(timeout=120.0) as client:
+                    resp = await client.post(
+                        "http://127.0.0.1:12393/api/chat/delegate-task",
+                        json={
+                            "goal": goal,
+                            "conversation_uid": history_uid,
+                            "conf_uid": conf_uid,
+                            "timeout_sec": 90,
+                        },
+                    )
+                if resp.status_code >= 500 and attempt < 2:
+                    last_err = f"HTTP {resp.status_code}"
+                    await asyncio.sleep(1 + attempt)
+                    continue
+                if resp.status_code != 200:
+                    body = ""
+                    try:
+                        body = str(resp.json().get("error") or "") or resp.text[:200]
+                    except Exception:
+                        body = resp.text[:200]
+                    return {
+                        "ok": False,
+                        "status": "error",
+                        "summary": "",
+                        "error": f"任务服务返回异常（HTTP {resp.status_code}）：{body}".strip(),
+                    }
+                data = resp.json()
+                if not data.get("ok"):
+                    return {
+                        "ok": False,
+                        "status": str(data.get("status") or "error"),
+                        "summary": "",
+                        "error": f"任务执行失败：{data.get('error') or data.get('status') or 'unknown'}",
+                    }
+                summary = str(data.get("summary") or "").strip()
+                status = str(data.get("status") or "")
+                if not summary:
+                    summary = f"任务执行完成（{status}），但无输出摘要。"
+                return {"ok": True, "status": status or "completed", "summary": summary[:4000], "error": ""}
+            except Exception as e:
+                _logger.warning(f"[chat-delegate] HTTP call failed (attempt {attempt + 1}/3): {e}")
+                last_err = f"{type(e).__name__}: {e}"
+                if attempt < 2:
+                    await asyncio.sleep(1 + attempt)
+        return {"ok": False, "status": "error", "summary": "", "error": f"任务服务连接失败：{last_err}"}
 
     def _add_message(
         self,
@@ -175,6 +314,12 @@ class BasicMemoryAgent(AgentInterface):
 
     def set_memory_from_history(self, conf_uid: str, history_uid: str) -> None:
         """Load memory from chat history."""
+        # 2026-08-09 修复：同步会话上下文（delegate_to_task 靠它定位工作目录）。
+        # 会话切换/新建/自动创建都走此方法（websocket_handler.fetch_history /
+        # create_history / single_conversation 首消息自动建会话），在此统一同步，
+        # 否则 _history_uid 停留在 init_agent 时的旧值 → 委托任务拿不到工作目录。
+        self._history_uid = history_uid
+
         messages = get_history(conf_uid, history_uid)
 
         self._memory = []
@@ -642,24 +787,236 @@ class BasicMemoryAgent(AgentInterface):
                     yield output
                 return
             else:
-                logger.info("Starting simple chat completion.")
-                token_stream = self._llm.chat_completion(messages, self._system)
-                complete_response = ""
-                async for event in token_stream:
-                    text_chunk = ""
-                    if isinstance(event, dict) and event.get("type") == "text_delta":
-                        text_chunk = event.get("text", "")
-                    elif isinstance(event, str):
-                        text_chunk = event
-                    else:
-                        continue
-                    if text_chunk:
-                        yield text_chunk
-                        complete_response += text_chunk
-                if complete_response:
-                    self._add_message(complete_response, "assistant")
+                # 2026-08-09：内置 delegate_to_task 工具循环（OpenAI 路径）。
+                # 即使没启用 MCP，也支持 LLM 自主委派任务内核查证/搜索/操作文件，
+                # 解决"聊天 AI 不能用工具"。
+                if (
+                    self._formatted_tools_openai
+                    and isinstance(self._llm, OpenAICompatibleAsyncLLM)
+                ):
+                    async for output in self._simple_chat_with_builtin_tool(messages):
+                        yield output
+                else:
+                    logger.info("Starting simple chat completion (no built-in tools).")
+                    token_stream = self._llm.chat_completion(messages, self._system)
+                    complete_response = ""
+                    async for event in token_stream:
+                        text_chunk = ""
+                        if isinstance(event, dict) and event.get("type") == "text_delta":
+                            text_chunk = event.get("text", "")
+                        elif isinstance(event, str):
+                            text_chunk = event
+                        else:
+                            continue
+                        if text_chunk:
+                            yield text_chunk
+                            complete_response += text_chunk
+                    if complete_response:
+                        self._add_message(complete_response, "assistant")
 
         return chat_with_memory
+
+    async def _simple_chat_with_builtin_tool(
+        self, messages: List[Dict[str, Any]]
+    ) -> AsyncIterator[str]:
+        """简单 chat 路径下支持内置工具 delegate_to_task 的循环（2026-08-09）。
+
+        2026-08-09 第二次修复（用户截图：AI 只输出英文思考、工具不执行）：
+        - **补 `List[ToolCallObject]` 事件分支**：LLM 层（openai_compatible_llm）把
+          工具调用以列表形式 yield，此前既不是 str 也不是 dict → 被静默丢弃，
+          工具永远不会真正执行，只剩模型写在 content 里的"我该用工具"思考文本。
+        - **工具轮次的 content 只缓冲、不 yield**：模型调用工具前常输出英文思考/
+          计划，直接透出即"内心戏泄漏"。轮末确有工具调用 → 丢弃缓冲；无工具 →
+          才把缓冲文本整体 yield（这才是用户可见的最终回复）。
+        - **工具执行期间 yield `{"type": "tool_call_status", ...}`**：single_conversation
+          会把它转发给前端显示执行状态（"执行过程显示"）。
+        """
+        max_rounds = 3  # 防止工具循环死循环
+        tools = list(self._formatted_tools_openai)
+        current_messages = list(messages)
+        system = self._with_tool_guidance(self._system)
+
+        for round_no in range(1, max_rounds + 1):
+            logger.info(
+                f"[chat-builtin-tool] round={round_no}, "
+                f"tools={[t.get('function', {}).get('name') for t in tools]}"
+            )
+            complete_response = ""
+            pending_tool_calls: list[dict] = []
+
+            token_stream = self._llm.chat_completion(
+                current_messages, system, tools=tools
+            )
+            async for event in token_stream:
+                if isinstance(event, str):
+                    # content 文本：缓冲（不立即 yield，防止工具轮次思考外泄）
+                    complete_response += event
+                elif isinstance(event, dict):
+                    etype = event.get("type")
+                    if etype == "text_delta":
+                        complete_response += event.get("text", "")
+                    # 其他 dict（error 等）忽略
+                elif isinstance(event, list):
+                    # List[ToolCallObject]：工具调用事件（含流中完成与流末两种 yield）
+                    for tc in event:
+                        if hasattr(tc, "function"):  # ToolCallObject
+                            pending_tool_calls.append(
+                                {
+                                    "id": getattr(tc, "id", "") or "",
+                                    "name": getattr(tc.function, "name", "") or "",
+                                    "arguments": getattr(tc.function, "arguments", "")
+                                    or "",
+                                }
+                            )
+                        elif isinstance(tc, dict):
+                            fn = tc.get("function") or {}
+                            pending_tool_calls.append(
+                                {
+                                    "id": tc.get("id", "") or "",
+                                    "name": fn.get("name", "") or "",
+                                    "arguments": fn.get("arguments", "") or "",
+                                }
+                            )
+                else:
+                    logger.debug(
+                        f"[chat-builtin-tool] skip unknown event: {type(event)}"
+                    )
+
+            if not pending_tool_calls:
+                # 无工具调用：缓冲文本即最终回复，整体输出
+                if complete_response.strip():
+                    yield complete_response
+                    self._add_message(complete_response.strip(), "assistant")
+                return
+
+            # 有工具调用：本轮 content（模型思考/计划）丢弃不外泄，
+            # 仅把 assistant(tool_calls) + tool 结果注入上下文，继续下一轮。
+            current_messages.append(
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": tc["id"],
+                            "type": "function",
+                            "function": {
+                                "name": tc["name"],
+                                "arguments": tc["arguments"],
+                            },
+                        }
+                        for tc in pending_tool_calls
+                    ],
+                }
+            )
+
+            # 执行内置工具并注入 tool result
+            import json as _json
+
+            for tc in pending_tool_calls:
+                name = tc["name"]
+                tool_call_id = tc["id"]
+                raw_args = tc["arguments"]
+                if name == DELEGATE_TASK_TOOL_NAME:
+                    try:
+                        # OpenAI 兼容层可能给 dict 也可能给 JSON 字符串，两者都要吃
+                        args = raw_args if isinstance(raw_args, dict) else (_json.loads(raw_args) if raw_args else {})
+                    except Exception:
+                        args = {}
+                    goal = str(args.get("goal") or "").strip()
+                    if not goal:
+                        result = {"ok": False, "status": "error", "summary": "", "error": "工具调用失败：缺少 goal 参数。"}
+                    else:
+                        logger.info(
+                            f"[chat-builtin-tool] delegate_to_task: {goal[:80]}"
+                        )
+                        yield {
+                            "type": "tool_call_status",
+                            "text": f"🔧 正在执行：{goal[:40]}",
+                        }
+                        result = await self._call_delegate_task(goal)
+                        yield {"type": "tool_call_status", "text": ""}
+                        # 2026-08-10 协议拆分：
+                        # - 成功 → task_result 直达聊天区（完整清单/表格立即可见），
+                        #   并提示 LLM 只总结要点、不要逐字复述；
+                        # - 失败 → **不**推 task_result（此前把 HTTP 502 原样展示给用户，
+                        #   体验断裂）。技术细节只进 tool message，由 LLM 用口语向用户
+                        #   说明"刚才的操作没完成 + 可操作建议"，不暴露状态码/堆栈。
+                        if result.get("ok"):
+                            summary = str(result.get("summary") or "").strip()
+                            if summary:
+                                yield {
+                                    "type": "task_result",
+                                    "status": result.get("status") or "completed",
+                                    "content": summary,
+                                }
+                            tool_content = (
+                                f"{summary[:4000]}\n\n"
+                                "（提示：完整任务结果已由系统直接展示在用户的聊天区，"
+                                "请用一两句话简短总结要点即可，不要逐字复述完整清单/表格内容。）"
+                            )
+                        else:
+                            err = str(result.get("error") or "任务执行失败").strip()
+                            tool_content = (
+                                f"任务委派执行失败：{err}\n\n"
+                                "请用简体中文、自然的语气告诉用户：刚才的操作没有完成，"
+                                "并给出可操作的建议（如：稍后重试、提供更明确的目标、"
+                                "或说明结果在哪个工作目录），不要展示 HTTP 状态码/异常类名/"
+                                "堆栈等技术细节，不要编造任务结果。"
+                                "若用户问的是**之前已完成任务**的文件位置/结果，"
+                                "请优先依据对话历史中的【任务简报】（含工作目录与生成文件）回答，"
+                                "不要再调用 delegate_to_task。"
+                            )
+                    current_messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call_id,
+                            "content": tool_content,
+                        }
+                    )
+                else:
+                    # 不支持的内置工具名（不该出现）
+                    current_messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call_id,
+                            "content": f"内置工具 {name} 未实现",
+                        }
+                    )
+            # 继续下一轮：让 LLM 用工具结果生成回复
+            continue
+
+        # 达到 max_rounds 仍未收敛——避免无限循环
+        logger.warning("[chat-builtin-tool] max_rounds reached, ending.")
+        fallback = "（多次工具调用未收敛，本次回复省略）"
+        yield fallback
+        self._add_message(fallback, "assistant")
+
+    #: 工具使用指引（2026-08-09 第二次修复）：引导 LLM 直接调用工具而非"描述调用"，
+    #: 且不得输出思考过程/英文说明；已有同名段落时跳过，避免重复注入。
+    _TOOL_GUIDANCE = (
+        "\n\n## Tool usage (delegate_to_task)\n"
+        "当用户问题需要查证事实、搜索网络、读取或操作本地文件、执行命令时，"
+        "直接调用 delegate_to_task 工具（把目标写清楚即可），"
+        "不要先输出思考过程、计划或英文说明，也不要在回复正文里描述"
+        "\"我打算调用工具/我应该用工具\"——直接调用。"
+        "工具返回结果后，用简体中文、自然的语气把真实结果总结给用户；"
+        "若工具失败，如实告知失败原因。"
+        "注意：工具返回的完整结果（清单/表格/长文本）会由系统自动显示在聊天区，"
+        "你只需要用一两句话总结要点（如\"共 18 个文件，含计划文档、原型页等\"），"
+        "绝对不要逐字逐句复述完整清单或表格内容——那样会让回复变得极其冗长。"
+        "纯闲聊、问候、情感陪伴等无需调用任何工具，直接回复。"
+        "\n"
+        "【追问优先用历史】用户问\"刚才那个任务的结果/生成的文件在哪/做到哪一步了\"时，"
+        "如果对话历史里已有【任务简报】（含工作目录与生成文件），直接依据简报回答，"
+        "不要再次调用 delegate_to_task——重复委派会重新执行整个任务，浪费且可能失败。"
+        "只有简报里没有的信息（如具体文件内容）才值得再委派一次。"
+    )
+
+    def _with_tool_guidance(self, system: str) -> str:
+        """在 system prompt 末尾附加工具使用规则（幂等：已有则跳过）。"""
+        if not system or "delegate_to_task" in system:
+            return system
+        return f"{system}\n\n{self._TOOL_GUIDANCE}"
 
     async def chat(
         self,

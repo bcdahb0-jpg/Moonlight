@@ -54,12 +54,15 @@ export interface MoonlightAPI {
   onOpenSettings(callback: () => void): () => void;
   /** Notified when screen-awareness poll data is pushed from main. */
   onScreenAwareness(callback: (info: ScreenAwarenessInfo) => void): () => void;
+  /** v5：原生目录选择对话框（取消返回 null）。 */
+  selectDirectory(): Promise<string | null>;
 }
 
 const api: MoonlightAPI = {
   captureActiveWindow: () => ipcRenderer.invoke('screen:capture-active-window'),
   getActiveWindow: () => ipcRenderer.invoke('screen:get-active-window'),
   getIdleTime: () => ipcRenderer.invoke('screen:get-idle-time'),
+  selectDirectory: () => ipcRenderer.invoke('dialog:select-directory'),
   toggleAlwaysOnTop: () => ipcRenderer.invoke('win:toggle-always-on-top'),
   showWindow: () => ipcRenderer.invoke('win:show'),
   hideWindow: () => ipcRenderer.invoke('win:hide'),

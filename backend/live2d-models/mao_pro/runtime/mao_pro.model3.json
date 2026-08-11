@@ -67,6 +67,23 @@
 				{
 					"File": "motions/special_03.motion3.json"
 				}
+			],
+			"Talk": [
+				{
+					"File": "motions/mtn_02.motion3.json",
+					"FadeInTime": 0.3,
+					"FadeOutTime": 0.3
+				},
+				{
+					"File": "motions/mtn_03.motion3.json",
+					"FadeInTime": 0.3,
+					"FadeOutTime": 0.3
+				},
+				{
+					"File": "motions/mtn_04.motion3.json",
+					"FadeInTime": 0.3,
+					"FadeOutTime": 0.3
+				}
 			]
 		}
 	},

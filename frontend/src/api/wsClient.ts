@@ -99,8 +99,9 @@ export class WSClient {
     this.send({ type: 'fetch-and-set-history', history_uid: historyUid });
   }
 
-  sendCreateNewHistory(): void {
-    this.send({ type: 'create-new-history' });
+  /** v5：新建会话必须绑定工作目录（绝对路径）。 */
+  sendCreateNewHistory(workspace: string): void {
+    this.send({ type: 'create-new-history', workspace });
   }
 
   sendDeleteHistory(historyUid: string): void {
@@ -110,6 +111,16 @@ export class WSClient {
   /** 重命名会话（自定义会话标题）。 */
   sendSetHistoryTitle(historyUid: string, title: string): void {
     this.send({ type: 'set-history-title', history_uid: historyUid, title });
+  }
+
+  /** v5：把会话移动到另一个工作目录。 */
+  sendSetHistoryWorkspace(historyUid: string, workspace: string): void {
+    this.send({ type: 'set-history-workspace', history_uid: historyUid, workspace });
+  }
+
+  /** v5：清空该角色全部会话（存量无目录会话一次性清理，调用方需先确认）。 */
+  sendClearAllHistories(): void {
+    this.send({ type: 'clear-all-histories' });
   }
 
   sendAudioPlayStart(displayText?: DisplayText | null): void {

@@ -16,6 +16,12 @@ class UiPrefs(BaseModel):
     proactive_enabled: bool = Field(True, alias="proactive_enabled")
     proactive_idle_sec: int = Field(60, alias="proactive_idle_sec")
     auto_speak_on_idle: bool = Field(True, alias="auto_speak_on_idle")
+    # Moonlight（2026-08-10 UX 修复）：主动找话题只应在「桌宠模式」触发，
+    # 窗口模式（用户等待任务/思考输入）不得打扰。默认 True（仅桌宠模式）。
+    proactive_pet_mode_only: bool = Field(True, alias="proactive_pet_mode_only")
+    # Moonlight（2026-08-10 UX 修复）：双语气泡（字幕翻译）开关的前端渲染
+    # 闸门。默认 False（关闭，用户确认默认关是正确的）。
+    subtitle_enabled: bool = Field(False, alias="subtitle_enabled")
 
 
 class SystemConfig(I18nMixin):

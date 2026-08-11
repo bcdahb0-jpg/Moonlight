@@ -25,6 +25,8 @@ AI 桌宠（Moonlight）：FastAPI 后端 + React/Electron 前端 + Live2D + 语
 
 ## 启动 / 重启 / 停止
 
+> 📖 **AI 快速启动教程**：`docs/startup-runbook.md`（探测→补齐→验证全流程 + 故障排查表 + 沙箱专项，Agent 启动前必读）。下面是最简速查：
+
 ```bash
 # 后端（frontend 同级别目录）
 cd backend && ./.venv/Scripts/python.exe run_server.py        # 日志 backend/server_run.log
@@ -46,17 +48,19 @@ taskkill /F /PID <pid>
 
 - Clash 代理端口 **7897**（非常规 7890）。GitHub 慢/early EOF：`git -c http.proxy=http://127.0.0.1:7897 clone/pull <repo>`。
 - 代理做了 TLS 拦截但证书不受信 → curl 加 `-k`；npm/pnpm 用 `NODE_TLS_REJECT_UNAUTHORIZED=0 npm_config_strict_ssl=false`。
-- **Python 装包（后端）**：`cd backend && UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple uv add <pkg>`（uv 走清华镜像，避开 TLS 坑）。
+- **Python 装包（后端）**：`cd backend && UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple uv add <pkg>`（uv 走清华镜像，避开 TLS 坑）。大包（playwright 36MB 等）下载易中断：加 `UV_HTTP_TIMEOUT=300` + dangerouslyDisableSandbox 重试。
 - **前端装包**：`NODE_TLS_REJECT_UNAUTHORIZED=0 npm_config_strict_ssl=false npm_config_cache=".pnpm-cache" pnpm add <pkg> --registry=https://registry.npmmirror.com`（缓存指向项目内相对路径，写 `AppData\Local\pnpm-cache` 会被沙箱拦截）。
+- **MCP server（fetch/time）**：上游仍用旧名 `McpError`，新版 mcp SDK 改名 `MCPError` → ImportError。conf.yaml 必须 `args: [--with, "mcp==1.29.0", mcp-server-xxx]`（2026-08-09 实测根因，勿删）。
 
 ## 后端开发约定
 
 - 包根：`backend/src/open_llm_vtuber/`。
 - **新路由模式**：写 `init_xxx_route()` 返回 `APIRouter`，在 `server.py` 的 `setup_routes()` 里 `self.app.include_router(init_xxx_route())` 注册（参考 `memory_route.py` / `engine_route.py` / `perf_route.py`）。
 - 配置：`backend/conf.yaml`（YAML）。配置类大多启动时读取，**改完需重启后端生效**；字符级写入参考 `translator_route` 的 `_write_engine_fields`（surgical leaf 写入 + 白名单）。
-- 测试：`backend/tests/`（unittest 风格），跑法 `cd backend && ./.venv/Scripts/python.exe -m pytest tests/ -x -q`。
+- 测试：`backend/tests/`（unittest 风格），跑法 `cd backend && ./.venv/Scripts/python.exe -m pytest tests/ -x -q --basetemp=.pytest-tmp`（沙箱身份写 `%LOCALAPPDATA%\Temp` 被拒，必须 --basetemp 重定向到项目内；`.pytest-tmp` 已 gitignore）。
 - 日志：loguru，输出在 `backend/server_run.log`。
 - 依赖清单：`backend/pyproject.toml`（uv 管理，勿手改 lock 之外的依赖）。
+- **已知基线失败**（非 task_platform 范围勿顺手修）：`test_smoke.py::TestTtsFilter::test_url_and_decimal_not_mangled`（TTS 过滤器 remove_special_char 清掉 URL 冒号斜杠）。
 
 ## 前端开发约定
 

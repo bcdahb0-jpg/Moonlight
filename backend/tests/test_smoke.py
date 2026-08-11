@@ -38,6 +38,9 @@ class TestMessageRegistry(unittest.TestCase):
             "history-deleted", "history-list", "history-title-updated",
             "new-history-created",
             "set-model-and-conf", "transcript", "user-input-transcription",
+            # v6.1：聊天 agent 工具状态与 delegate 任务结果（single_conversation 发送，
+            # 走 contracts 校验；此前缺类型导致 send_message 抛 unknown type → PROTOCOL_ERROR）。
+            "tool_call_status", "task-result",
         }
         self.assertEqual(set(_MESSAGE_MODELS.keys()), expected)
 
@@ -48,6 +51,19 @@ class TestMessageRegistry(unittest.TestCase):
             {"type": "audio", "audio": None, "volumes": [], "slice_length": 20}
         )
         self.assertEqual(m.model_dump()["audio"], None)
+
+    def test_tool_status_and_task_result_build(self):
+        # v6.1：此两类此前缺失，send_message 校验抛 unknown type → PROTOCOL_ERROR。
+        m = build_server_message({"type": "tool_call_status", "text": "正在合成语音…"})
+        self.assertEqual(m.model_dump()["type"], "tool_call_status")
+        m = build_server_message({"type": "tool_call_status", "text": ""})
+        self.assertEqual(m.model_dump()["text"], "")
+        m = build_server_message(
+            {"type": "task-result", "text": "【任务结果】\nok", "name": "小月"}
+        )
+        self.assertEqual(m.model_dump()["text"], "【任务结果】\nok")
+        with self.assertRaises(Exception):
+            build_server_message({"type": "tool_call_status"})  # 缺 text
 
     def test_invalid_messages_rejected(self):
         with self.assertRaises(Exception):

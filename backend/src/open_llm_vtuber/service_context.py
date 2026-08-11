@@ -499,6 +499,15 @@ class ServiceContext:
             logger.debug(f"Agent choice: {agent_config.conversation_agent_choice}")
             logger.debug(f"System prompt: {system_prompt}")
 
+            # 2026-08-09：注入内置工具 delegate_to_task 需要的会话上下文（conf_uid + history_uid）。
+            # Agent 通过 self._character_config / self._history_uid 读取调 /api/chat/delegate-task。
+            try:
+                if self.agent_engine is not None:
+                    self.agent_engine._character_config = self.character_config
+                    self.agent_engine._history_uid = self.history_uid
+            except Exception as _e:
+                logger.debug(f"[agent] inject context skipped: {_e}")
+
             # Save the current configuration
             self.character_config.agent_config = agent_config
             self.system_prompt = system_prompt
@@ -760,10 +769,49 @@ class ServiceContext:
         if player_prompt:
             persona_prompt += f"\n\n## About the player (applies to all characters)\n{player_prompt}"
 
+        # P2 上下文桥：把当前会话里最近的「任务简报」注入 system prompt——
+        # 角色在聊天时能"记得"刚完成的任务，可自然续聊（§5.8 记忆边界：
+        # 简报只来自会话 chat_history 的 role=ai + 【任务简报】前缀，不写四层记忆）。
+        # 完全 fail-soft：读取失败 / 无简报 → 不注入，不改变原有行为。
+        try:
+            brief = self._recent_task_brief()
+            if brief:
+                persona_prompt += (
+                    f"\n\n## Recent task brief (user just finished this task)\n"
+                    f"{brief}\n"
+                    f"(用户可能问起这个任务，用你的语气自然回应即可。)"
+                )
+        except Exception:
+            pass
+
         logger.debug("\n === System Prompt ===")
         logger.debug(persona_prompt)
 
         return persona_prompt
+
+    def _recent_task_brief(self) -> str:
+        """读取当前会话 chat_history 里最近的【任务简报】消息（P2 上下文桥）。
+
+        - 仅扫描 role=ai 且 content 以「【任务简报】」开头的消息，取最后一条；
+        - 会话 history_uid 为空 / 文件不存在 / 无简报 → 返回空串；
+        - 前缀在 task_route._inject_task_brief 写入时使用同一字面量。
+        """
+        history_uid = (getattr(self, "history_uid", "") or "").strip()
+        conf_uid = (getattr(self.character_config, "conf_uid", "") or "").strip()
+        if not history_uid or not conf_uid:
+            return ""
+        try:
+            from .chat_history_manager import get_history
+
+            messages = get_history(conf_uid, history_uid)
+            for msg in reversed(messages):
+                role = msg.get("role")
+                content = str(msg.get("content") or "")
+                if role == "ai" and content.startswith("【任务简报】"):
+                    return content[:400]
+            return ""
+        except Exception:
+            return ""
 
     async def handle_config_switch(
         self,
