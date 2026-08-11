@@ -3275,6 +3275,30 @@ select option {
   gap: 10px;
 }
 
+/* ---- DeepLX 本地翻译服务（语音页 · 跨语音翻译卡内） ---- */
+
+.deeplx-service-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-soft);
+}
+
+.deeplx-rate-limit-hint {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--danger);
+  background: var(--danger-bg);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  border-radius: 8px;
+}
+
 .voicevox-state-row {
   display: flex;
   align-items: center;

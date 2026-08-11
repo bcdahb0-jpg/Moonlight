@@ -22,6 +22,7 @@ AI 桌宠（Moonlight）：FastAPI 后端 + React/Electron 前端 + Live2D + 语
 | 12394 | MCP 服务端 | FastMCP + 鉴权，返回 401 属正常 |
 | 5173 | Vite 前端 | Electron 加载 `http://127.0.0.1:5173` |
 | 50021 | VOICEVOX 引擎 | 本地 TTS，由用户手动启动（`backend/vendor/voicevox_engine/windows-cpu/run.exe`），`/version` 返回 200 即在线 |
+| 1188 | DeepLX 翻译 | 本地翻译服务（`backend/vendor/deeplx/deeplx.exe`），`POST /v2/translate` 返回 JSON 即在线 |
 
 ## 启动 / 重启 / 停止
 
@@ -43,6 +44,15 @@ tasklist | grep -i electron                                    # 主/GPU/渲染 
 netstat -ano | findstr 12393
 taskkill /F /PID <pid>
 ```
+
+### 本地引擎（按需，不影响主链路）
+
+| 引擎 | 端口 | 一键启动 | 手动启动 / 健康检查 |
+|---|---|---|---|
+| VOICEVOX（日语 TTS） | 50021 | 前端「性能 → 引擎库 → VOICEVOX」卡内下载/启动/停止（沙箱/托管环境需用户自己终端手动，见下） | `cd backend/vendor/voicevox_engine/windows-cpu && ./run.exe`；`curl http://127.0.0.1:50021/version` 返回 JSON 即在线 |
+| DeepLX（本地翻译） | 1188 | 前端「语音 → 跨语音翻译 → 引擎选 DeepLX」卡内「一键启动/停止」按钮（后端 spawn，**沙箱亦可**） | `cd backend/vendor/deeplx && ./start_deeplx.bat`（或直接 `./deeplx.exe`）；健康检查 `curl -X POST http://127.0.0.1:1188/v2/translate -H "Content-Type: application/json" -d '{"text":["hi"],"target_lang":"JA"}'` 返回 JSON 即在线（偶发 429 为 DeepL 官方限流，属外部限制） |
+
+DeepLX 管理接口（仿 VOICEVOX 引擎管理）：`GET /api/deeplx/status`、`POST /api/deeplx/start|stop`（`deeplx_manager.py`）。
 
 ## 网络 / 依赖安装（本机代理 TLS 拦截）
 
@@ -79,8 +89,8 @@ taskkill /F /PID <pid>
 ## 已知遗留（非本次任务范围，不要"顺手修"）
 
 - MCP 外部工具 `time`（SDK `McpError` 命名冲突）/ `ddg-search`（PyPI 无此包）连接失败 → MCP 工具数为 0，**不影响主链路**。
-- DeepLX 已弃用，翻译引擎固定 LLM（DeepSeek）。
-- 桌宠默认角色小月：DeepSeek + VOICEVOX（日语引擎），中文回复经 LLM 翻译成日文合成，属正常链路。
+- 翻译引擎：conf.yaml `translate_provider` 实际为 **deeplx**（见「本地引擎」节一键管理）；`llm`（DeepSeek）可切换，前端「跨语音翻译」卡可切换。
+- 桌宠默认角色小月：DeepSeek + VOICEVOX（日语引擎），中文回复经翻译引擎（deeplx）翻成日文合成，属正常链路。
 
 ## 安全红线
 

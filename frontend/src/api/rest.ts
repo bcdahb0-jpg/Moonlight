@@ -585,6 +585,31 @@ export const translatorApi = {
 };
 
 // ------------------------------------------------------------------ //
+// DeepLX 本地翻译服务（translator_route.py / deeplx_manager.py）
+// ------------------------------------------------------------------ //
+
+export interface DeeplxStatus {
+  running: boolean;
+  pid: number | null;
+  exe_exists: boolean;
+  port: number;
+  msg: string;
+  /** DeepL 官方 429 限流（被动检测：最近一次真实翻译被拒） */
+  rate_limited: boolean;
+  last_error: string;
+  last_error_at: string | null;
+  last_success_at: string | null;
+}
+
+export const deeplxApi = {
+  status: () => get<{ ok: boolean; deeplx: DeeplxStatus }>('/api/deeplx/status'),
+  start: () =>
+    post<{ ok: boolean; running: boolean; msg: string }>('/api/deeplx/start'),
+  stop: () =>
+    post<{ ok: boolean; running: boolean; msg: string }>('/api/deeplx/stop'),
+};
+
+// ------------------------------------------------------------------ //
 // Player language / prompt / background (translator_route.py)
 // ------------------------------------------------------------------ //
 

@@ -24,6 +24,7 @@ from .tts_interface import TTSInterface
 class TTSEngine(TTSInterface):
     def __init__(self, base_url: str = "http://127.0.0.1:50021", speaker: int = 3):
         self.base_url = (base_url or "http://127.0.0.1:50021").rstrip("/")
+        self._session = requests.Session()
         try:
             self.speaker = int(speaker)
         except (TypeError, ValueError):
@@ -31,7 +32,7 @@ class TTSEngine(TTSInterface):
 
     def _audio_query(self, text: str) -> dict:
         """向 VOICEVOX 请求合成参数 JSON。"""
-        r = requests.post(
+        r = self._session.post(
             f"{self.base_url}/audio_query",
             params={"text": text, "speaker": self.speaker},
             timeout=30,
@@ -43,7 +44,7 @@ class TTSEngine(TTSInterface):
         cache_file = self.generate_cache_file_name(file_name_no_ext, "wav")
         try:
             query = self._audio_query(text)
-            r = requests.post(
+            r = self._session.post(
                 f"{self.base_url}/synthesis",
                 params={"speaker": self.speaker},
                 json=query,

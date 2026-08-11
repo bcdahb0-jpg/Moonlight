@@ -24,6 +24,7 @@ class TTSTaskManager:
     # 40 chars is large enough to avoid sentence-by-sentence choppiness while
     # still allowing the first audio segment to overlap the remaining LLM work.
     TTS_BATCH_MIN_CHARS = 40
+    MAX_CONCURRENT_TTS = 2
 
     def __init__(self) -> None:
         self.task_list: List[asyncio.Task] = []
@@ -47,6 +48,8 @@ class TTSTaskManager:
         # （conversation_utils 提供，内部做 V!=R 判断 + translate_async + 日志），
         # 本类只负责在合成前调用，保持零耦合。返回 None 表示跳过该段语音。
         self._translate_hook: Optional[Callable[[str], Awaitable[Optional[str]]]] = None
+        # Keep local/cloud engines from being flooded by one long response.
+        self._tts_semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_TTS)
 
     def set_translator(self, hook: Optional[Callable[[str], Awaitable[Optional[str]]]]) -> None:
         """注入整段翻译 hook（每次对话轮都会调用，幂等覆盖）。返回 None 表示跳过该段语音。"""
@@ -226,7 +229,8 @@ class TTSTaskManager:
         subtitle_text: Optional[str] = None,
     ) -> None:
         """Queue a silent audio payload"""
-        audio_payload = prepare_audio_payload(
+        audio_payload = await asyncio.to_thread(
+            prepare_audio_payload,
             audio_path=None,
             display_text=display_text,
             actions=actions,
@@ -247,7 +251,8 @@ class TTSTaskManager:
         """Process TTS generation and queue the result for ordered delivery"""
         audio_file_path = None
         try:
-            audio_file_path = await self._generate_audio(tts_engine, tts_text)
+            async with self._tts_semaphore:
+                audio_file_path = await self._generate_audio(tts_engine, tts_text)
             # ffmpeg/pydub, base64 encoding and viseme analysis are synchronous
             # CPU/IO work. Running them in the event loop stalls WebSocket,
             # heartbeat and Live2D status messages while audio is prepared.

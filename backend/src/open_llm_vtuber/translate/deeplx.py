@@ -2,6 +2,25 @@ import json
 import httpx
 from loguru import logger
 from .translate_interface import TranslateInterface, TranslationError
+from ..deeplx_manager import record_error, record_success
+
+
+def _report_result(text: str, ok: bool, status_code: int | None = None,
+                   detail: str = "") -> None:
+    """把一次真实翻译结果写回 deeplx_manager 的健康状态（被动检测）。
+
+    ok=True  -> 成功（清除限流标记）；ok=False -> 按状态码分类记录：
+    - 429             -> rate_limit（DeepL 官方限流，前端据此标红提示）
+    - 连接失败/其他   -> unreachable/other（不误报限流）
+    """
+    if ok:
+        record_success()
+    elif status_code == 429:
+        record_error("rate_limit", detail or "too many requests (DeepL 429)")
+    elif status_code is None:
+        record_error("unreachable", detail or "connection failed")
+    else:
+        record_error("other", f"HTTP {status_code} {detail}"[:200])
 
 
 # --------------------------------------------------------------------------- #
@@ -98,13 +117,14 @@ class DeepLXTranslate(TranslateInterface):
 
     # translate v2 endpoint from DeepLX
     def translate(self, text: str) -> str:
-        req = None
+        resp = None
         try:
             data = {"text": [text], "target_lang": self.target_lang}
             # 用 json= 讓 httpx 自動帶 Content-Type: application/json，否則 DeepLX 回 400
-            req = httpx.post(url=self.api_endpoint, json=data).text
-            res = json.loads(req)["translations"]
+            resp = httpx.post(url=self.api_endpoint, json=data)
+            res = json.loads(resp.text)["translations"]
             res = " ".join([d["text"] for d in res])
+            _report_result(text, ok=True)
         except Exception as e:
             # Best-effort: if DeepLX is unreachable (not installed/running -> e.g.
             # WinError 10061 connection refused) or errors, fall back to the
@@ -112,11 +132,19 @@ class DeepLXTranslate(TranslateInterface):
             # break the whole reply. (Previously this re-raised AND referenced an
             # unbound 'req' on failure -> surfaced to the user as
             # "local variable 'req' referenced before assignment".)
+            status_code = getattr(e, "status_code", None)
+            if status_code is None and resp is not None:
+                try:
+                    parsed = json.loads(resp.text)
+                    status_code = parsed.get("code") if isinstance(parsed, dict) else None
+                except Exception:
+                    status_code = None
+            _report_result(text, ok=False, status_code=status_code, detail=str(e))
             logger.warning(
                 f"DeepLX translate failed for '{text[:40]}': {e}. Using original text."
             )
-            if req is not None:
-                logger.debug(f"DeepLX raw response: {req}")
+            if resp is not None:
+                logger.debug(f"DeepLX raw response: {resp.text}")
             return text
 
         return res
@@ -127,13 +155,27 @@ class DeepLXTranslate(TranslateInterface):
         失败时抛 TranslationError（限流/连接拒绝/解析失败），由调用方降级：
         音频路径跨语言失败时跳过该句语音（避免原文进日语 TTS 出杂音）；
         字幕路径回退原文。绝不在引擎内静默回退原文——那会把中文喂给外语 TTS。
+
+        每次真实请求都会把结果写回 deeplx_manager 健康状态（429 -> rate_limit），
+        前端据此展示限流提示，不额外发探测请求。
         """
+        resp = None
         try:
             data = {"text": [text], "target_lang": self.target_lang}
             async with httpx.AsyncClient(timeout=10) as client:
-                req = await client.post(url=self.api_endpoint, json=data)
-            res = json.loads(req.text)["translations"]
-            return " ".join([d["text"] for d in res])
+                resp = await client.post(url=self.api_endpoint, json=data)
+            res = json.loads(resp.text)["translations"]
+            out = " ".join([d["text"] for d in res])
+            _report_result(text, ok=True)
+            return out
         except Exception as e:
+            status_code = getattr(e, "status_code", None)
+            if status_code is None and resp is not None:
+                try:
+                    parsed = json.loads(resp.text)
+                    status_code = parsed.get("code") if isinstance(parsed, dict) else None
+                except Exception:
+                    status_code = None
+            _report_result(text, ok=False, status_code=status_code, detail=str(e))
             logger.warning(f"DeepLX translate failed for '{text[:40]}': {e}")
             raise TranslationError(str(e)) from e

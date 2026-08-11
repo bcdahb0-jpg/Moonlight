@@ -20,10 +20,12 @@ export function useTypewriter(fullText: string, { speedMs = 18 }: TypewriterOpti
     if (!fullText) return;
     let i = 0;
     const step = (): void => {
-      i += 1;
+      // Batch characters to reduce React commits for streamed replies while
+      // keeping a visible typing rhythm.
+      i = Math.min(fullText.length, i + 3);
       setVisibleLength(i);
       if (i < fullText.length) {
-        timerRef.current = window.setTimeout(step, speedMs);
+        timerRef.current = window.setTimeout(step, Math.max(24, speedMs));
       }
     };
     timerRef.current = window.setTimeout(step, speedMs);

@@ -64,7 +64,14 @@ export class WSClient {
   }
 
   sendMicAudioChunk(chunk: Float32Array): void {
-    this.send({ type: 'mic-audio-data', audio: Array.from(chunk) });
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    // Binary PCM avoids allocating a JS number array and serializing thousands
+    // of floats to JSON for every microphone callback.
+    const frame = chunk.buffer.slice(
+      chunk.byteOffset,
+      chunk.byteOffset + chunk.byteLength,
+    );
+    this.ws.send(frame);
   }
 
   sendMicAudioEnd(): void {

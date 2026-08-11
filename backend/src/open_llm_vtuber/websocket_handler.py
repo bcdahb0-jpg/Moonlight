@@ -245,7 +245,19 @@ class WebSocketHandler:
         try:
             while True:
                 try:
-                    data = await websocket.receive_json()
+                    message = await websocket.receive()
+                    if message.get("type") == "websocket.disconnect":
+                        raise WebSocketDisconnect()
+                    if message.get("bytes") is not None:
+                        # Binary microphone frames avoid JSON/Array.from copies.
+                        # A binary frame is equivalent to mic-audio-data.
+                        data = {
+                            "type": "mic-audio-data",
+                            "audio": [],
+                            "audio_bytes": message["bytes"],
+                        }
+                    else:
+                        data = json.loads(message.get("text") or "{}")
                     # 入站契约校验：非法消息回结构化 error，但不中断连接。
                     invalid_reason = validate_client_message(data)
                     if invalid_reason:
@@ -622,7 +634,12 @@ class WebSocketHandler:
     ) -> None:
         """Handle incoming audio data"""
         audio_data = data.get("audio", [])
-        if audio_data:
+        audio_bytes = data.get("audio_bytes")
+        if audio_bytes:
+            self.received_data_buffers[client_uid].append(
+                np.frombuffer(audio_bytes, dtype=np.float32).copy()
+            )
+        elif audio_data:
             self.received_data_buffers[client_uid].append(
                 np.asarray(audio_data, dtype=np.float32)
             )

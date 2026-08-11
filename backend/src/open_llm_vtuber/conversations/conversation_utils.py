@@ -5,7 +5,6 @@ import numpy as np
 import json
 from loguru import logger
 
-from ..message_handler import message_handler
 from ..contracts import ErrorCode, send_error, send_message
 from .types import WebSocketSend, BroadcastContext
 from .tts_manager import TTSTaskManager
@@ -482,13 +481,9 @@ async def finalize_conversation_turn(
         await asyncio.gather(*tts_manager.task_list)
         await send_message(websocket_send, {"type": "backend-synth-complete"})
 
-        response = await message_handler.wait_for_response(
-            client_uid, "frontend-playback-complete"
-        )
-
-        if not response:
-            logger.warning(f"No playback completion response from {client_uid}")
-            return
+        # Playback is a frontend concern and may last tens of seconds. Do not
+        # keep the backend conversation task and UI phase state blocked until
+        # the final sample finishes; interruption/new input can manage overlap.
 
     await send_message(websocket_send, {"type": "force-new-message"})
 

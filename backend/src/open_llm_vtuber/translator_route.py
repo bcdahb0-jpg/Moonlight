@@ -52,6 +52,7 @@ from loguru import logger
 
 # REUSE the localhost+proxy guard + yaml helper — do not diverge.
 from .llm_config_route import _is_local_request, _forbidden, _make_yaml
+from .deeplx_manager import mgr as deeplx_mgr
 
 
 # --------------------------------------------------------------------------- #
@@ -573,6 +574,29 @@ def init_translator_route() -> APIRouter:
                 "restart_required": True,
             }
         )
+
+    @router.get("/api/deeplx/status")
+    async def deeplx_status(request: Request):
+        """DeepLX 本地翻译服务状态（与 VOICEVOX 引擎管理同一模式）。"""
+        if not _is_local_request(request):
+            return _forbidden()
+        return JSONResponse({"ok": True, "deeplx": deeplx_mgr.status()})
+
+    @router.post("/api/deeplx/start")
+    async def deeplx_start(request: Request):
+        """一键启动 DeepLX：拉起 backend/vendor/deeplx/deeplx.exe，轮询 1188 就绪。"""
+        if not _is_local_request(request):
+            return _forbidden()
+        result = await asyncio.to_thread(deeplx_mgr.start)
+        return JSONResponse({"ok": result["ok"], **result})
+
+    @router.post("/api/deeplx/stop")
+    async def deeplx_stop(request: Request):
+        """停止 DeepLX（按 PID 终止，未运行则幂等返回 ok）。"""
+        if not _is_local_request(request):
+            return _forbidden()
+        result = await asyncio.to_thread(deeplx_mgr.stop)
+        return JSONResponse({"ok": result["ok"], **result})
 
     @router.get("/api/player-language")
     async def get_player_language(request: Request):

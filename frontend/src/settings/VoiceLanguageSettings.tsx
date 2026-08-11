@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactElement } from 'react';
-import { playerApi, translatorApi, type TranslatorConfig } from '@/api/rest';
+import { playerApi, translatorApi, deeplxApi, type TranslatorConfig, type DeeplxStatus } from '@/api/rest';
 import { useAppState } from '@/state/AppStateContext';
 
 const LANGUAGES = [
@@ -32,6 +32,9 @@ export function VoiceLanguageSettings(): ReactElement {
   const [deeplxEndpoint, setDeeplxEndpoint] = useState('');
   const [subtitleTarget, setSubtitleTarget] = useState('');
   const [status, setStatus] = useState('');
+  // DeepLX 本地服务状态（一键启动/停止，与 VOICEVOX 引擎管理同一模式）
+  const [dx, setDx] = useState<DeeplxStatus | null>(null);
+  const [dxBusy, setDxBusy] = useState(false);
 
   const subtitleEnabled = state.settings.subtitleEnabled;
 
@@ -49,10 +52,68 @@ export function VoiceLanguageSettings(): ReactElement {
         setDeeplxEndpoint(r.deeplx_endpoint);
         setSubtitleEnabled(r.translate_subtitle);
         setSubtitleTarget(r.subtitle_target_lang);
+        if (r.engine === 'deeplx') void refreshDeeplx();
       })
       .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const refreshDeeplx = async (): Promise<void> => {
+    try {
+      const res = await deeplxApi.status();
+      // 状态没变化时保持原引用，避免无谓 re-render
+      setDx((prev) =>
+        prev &&
+        prev.running === res.deeplx.running &&
+        prev.exe_exists === res.deeplx.exe_exists &&
+        prev.rate_limited === res.deeplx.rate_limited &&
+        prev.last_error === res.deeplx.last_error &&
+        prev.msg === res.deeplx.msg
+          ? prev
+          : res.deeplx,
+      );
+    } catch {
+      // 后端不可达时静默，下轮重试
+    }
+  };
+
+  // DeepLX 状态轮询：选中 deeplx 引擎时自动感知（启动/手动启动后 2.5s 内反映）
+  useEffect(() => {
+    if (engine !== 'deeplx') return;
+    void refreshDeeplx();
+    const t = window.setInterval(() => void refreshDeeplx(), 2500);
+    return () => window.clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine]);
+
+  const startDeepLX = async (): Promise<void> => {
+    if (dxBusy) return;
+    setDxBusy(true);
+    setStatus('正在启动 DeepLX…');
+    try {
+      const res = await deeplxApi.start();
+      setStatus(res.msg);
+      await refreshDeeplx();
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : '启动失败');
+    } finally {
+      setDxBusy(false);
+    }
+  };
+
+  const stopDeepLX = async (): Promise<void> => {
+    if (dxBusy) return;
+    setDxBusy(true);
+    try {
+      const res = await deeplxApi.stop();
+      setStatus(res.msg);
+      await refreshDeeplx();
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : '停止失败');
+    } finally {
+      setDxBusy(false);
+    }
+  };
 
   const setSubtitleEnabled = (v: boolean): void => {
     // 同步到全局 settings → ChatBubble 渲染闸门即时生效（ui_prefs 自动落盘）
@@ -201,17 +262,63 @@ export function VoiceLanguageSettings(): ReactElement {
                 />
               </label>
               {engine === 'deeplx' && (
-                <p className="field-hint">
-                  DeepLX 需先在本地启动（
-                  <a
-                    href="https://github.com/OwO-Network/DeepLX"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    部署教程见 DeepLX 仓库
-                  </a>
-                  ），未启动时自动回退原文朗读。目标语言用 DeepL 代码（JA / EN-US / ZH-HANS…）。
-                </p>
+                <div className="deeplx-service-box">
+                  <div className="voicevox-state-row">
+                    <span
+                      className={`engine-badge ${
+                        dx?.rate_limited
+                          ? 'err'
+                          : dx?.running
+                            ? 'ok'
+                            : dx?.exe_exists
+                              ? 'warn'
+                              : 'err'
+                      }`}
+                    >
+                      {dx?.rate_limited
+                        ? '限流中'
+                        : dx?.running
+                          ? '运行中'
+                          : dx?.exe_exists
+                            ? '已就绪 · 未启动'
+                            : '未安装'}
+                    </span>
+                    <span className="voicevox-state-text">
+                      {dx?.rate_limited
+                        ? 'DeepL 官方已临时限制本机 IP（429），翻译会失败、语音会静默跳过'
+                        : dx?.running
+                          ? '本地翻译服务运行于 127.0.0.1:1188（毫秒级、免费）'
+                          : dx?.exe_exists
+                            ? '已随项目内置，点「一键启动」即可（或手动运行 backend/vendor/deeplx/start_deeplx.bat）'
+                            : 'deeplx.exe 未找到，请检查 backend/vendor/deeplx/'}
+                    </span>
+                  </div>
+                  {dx?.rate_limited && (
+                    <p className="deeplx-rate-limit-hint">
+                      建议切换到「LLM API」引擎继续翻译（当前已自动回退原文朗读），
+                      限流通常几小时自动解除，届时可切回 DeepLX。
+                    </p>
+                  )}
+                  <div className="btn-row">
+                    <button
+                      className="btn btn-primary"
+                      disabled={dx?.running === true || dxBusy}
+                      onClick={() => void startDeepLX()}
+                    >
+                      {dxBusy ? '启动中…' : '一键启动 DeepLX'}
+                    </button>
+                    <button
+                      className="btn"
+                      disabled={dx?.running !== true || dxBusy}
+                      onClick={() => void stopDeepLX()}
+                    >
+                      停止
+                    </button>
+                  </div>
+                  <p className="field-hint">
+                    未启动时自动回退原文朗读。目标语言用 DeepL 代码（JA / EN-US / ZH-HANS…）。
+                  </p>
+                </div>
               )}
             </>
           )}

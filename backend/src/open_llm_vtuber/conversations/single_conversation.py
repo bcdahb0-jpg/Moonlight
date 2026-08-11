@@ -410,15 +410,13 @@ async def process_single_conversation(
                 websocket_send,
                 {"type": "tool_call_status", "text": "正在合成语音…"},
             )
-            await asyncio.gather(*tts_manager.task_list)
-            await send_message(websocket_send, {"type": "tool_call_status", "text": ""})
-            await send_message(websocket_send, {"type": "backend-synth-complete"})
-
         await finalize_conversation_turn(
             tts_manager=tts_manager,
             websocket_send=websocket_send,
             client_uid=client_uid,
         )
+        if tts_manager.task_list:
+            await send_message(websocket_send, {"type": "tool_call_status", "text": ""})
 
         if context.history_uid and full_response:  # Check full_response before storing
             store_message(
