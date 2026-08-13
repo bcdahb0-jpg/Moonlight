@@ -57,7 +57,9 @@ async def check_async(checks: dict[str, Checker]) -> list[dict[str, Any]]:
 
 def all_passed(results: list[dict[str, Any]]) -> bool:
     """全部检查项通过才算就绪。"""
-    return bool(results) and all(r["passed"] for r in results)
+    return bool(results) and all(
+        r.get("passed", False) for r in results if r.get("required", True)
+    )
 
 
 def to_message(results: list[dict[str, Any]]) -> dict[str, Any]:

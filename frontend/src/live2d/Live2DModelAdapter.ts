@@ -16,11 +16,13 @@ export type EmotionMap = Record<string, number>;
  */
 export type TapMotions = Record<string, Record<string, number>>;
 
-interface Live2DAdapterOptions {
+export interface Live2DAdapterOptions {
   canvas: HTMLCanvasElement;
   modelUrl: string;
   emotionMap?: EmotionMap;
   tapMotions?: TapMotions;
+  /** 仅生成缩略图时开启；桌宠常态不需要保留 GPU 帧缓冲。 */
+  preserveDrawingBuffer?: boolean;
 }
 
 interface CubismExpressionDefinition {
@@ -74,6 +76,7 @@ export class Live2DModelAdapter implements Live2DAdapter {
   private readonly modelUrl: string;
   private readonly emotionMap: EmotionMap;
   private readonly tapMotions: TapMotions;
+  private readonly preserveDrawingBuffer: boolean;
 
   private expressionNames: string[] = [];
   /** 主口型参数（ParamMouthOpenY 或其别名）。 */
@@ -93,6 +96,7 @@ export class Live2DModelAdapter implements Live2DAdapter {
     this.modelUrl = options.modelUrl;
     this.emotionMap = options.emotionMap ?? {};
     this.tapMotions = options.tapMotions ?? {};
+    this.preserveDrawingBuffer = options.preserveDrawingBuffer ?? false;
     this.frameListener = () => this.applyFrameParams();
   }
 
@@ -103,7 +107,7 @@ export class Live2DModelAdapter implements Live2DAdapter {
     // bundle re-exports the same class, so a cast is safe across minor versions.
     Live2DModel.registerTicker(PIXI.Ticker as unknown as typeof import('@pixi/ticker').Ticker);
 
-    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const dpr = Math.min(Math.max(1, window.devicePixelRatio || 1), 2);
     this.app = new PIXI.Application({
       view: this.canvas,
       backgroundAlpha: 0,
@@ -112,8 +116,7 @@ export class Live2DModelAdapter implements Live2DAdapter {
       resolution: dpr,
       powerPreference: 'high-performance',
       autoStart: true,
-      // Needed so canvas.toDataURL() captures the rendered model (thumbnail gen).
-      preserveDrawingBuffer: true,
+      preserveDrawingBuffer: this.preserveDrawingBuffer,
     });
 
     this.model = await Live2DModel.from(this.modelUrl, {

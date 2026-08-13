@@ -60,7 +60,6 @@ export type ControlComponentKey =
   | 'systemInfo' // SystemInfo（连接/版本/诊断）
   | 'emotionDebug' // EmotionDebug（情感调试面板）
   | 'live2dAppearance' // Live2DAppearanceSettings（缩放/位置/透明度，P0）
-  | 'multimodel' // MultiModelSettings（多模型热加载/专属 Prompt，P1）
   | 'expression' // ExpressionSettings（AI 表情引擎，P1）
   | 'emotionMachine' // EmotionStateMachine（情感状态机可视化，P1）
   | 'conversationStateMachine' // ConversationStateMachine（对话三态，P1）
@@ -165,8 +164,8 @@ export const SOURCE_NAMES: Record<FeatureSource, string> = {
 export const TOP_STATS: TopStat[] = [
   { id: 'stat-role', label: '角色', value: '小月', tone: 'ok', hint: 'Live2D: hiyori' },
   { id: 'stat-llm', label: 'LLM', value: 'deepseek-v4-flash', tone: 'ok', hint: '在线' },
-  { id: 'stat-voicevox', label: 'VOICEVOX', value: '127.0.0.1:50021', tone: 'ok', hint: '日语合成引擎在线' },
-  { id: 'stat-deeplx', label: 'DeepLX', value: '127.0.0.1:1188', tone: 'ok', hint: '本地翻译在线' },
+  { id: 'stat-voicevox', label: 'VOICEVOX', value: '未连接', tone: 'neutral', hint: '等待后端状态' },
+  { id: 'stat-deeplx', label: 'DeepLX', value: '未连接', tone: 'neutral', hint: '等待后端状态' },
   { id: 'stat-memory', label: '记忆', value: '128 条', tone: 'ok', hint: '画像 3 · 事实 96 · 反思 29' },
   { id: 'stat-emotion', label: '情感', value: '开心', tone: 'neutral', hint: '好感度 Lv.7' },
 ];
@@ -220,7 +219,6 @@ export const CONTROL_SECTIONS: ControlSection[] = [
       { id: 'role-character', title: '角色卡', icon: '🪪', component: 'character' },
       { id: 'role-player', title: '玩家提示词', icon: '🧑', component: 'playerPrompt' },
       { id: 'role-live2d', title: 'Live2D 外观', icon: '🖼️', component: 'live2dAppearance' },
-      { id: 'role-multimodel', title: '多模型', icon: '📚', component: 'multimodel' },
       { id: 'role-mask', title: '遮罩与光照', icon: '💡', component: 'occlusionEditor' },
       { id: 'brain-llm', title: '连接与模型', icon: '🔌', component: 'llm' },
       {

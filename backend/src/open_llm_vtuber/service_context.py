@@ -309,9 +309,12 @@ class ServiceContext:
         )
 
         # init agent from character config
+        # 显式传入新 model_prompt：init_agent 执行时 self.character_config 仍是旧值，
+        # 直接读会拿到旧指令；同时只有 model_prompt 变化时也能触发 prompt 重建。
         await self.init_agent(
             config.character_config.agent_config,
             config.character_config.persona_prompt,
+            config.character_config.model_prompt or "",
         )
 
         # Derive the NEW character's voice language V from the config being loaded
@@ -465,19 +468,31 @@ class ServiceContext:
         else:
             logger.info("VAD already initialized with the same config.")
 
-    async def init_agent(self, agent_config: AgentConfig, persona_prompt: str) -> None:
+    async def init_agent(
+        self,
+        agent_config: AgentConfig,
+        persona_prompt: str,
+        model_prompt: str = "",
+    ) -> None:
         """Initialize or update the LLM engine based on agent configuration."""
         logger.info(f"Initializing Agent: {agent_config.conversation_agent_choice}")
+
+        # 模型专属指令也纳入"配置未变则跳过重建"的判定：只改了 model_prompt 时
+        # 同样要重建 system prompt，否则角色卡微调后的指令要等重启才生效。
+        _new_mp = (model_prompt if model_prompt is not None else "") or ""
 
         if (
             self.agent_engine is not None
             and agent_config == self.character_config.agent_config
             and persona_prompt == self.character_config.persona_prompt
+            and _new_mp == (getattr(self.character_config, "model_prompt", "") or "")
         ):
             logger.debug("Agent already initialized with the same config.")
             return
 
-        system_prompt = await self.construct_system_prompt(persona_prompt)
+        system_prompt = await self.construct_system_prompt(
+            persona_prompt, model_prompt=_new_mp
+        )
 
         # Pass avatar to agent factory
         avatar = self.character_config.avatar or ""  # Get avatar from config
@@ -694,17 +709,40 @@ class ServiceContext:
 
     # ==== utils
 
-    async def construct_system_prompt(self, persona_prompt: str) -> str:
+    async def construct_system_prompt(
+        self, persona_prompt: str, model_prompt: str | None = None
+    ) -> str:
         """
         Append tool prompts to persona prompt.
 
         Parameters:
         - persona_prompt (str): The persona prompt.
+        - model_prompt (str | None): 模型专属指令；None 时读 self.character_config
+          （每轮对话重建用），显式传入时优先（init_agent 用，避免读到旧配置）。
 
         Returns:
         - str: The system prompt with all tool prompts appended.
         """
         logger.debug(f"constructing persona_prompt: '''{persona_prompt}'''")
+
+        # 模型专属指令（角色卡 model_prompt，随当前 Live2D 形象）：
+        # 紧跟人设注入，指导行为/表情。只进 system prompt、不进对话历史与记忆。
+        # 空串不注入，完全 fail-soft（读取失败按无指令处理）。
+        try:
+            _model_prompt = model_prompt
+            if _model_prompt is None:
+                _model_prompt = getattr(
+                    self.character_config, "model_prompt", ""
+                ) or ""
+            _model_prompt = _model_prompt.strip()
+            if _model_prompt:
+                persona_prompt += (
+                    "\n\n## 模型专属指令（当前 Live2D 形象的行为与表情要求，请始终遵守）\n"
+                    + _model_prompt
+                    + "\n"
+                )
+        except Exception as _mp_e:
+            logger.warning(f"[model_prompt] injection failed: {_mp_e}")
 
         for prompt_name, prompt_file in self.system_config.tool_prompts.items():
             if (

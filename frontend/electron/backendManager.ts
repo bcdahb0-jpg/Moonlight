@@ -8,16 +8,16 @@
  * 2. 未监听 → spawn 后端子进程（优先 MOONLIGHT_BACKEND_PYTHON 环境变量，其次
  *    `uv run` / 系统 python），cwd 指向 backend 目录。
  * 3. 日志经管道转发到主进程 console；崩溃（非零退出）后最多重启 MAX_RESTARTS 次。
- * 4. 应用退出时 kill 子进程（Windows 用 taskkill /T 杀进程树）。
+ * 4. 应用退出时只结束后端 PID，不递归杀进程树，避免误杀 VOICEVOX 等本地引擎。
  *
  * ⚠️ 验证状态：本模块在真实 Electron 打包环境（electron-builder 产物）下尚未实测；
  * 打包时的 backend 目录位置由 electron-builder.yml 的 files 决定，运行时可经
  * MOONLIGHT_BACKEND_DIR 覆盖。开发模式（VITE_DEV_SERVER_URL）下不启用。
  */
 import { spawn, ChildProcess } from 'node:child_process';
-import * as net from 'node:net';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
+import * as http from 'node:http';
 
 const BACKEND_PORT = 12393;
 const PROBE_TIMEOUT_MS = 1200;
@@ -49,21 +49,23 @@ function resolveBackendDir(): string | null {
   return null;
 }
 
-function isPortOpen(port: number, timeoutMs = PROBE_TIMEOUT_MS): Promise<boolean> {
+function isBackendHealthy(timeoutMs = PROBE_TIMEOUT_MS): Promise<boolean> {
   return new Promise((resolve) => {
-    const socket = net.connect({ port, host: '127.0.0.1' });
+    const request = http.get(
+      { host: '127.0.0.1', port: BACKEND_PORT, path: '/healthz' },
+      (response) => {
+        response.resume();
+        response.once('end', () => resolve(response.statusCode === 200));
+      },
+    );
     const timer = setTimeout(() => {
-      socket.destroy();
+      request.destroy();
       resolve(false);
     }, timeoutMs);
-    socket.once('connect', () => {
-      clearTimeout(timer);
-      socket.destroy();
-      resolve(true);
-    });
-    socket.once('error', () => {
-      clearTimeout(timer);
-      socket.destroy();
+    const finish = () => clearTimeout(timer);
+    request.once('close', finish);
+    request.once('error', () => {
+      finish();
       resolve(false);
     });
   });
@@ -72,9 +74,14 @@ function isPortOpen(port: number, timeoutMs = PROBE_TIMEOUT_MS): Promise<boolean
 function spawnBackend(backendDir: string): void {
   stopping = false;
   const python = process.env.MOONLIGHT_BACKEND_PYTHON;
-  // 无显式解释器时优先 uv（项目用 uv.lock 管理依赖）。
-  const command = python ?? 'uv';
-  const args = python ? ['run_server.py'] : ['run', 'python', 'run_server.py'];
+  // 无显式解释器时固定使用项目内 venv，避免系统 Python 版本漂移。
+  const projectPython = path.join(backendDir, '.venv', 'Scripts', 'python.exe');
+  const command = python ?? projectPython;
+  const args = ['run_server.py'];
+  if (!python && !fs.existsSync(projectPython)) {
+    console.error(`[backend] project Python runtime not found: ${projectPython}`);
+    return;
+  }
 
   // eslint-disable-next-line no-console
   console.log(`[backend] spawning ${command} ${args.join(' ')} (cwd=${backendDir})`);
@@ -110,9 +117,8 @@ function spawnBackend(backendDir: string): void {
 }
 
 export async function ensureBackend(): Promise<void> {
-  if (await isPortOpen(BACKEND_PORT)) {
-    // eslint-disable-next-line no-console
-    console.log('[backend] already listening on 12393, skipping spawn');
+  if (await isBackendHealthy()) {
+    console.log('[backend] healthz is OK on 12393, skipping spawn');
     return;
   }
   const backendDir = resolveBackendDir();
@@ -124,7 +130,7 @@ export async function ensureBackend(): Promise<void> {
   spawnBackend(backendDir);
 }
 
-/** 应用退出时停止后端子进程（Windows 杀进程树）。 */
+/** 应用退出时停止后端子进程（Windows 只杀后端 PID）。 */
 export function stopBackend(): void {
   stopping = true;
   if (!child) return;
@@ -132,7 +138,7 @@ export function stopBackend(): void {
   child.kill();
   if (pid && process.platform === 'win32') {
     try {
-      spawn('taskkill', ['/pid', String(pid), '/T', '/F']);
+      spawn('taskkill', ['/F', '/PID', String(pid)]);
     } catch {
       // best-effort
     }

@@ -174,6 +174,22 @@ def init_db() -> None:
         _ensure_column(conn, "task_events", "origin", "origin TEXT NOT NULL DEFAULT 'core'")
         # P2：tasks 补 conversation_uid（任务锁定发起会话）
         _ensure_column(conn, "tasks", "conversation_uid", "conversation_uid TEXT")
+        conn.execute(
+            """
+            UPDATE tasks
+            SET status='completed', updated_at=(
+                SELECT COALESCE(runs.ended_at, tasks.updated_at)
+                FROM runs
+                WHERE runs.id=tasks.last_run_id
+            )
+            WHERE status='active'
+              AND last_run_id IS NOT NULL
+              AND EXISTS (
+                  SELECT 1 FROM runs
+                  WHERE runs.id=tasks.last_run_id AND runs.status='completed'
+              )
+            """
+        )
         conn.commit()
     finally:
         conn.close()
@@ -328,7 +344,7 @@ def create_run(task_id: str, run_id: Optional[str] = None) -> Run:
             },
         )
         conn.execute(
-            "UPDATE tasks SET last_run_id=?, updated_at=? WHERE id=?",
+            "UPDATE tasks SET last_run_id=?, status='active', updated_at=? WHERE id=?",
             (rid, now_iso(), task_id),
         )
         conn.commit()
@@ -345,10 +361,31 @@ def finish_run(
 ) -> None:
     conn = get_conn()
     try:
+        task_row = conn.execute(
+            "SELECT task_id FROM runs WHERE id=?", (run_id,)
+        ).fetchone()
         conn.execute(
             "UPDATE runs SET status=?, ended_at=?, error=?, summary=? WHERE id=?",
             (status, now_iso(), error, summary, run_id),
         )
+        if task_row is not None and status == "completed":
+            conn.execute(
+                """
+                UPDATE tasks
+                SET status='completed', updated_at=?
+                WHERE id=? AND last_run_id=?
+                  AND NOT EXISTS (
+                      SELECT 1 FROM runs
+                      WHERE task_id=? AND status='running'
+                  )
+                """,
+                (
+                    now_iso(),
+                    task_row["task_id"],
+                    run_id,
+                    task_row["task_id"],
+                ),
+            )
         conn.commit()
     finally:
         conn.close()

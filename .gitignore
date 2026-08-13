@@ -11,6 +11,8 @@ backend/mcp_servers.json
 
 # ---- Python / 虚拟环境 ----
 backend/.venv/
+backend/_clean_test_venv/
+backend/tmp*/
 **/__pycache__/
 *.py[cod]
 *.egg-info/
@@ -39,6 +41,7 @@ backend/.pytest-tmp/
 frontend/node_modules/
 frontend/dist/
 frontend/.pnpm-cache/
+frontend/release/
 frontend/.electron-user-data/
 frontend/dev.log
 

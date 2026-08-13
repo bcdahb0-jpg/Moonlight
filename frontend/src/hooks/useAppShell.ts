@@ -66,6 +66,8 @@ export function useAppShell(): AppShell {
   const lipDriverRef = useRef<LipSyncDriver | null>(null);
   /** P1 连续动作播放器（motion-plan 帧，TTS 播放期间逐秒应用）。 */
   const motionPlayerRef = useRef<MotionPlayer | null>(null);
+  /** 表情动作平滑开关：会话启动时读取一次，避免每条 TTS 再请求配置。 */
+  const motionEasingRef = useRef(true);
   /** 情绪生命周期计时（Phase 2：duration_ms 到期 revert 表情）。 */
   const emotionTimerRef = useRef<number | null>(null);
   const wsRef = useRef<WSClient | null>(null);
@@ -116,6 +118,14 @@ export function useAppShell(): AppShell {
     // P1 连续动作：TTS 播放期间逐秒应用 motion-plan 参数帧（onItemStart 触发）
     const motionPlayer = new MotionPlayer();
     motionPlayerRef.current = motionPlayer;
+    void expressionApi
+      .config()
+      .then((cfg) => {
+        motionEasingRef.current = cfg.easing;
+      })
+      .catch(() => {
+        // 后端不可用时沿用默认平滑过渡。
+      });
 
     const player = new AudioPlayer({
       onVolume: (value, viseme) => {
@@ -158,10 +168,7 @@ export function useAppShell(): AppShell {
             .motionPlan({ text: motionText, duration_sec: durationSec })
             .then((plan) => {
               if (plan.ok && plan.frames.length > 0) {
-                void expressionApi
-                  .config()
-                  .then((cfg) => motionPlayerRef.current?.play(plan, adapterRef.current, cfg.easing))
-                  .catch(() => motionPlayerRef.current?.play(plan, adapterRef.current, true));
+                motionPlayerRef.current?.play(plan, adapterRef.current, motionEasingRef.current);
               }
             })
             .catch(() => {

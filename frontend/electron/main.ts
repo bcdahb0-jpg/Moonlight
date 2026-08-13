@@ -4,6 +4,8 @@ import { getActiveWindow } from './active-window';
 import { privacyBlock } from './screen-privacy';
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
+const BACKEND_ORIGIN = (process.env.VITE_BACKEND_ORIGIN || 'http://127.0.0.1:12393').replace(/\/$/, '');
+const BACKEND_WS_ORIGIN = BACKEND_ORIGIN.replace(/^http/i, 'ws');
 
 // build marker: 2026-08-10 触发 Electron 重启以加载 Live2D 修复（calm_idle / idleHoldMs）
 // 修改本文件（main/preload）会触发 scripts/dev.mjs 的 esbuild watch 自动重启 Electron。
@@ -21,10 +23,17 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let alwaysOnTop = true;
 
-const CSP =
-  "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; " +
-  "img-src * data: blob:; media-src * data: blob:; font-src 'self' data:; " +
-  "connect-src * data: blob:; worker-src 'self' blob:;";
+const CSP = [
+  "default-src 'self'",
+  // Vite HMR needs eval and a websocket only in development.
+  `script-src 'self'${DEV_SERVER_URL ? " 'unsafe-eval'" : ''}`,
+  "style-src 'self' 'unsafe-inline'",
+  `img-src 'self' ${BACKEND_ORIGIN} data: blob:`,
+  `media-src 'self' ${BACKEND_ORIGIN} data: blob:`,
+  "font-src 'self' data:",
+  `connect-src 'self' ${BACKEND_ORIGIN} ${BACKEND_WS_ORIGIN}${DEV_SERVER_URL ? ' http://127.0.0.1:5173 ws://127.0.0.1:5173' : ''}`,
+  "worker-src 'self' blob:",
+].join('; ');
 
 function applyCSP(win: BrowserWindow): void {
   win.webContents.session.webRequest.onHeadersReceived((details, callback) => {

@@ -5,8 +5,9 @@ import type {
   ServerMessage,
 } from '@/types/ws';
 import { isServerMessage } from '@/types/ws';
+import { BACKEND_ORIGIN } from '@/env';
 
-export const WS_URL = 'ws://127.0.0.1:12393/client-ws';
+export const WS_URL = `${BACKEND_ORIGIN.replace(/^http/i, 'ws')}/client-ws`;
 export const WS_HEARTBEAT_INTERVAL_MS = 25_000;
 export const WS_RECONNECT_BASE_MS = 1_000;
 export const WS_RECONNECT_MAX_MS = 15_000;

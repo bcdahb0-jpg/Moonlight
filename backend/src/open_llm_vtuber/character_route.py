@@ -417,6 +417,9 @@ def _read_character_fields(path: str, *, is_base: bool) -> Optional[dict]:
         "conf_uid": cc.get("conf_uid"),
         "live2d_model_name": cc.get("live2d_model_name"),
         "persona_prompt": cc.get("persona_prompt"),
+        # 模型专属指令的角色卡副本（新建角色时从模型目录 model_prompt.txt 带入，
+        # 可微调；None = 角色未携带）。
+        "model_prompt": cc.get("model_prompt"),
         "tts_model": tts_model,
         "voice": voice,
     }
@@ -469,6 +472,7 @@ def _build_character_config(
     tts_model: Optional[str],
     character_name: Optional[str],
     avatar: Optional[str],
+    model_prompt: Optional[str] = None,
 ) -> dict:
     """Assemble the minimal character_config dict the manager owns.
 
@@ -482,6 +486,9 @@ def _build_character_config(
         "live2d_model_name": live2d_model_name,
         "persona_prompt": persona_prompt,
     }
+    # 模型专属指令副本：None 保持不写（继承/无）；"" 显式清空；文本为角色卡独立副本。
+    if model_prompt is not None:
+        cc["model_prompt"] = model_prompt
     # Always set a display name so the chat bubble / group name shows THIS
     # character, not the base character it deep-merges from. The UI doesn't always
     # send an explicit character_name; fall back to conf_name so a created
@@ -518,6 +525,11 @@ def _write_character_yaml(path: str, character_config: dict) -> None:
         cc["persona_prompt"] = LiteralScalarString(
             persona if persona.endswith("\n") else persona + "\n"
         )
+    model_prompt = cc.get("model_prompt")
+    if isinstance(model_prompt, str):
+        cc["model_prompt"] = LiteralScalarString(
+            model_prompt if model_prompt.endswith("\n") else model_prompt + "\n"
+        )
 
     payload = {"character_config": cc}
 
@@ -537,6 +549,7 @@ def _update_base_character_config(
     tts_model: Optional[str],
     character_name: Optional[str],
     avatar: Optional[str],
+    model_prompt: Optional[str] = None,
 ) -> None:
     """Surgically update the base conf.yaml's character_config leaves in place.
 
@@ -566,6 +579,11 @@ def _update_base_character_config(
     else:
         cc["persona_prompt"] = persona_prompt
     cc["live2d_model_name"] = live2d_model_name
+    # 模型专属指令：None 保留盘上值；显式字符串（含 ""）覆盖。
+    if model_prompt is not None:
+        cc["model_prompt"] = LiteralScalarString(
+            model_prompt if model_prompt.endswith("\n") else model_prompt + "\n"
+        )
     # Always keep a display name so the chat bubble shows THIS character.
     cc["character_name"] = character_name or conf_name
     # avatar: explicit "" clears it (re-inherit/initial); None preserves on-disk value.
@@ -625,6 +643,10 @@ def _extract_body_fields(body: dict) -> dict:
     slug = body.get("slug")
     character_name = body.get("character_name")
     avatar = body.get("avatar")
+    # 模型专属指令：优先 model_prompt（角色卡副本），兼容旧字段名 custom_prompt。
+    model_prompt = body.get("model_prompt")
+    if model_prompt is None:
+        model_prompt = body.get("custom_prompt")
     return {
         "conf_name": (conf_name or "").strip() if isinstance(conf_name, str) else conf_name,
         "persona_prompt": persona,
@@ -634,6 +656,7 @@ def _extract_body_fields(body: dict) -> dict:
         "slug": slug,
         "character_name": character_name,
         "avatar": (avatar.strip() if isinstance(avatar, str) else avatar),
+        "model_prompt": model_prompt,
     }
 
 
@@ -1147,6 +1170,7 @@ def init_character_route() -> APIRouter:
             tts_model=tts_model,
             character_name=fields["character_name"],
             avatar=fields["avatar"] or None,
+            model_prompt=fields["model_prompt"],
         )
         try:
             await asyncio.to_thread(_write_character_yaml, path, cc)
@@ -1361,6 +1385,8 @@ def init_character_route() -> APIRouter:
                     avatar=fields["avatar"]
                     if fields["avatar"] is not None
                     else None,
+                    # 模型专属指令：None 保留盘上值；显式字符串覆盖。
+                    model_prompt=fields["model_prompt"],
                 )
             except Exception as e:
                 logger.error(f"base character update failed: {type(e).__name__}: {e}")
@@ -1447,6 +1473,10 @@ def init_character_route() -> APIRouter:
             avatar=fields["avatar"]
             if fields["avatar"] is not None
             else existing_cc.get("avatar"),
+            # 模型专属指令：None 沿用盘上值，避免整文件重写时丢字段。
+            model_prompt=fields["model_prompt"]
+            if fields["model_prompt"] is not None
+            else existing_cc.get("model_prompt"),
         )
         try:
             await asyncio.to_thread(_write_character_yaml, path, cc)

@@ -34,8 +34,31 @@ MODELS_DIR = Path("live2d-models")
 # 扫描
 # --------------------------------------------------------------------------- #
 
+# 玩家可放入模型顶层目录的缩略图文件名（按顺序尝试；<name>.png 也尝试）。
+# 与 character_route._THUMB_NAMES 保持同一定义，保证两个入口看到同一张图。
+_THUMB_NAMES = (
+    "thumbnail.png", "thumbnail.jpg", "thumbnail.jpeg", "thumbnail.webp",
+    "preview.png", "preview.jpg", "icon.png",
+)
+
+
+def _detect_thumbnail(name: str, base_dir: Path = MODELS_DIR) -> Optional[str]:
+    """模型顶层目录内的缩略图 Web URL，或 None（与角色卡缩略图约定一致）。"""
+    folder = base_dir / name
+    if not folder.is_dir():
+        return None
+    for fn in (*_THUMB_NAMES, f"{name}.png", f"{name}.jpg"):
+        if (folder / fn).is_file():
+            return f"/live2d-models/{name}/{fn}"
+    return None
+
+
 def scan_models(base_dir: Path = MODELS_DIR) -> list[dict]:
-    """递归扫描 *.model3.json，返回模型清单（按目录名排序）。"""
+    """递归扫描 *.model3.json，返回模型清单（按目录名排序）。
+
+    每项含 name / model_url / custom_prompt / has_prompt / thumbnail；
+    这是全站唯一模型清单扫描器（character_route 的皮肤注册只做 model_dict 补注册）。
+    """
     models: list[dict] = []
     if not base_dir.exists():
         return models
@@ -57,6 +80,7 @@ def scan_models(base_dir: Path = MODELS_DIR) -> list[dict]:
                 "model_url": model_url,
                 "custom_prompt": custom_prompt,
                 "has_prompt": bool(custom_prompt),
+                "thumbnail": _detect_thumbnail(name, base_dir),
             }
         )
     return models

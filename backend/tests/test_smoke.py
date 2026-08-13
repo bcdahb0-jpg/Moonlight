@@ -41,7 +41,7 @@ class TestMessageRegistry(unittest.TestCase):
             "history-workspace-updated", "histories-cleared", "config-switched",
             # v6.1：聊天 agent 工具状态与 delegate 任务结果（single_conversation 发送，
             # 走 contracts 校验；此前缺类型导致 send_message 抛 unknown type → PROTOCOL_ERROR）。
-            "tool_call_status", "task-result",
+            "tool_call_status", "task-result", "intent-event",
             # screen_awareness（Phase 0）：屏幕状态推送与上下文就绪通知。
             "screen-status", "screen-context",
         }
@@ -61,6 +61,10 @@ class TestMessageRegistry(unittest.TestCase):
         self.assertEqual(m.model_dump()["type"], "tool_call_status")
         m = build_server_message({"type": "tool_call_status", "text": ""})
         self.assertEqual(m.model_dump()["text"], "")
+        m = build_server_message(
+            {"type": "intent-event", "intent": "chat", "emotion": "happy", "source": "rule"}
+        )
+        self.assertEqual(m.model_dump()["type"], "intent-event")
         m = build_server_message(
             {"type": "task-result", "text": "【任务结果】\nok", "name": "小月"}
         )
@@ -229,6 +233,13 @@ class TestReadiness(unittest.TestCase):
         self.assertFalse(all_passed(results))
         self.assertEqual(results[0]["passed"], False)
         self.assertIn("执行失败", results[0]["hint"])
+
+    def test_optional_failure_does_not_block_readiness(self):
+        results = [
+            {"id": "llm", "passed": True, "required": True},
+            {"id": "ollama", "passed": False, "required": False},
+        ]
+        self.assertTrue(all_passed(results))
 
 
 # ------------------------------------------------------------------ //

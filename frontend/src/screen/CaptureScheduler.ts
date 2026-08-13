@@ -48,6 +48,10 @@ export interface SchedulerDeps {
   onPrivacyBlocked: (reason: string) => void;
   /** 新帧就绪回调。 */
   onFrameReady: (frame: CapturedFrame) => void;
+  onWindowState?: (
+    window: { title: string; app: string; pid: number },
+    idleTime: number | null,
+  ) => void;
 }
 
 export interface SchedulerHandle {
@@ -64,6 +68,7 @@ export function createCaptureScheduler(deps: SchedulerDeps): SchedulerHandle {
   let lastCaptureAt = 0;
   let pendingWindowChange = false;
   let inFlight = false;
+  let pollInFlight = false;
 
   const now = (): number => Date.now();
 
@@ -95,10 +100,12 @@ export function createCaptureScheduler(deps: SchedulerDeps): SchedulerHandle {
     }
   }
 
-  async function poll(): Promise<void> {
+  async function pollImpl(): Promise<void> {
     if (stopped) return;
     const win = await deps.getActiveWindow();
     if (!win) return;
+    const idle = await safeIdle();
+    deps.onWindowState?.(win, idle);
 
     const windowChanged =
       !lastWindow ||
@@ -122,7 +129,6 @@ export function createCaptureScheduler(deps: SchedulerDeps): SchedulerHandle {
 
     // 同窗口内容轮询。
     if (deps.isUserBusy()) return; // AI 回复中/任务运行中：不打扰
-    const idle = await safeIdle();
     if (idle !== null && idle > deps.idleThresholdSec) return; // 系统空闲：只监听窗口变更
 
     // 主动输入时降频（由调用方用更长间隔驱动，这里只做最小节流）。
@@ -134,6 +140,16 @@ export function createCaptureScheduler(deps: SchedulerDeps): SchedulerHandle {
 
     const frame = await captureOnce('content_changed');
     if (frame) deps.onFrameReady(frame);
+  }
+
+  async function poll(): Promise<void> {
+    if (stopped || pollInFlight) return;
+    pollInFlight = true;
+    try {
+      await pollImpl();
+    } finally {
+      pollInFlight = false;
+    }
   }
 
   async function safeIdle(): Promise<number | null> {

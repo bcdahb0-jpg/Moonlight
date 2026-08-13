@@ -11,7 +11,7 @@ class UiPrefs(BaseModel):
     值默认与 Phase 1 卖点默认翻转后的前端默认值一致。
     """
 
-    screen_aware_enabled: bool = Field(True, alias="screen_aware_enabled")
+    screen_aware_enabled: bool = Field(False, alias="screen_aware_enabled")
     screen_poll_interval_sec: int = Field(5, alias="screen_poll_interval_sec")
     proactive_enabled: bool = Field(True, alias="proactive_enabled")
     proactive_idle_sec: int = Field(60, alias="proactive_idle_sec")

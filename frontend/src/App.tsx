@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { AppStateProvider, useAppState } from '@/state/AppStateContext';
 import { useAppShell } from '@/hooks/useAppShell';
 import { PetView } from '@/components/PetView';
 import { PetOverlay } from '@/components/PetOverlay';
 import { WindowModeView } from '@/components/WindowModeView';
-import { ControlCenter } from '@/control/ControlCenter';
 import type { ControlSectionId } from '@/control/controlData';
 import { Onboarding, ONBOARDED_KEY } from '@/onboarding/Onboarding';
 import { ScreenAuthModal, SCREEN_AUTH_KEY } from '@/screen/ScreenAuthModal';
 import type { TaskEvent } from '@/task/types';
 import { usePttSession } from '@/chat/usePttSession';
+
+const ControlCenter = lazy(() => import('@/control/ControlCenter'));
 
 function setGlobalError(error: Error): void {
   // eslint-disable-next-line no-console
@@ -386,14 +387,16 @@ function AppInner(): ReactElement {
       />
 
       {shell.settingsOpen ? (
-        <ControlCenter
-          key={settingsSection ?? 'default'}
-          initialSection={settingsSection ?? undefined}
-          onClose={() => shell.setSettingsOpen(false)}
-          ws={() => shell.wsRef.current}
-          settingsSync={shell.settingsSync}
-          confUid={state.confUid}
-        />
+        <Suspense fallback={<div className="control-center-loading">正在加载设置…</div>}>
+          <ControlCenter
+            key={settingsSection ?? 'default'}
+            initialSection={settingsSection ?? undefined}
+            onClose={() => shell.setSettingsOpen(false)}
+            ws={() => shell.wsRef.current}
+            settingsSync={shell.settingsSync}
+            confUid={state.confUid}
+          />
+        </Suspense>
       ) : null}
     </div>
   );

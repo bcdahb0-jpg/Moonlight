@@ -17,6 +17,7 @@ from starlette.staticfiles import StaticFiles as StarletteStaticFiles
 from .routes import init_client_ws_route, init_webtool_routes, init_proxy_route
 from .config_route import init_config_route
 from .readiness_route import init_readiness_route
+from .health_route import init_health_route
 from .llm_config_route import init_llm_config_route
 from .character_route import init_character_route
 from .quotes_route import init_quotes_route
@@ -114,10 +115,23 @@ class WebSocketServer:
         )  # Use provided context or initialize a new empty one waiting to be loaded
         # It will be populated during the initialize method call
 
-        # Add global CORS middleware
+        # 进程级探针必须在静态前端挂载前注册，避免被 catch-all 路由吞掉。
+        self.app.include_router(init_health_route(self.default_context_cache))
+
+        # Add CORS middleware for the local renderer and the backend-served UI.
+        # The previous wildcard + credentials combination was unnecessarily broad
+        # for a localhost-only desktop app and is rejected by some browsers.
+        configured_host = str(getattr(config.system_config, "host", "127.0.0.1"))
+        configured_port = int(getattr(config.system_config, "port", 12393))
+        local_origins = {
+            "http://127.0.0.1:5173",
+            "http://localhost:5173",
+            f"http://{configured_host}:{configured_port}",
+            "null",  # Electron loadFile() renderer origin.
+        }
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=sorted(local_origins),
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],

@@ -20,6 +20,9 @@ class CharacterConfig(I18nMixin):
     human_name: str = Field(default="Human", alias="human_name")
     avatar: str = Field(default="", alias="avatar")
     persona_prompt: str = Field(..., alias="persona_prompt")
+    # 模型专属指令（角色卡 model_prompt，新建角色时从模型目录带入、可微调）。
+    # 注入系统提示词，指导当前 Live2D 形象的行为/表情；空串 = 不注入。
+    model_prompt: str = Field(default="", alias="model_prompt")
     agent_config: AgentConfig = Field(..., alias="agent_config")
     asr_config: ASRConfig = Field(..., alias="asr_config")
     tts_config: TTSConfig = Field(..., alias="tts_config")
@@ -79,6 +82,13 @@ class CharacterConfig(I18nMixin):
         ),
         "persona_prompt": Description(
             en="Persona prompt. The persona of your character.", zh="角色人设提示词"
+        ),
+        "model_prompt": Description(
+            en="Per-model instruction copied into the character card. "
+            "Injected into the system prompt to guide this Live2D look's "
+            "behavior/expressions (empty = not injected).",
+            zh="模型专属指令（随模型带入角色卡，可微调）。"
+            "注入系统提示词，指导当前 Live2D 形象的行为/表情（空 = 不注入）。",
         ),
         "agent_config": Description(
             en="Configuration for the conversation agent", zh="对话代理配置"

@@ -27,7 +27,7 @@ function StateDiagram({ current }: { current: string }): ReactElement {
     return { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
   });
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} width="100%" height="auto" role="img" aria-label="情感状态迁移图">
+    <svg viewBox={`0 0 ${size} ${size}`} width="100%" role="img" aria-label="情感状态迁移图">
       {CORE_STATES.map((state, i) => {
         const next = positions[(i + 1) % CORE_STATES.length];
         const cur = positions[i];

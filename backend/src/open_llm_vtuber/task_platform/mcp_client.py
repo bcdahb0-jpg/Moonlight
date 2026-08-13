@@ -27,6 +27,17 @@ from .conf_bridge import McpServerConfig, TaskPlatformConfig
 _CONNECT_TIMEOUT_SEC = 20
 
 
+def _exception_text(exc: BaseException, *, max_length: int = 1000) -> str:
+    """展开 ExceptionGroup，保留真正导致 MCP 探测失败的底层原因。"""
+    if isinstance(exc, BaseExceptionGroup):
+        parts = [_exception_text(child, max_length=max_length) for child in exc.exceptions]
+        text = "; ".join(part for part in parts if part)
+    else:
+        detail = str(exc).strip()
+        text = f"{type(exc).__name__}: {detail}" if detail else type(exc).__name__
+    return " ".join(text.split())[:max_length]
+
+
 def server_connection(s: McpServerConfig) -> dict[str, Any]:
     """McpServerConfig → adapter Connection 字典；缺关键字段/不支持的 transport 返回空。"""
     if not s.enabled:
@@ -128,7 +139,7 @@ async def probe_servers(
                 entry["status"] = "misconfigured"
             else:
                 entry["status"] = "error"
-                entry["error"] = str(e)
+                entry["error"] = _exception_text(e)
             out.append(entry)
         return out
     for s in servers:
@@ -157,7 +168,7 @@ async def probe_servers(
             entry["error"] = f"timeout after {timeout_sec:.0f}s"
         except Exception as e:  # noqa: BLE001
             entry["status"] = "error"
-            entry["error"] = str(e)
+            entry["error"] = _exception_text(e)
         out.append(entry)
     return out
 

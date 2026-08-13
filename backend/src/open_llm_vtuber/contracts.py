@@ -297,6 +297,7 @@ ServerMessage = Union[
     AffectionUpdateMessage,
     ControlMessage,
     BackendSynthCompleteMessage,
+    IntentEventMessage,
     ForceNewMessage,
     ToolCallStatusMessage,
     TaskResultMessage,

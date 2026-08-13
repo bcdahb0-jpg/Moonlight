@@ -77,6 +77,17 @@ class TestRuns(TaskPlatformBase):
         self.assertIsNotNone(got.ended_at)
         # last_run_id 回写到 task
         self.assertEqual(models.get_task(t.id).last_run_id, r.id)
+        self.assertEqual(models.get_task(t.id).status, "completed")
+
+    def test_new_run_reactivates_completed_task(self):
+        t = models.create_task(title="t1", workspace=str(self.tmp / "w1"))
+        first = models.create_run(t.id)
+        models.finish_run(first.id, status="completed")
+        self.assertEqual(models.get_task(t.id).status, "completed")
+        second = models.create_run(t.id)
+        self.assertEqual(models.get_task(t.id).status, "active")
+        models.finish_run(second.id, status="interrupted")
+        self.assertEqual(models.get_task(t.id).status, "active")
 
 
 class TestSessionJsonl(TaskPlatformBase):

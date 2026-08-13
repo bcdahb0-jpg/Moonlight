@@ -72,7 +72,7 @@ export function ProactiveSettings(): ReactElement {
       />
 
       <SettingsGroup title="主动对话" description="允许 Moonlight 在空闲时主动发起交流" className="console-group-primary">
-        <SettingsRow label="启用主动对话" description="控制空闲搭话能力">
+        <SettingsRow label="启用主动对话" description="控制空闲搭话能力" settingKey="setting-proactive-enabled">
             <input
               className="switch"
               type="checkbox"

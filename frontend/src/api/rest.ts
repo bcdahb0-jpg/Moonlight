@@ -3,7 +3,9 @@
  * endpoints (llm-config, character, memory, perf, proactive-topics, ...).
  */
 
-export const API_BASE = 'http://127.0.0.1:12393';
+import { BACKEND_ORIGIN } from '@/env';
+
+export const API_BASE = BACKEND_ORIGIN;
 
 /** 用真实引擎 + 音色合成试听音频（GET /api/tts-voice-sample 返回音频字节）。 */
 export const voiceApi = {
@@ -188,6 +190,8 @@ export interface CharacterField {
   conf_uid: string | null;
   live2d_model_name: string | null;
   persona_prompt: string | null;
+  /** 模型专属指令的角色卡副本（新建时从模型目录带入，可微调；null = 未携带）。 */
+  model_prompt: string | null;
   /** 角色覆盖的 TTS 引擎名（null = 继承基础配置）。 */
   tts_model: string | null;
   /** 该引擎对应的音色值（语义取决于 tts_model）。 */
@@ -932,6 +936,8 @@ export interface CatalogModel {
   model_url: string;
   custom_prompt: string;
   has_prompt: boolean;
+  /** 模型顶层目录的缩略图 Web URL（无则 null），角色卡编辑器用。 */
+  thumbnail: string | null;
 }
 
 export interface ModelsResult {
@@ -956,6 +962,9 @@ export const live2dCatalogApi = {
     get(`/api/live2d/models/${encodeURIComponent(name)}/prompt`),
   savePrompt: (name: string, custom_prompt: string): Promise<{ ok: boolean; name: string; custom_prompt: string }> =>
     post(`/api/live2d/models/${encodeURIComponent(name)}/prompt`, { custom_prompt }),
+  /** 保存前端渲染生成的模型立绘缩略图（存为 live2d-models/<name>/<name>.png）。 */
+  saveThumbnail: (name: string, data: string): Promise<{ ok: boolean }> =>
+    post('/api/live2d-skins/thumbnail', { name, data }),
 };
 
 // ------------------------------------------------------------------ //
@@ -1250,7 +1259,7 @@ export const intentApi = {
   saveConfig: (patch: Partial<IntentConfig>): Promise<IntentConfig> =>
     post('/api/intent/config', patch),
   classify: (text: string): Promise<IntentClassifyResult> =>
-    post('/api/intent/classify', { text }),
+    post('/api/intent/analyze', { text }),
 };
 
 // ------------------------------------------------------------------ //

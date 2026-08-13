@@ -16,7 +16,7 @@ export async function renderModelToPng(modelUrl: string, size = 512): Promise<st
   container.appendChild(canvas);
   document.body.appendChild(container);
 
-  const adapter = new Live2DModelAdapter({ canvas, modelUrl });
+  const adapter = new Live2DModelAdapter({ canvas, modelUrl, preserveDrawingBuffer: true });
   try {
     await adapter.load();
     try {

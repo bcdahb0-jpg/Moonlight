@@ -681,6 +681,22 @@ def init_task_route() -> APIRouter:
             {"ok": True, "task": _task_public(task), "auto_created_workspace": auto}
         )
 
+    @router.get("/api/tasks/tools")
+    async def list_tools_route(request: Request):
+        """任务 agent 可用工具列表。"""
+        if not _is_local_request(request):
+            return _forbidden()
+        global _tools_cache
+        import time
+
+        now = time.monotonic()
+        if _tools_cache is not None and now - _tools_cache[0] < _TOOLS_CACHE_TTL_SEC:
+            tools = _tools_cache[1]
+        else:
+            tools = await graph.available_tools(task_config())
+            _tools_cache = (now, tools)
+        return JSONResponse({"ok": True, "tools": tools})
+
     @router.get("/api/tasks/{task_id}")
     async def get_task(request: Request, task_id: str):
         if not _is_local_request(request):
@@ -1044,25 +1060,6 @@ def init_task_route() -> APIRouter:
             return JSONResponse({"ok": False, "error": "no running run"}, status_code=404)
         ctx.run_task.cancel()
         return JSONResponse({"ok": True})
-
-    @router.get("/api/tasks/tools")
-    async def list_tools_route(request: Request):
-        """任务 agent 可用工具列表（sandbox/skill/MCP 及各自状态，plan §6 Phase 2）。
-
-        结果按 TTL 缓存：探测 MCP 会启动子进程，频繁调用即本地 DoS（review MEDIUM）。
-        """
-        if not _is_local_request(request):
-            return _forbidden()
-        global _tools_cache
-        import time
-
-        now = time.monotonic()
-        if _tools_cache is not None and now - _tools_cache[0] < _TOOLS_CACHE_TTL_SEC:
-            tools = _tools_cache[1]
-        else:
-            tools = await graph.available_tools(task_config())
-            _tools_cache = (now, tools)
-        return JSONResponse({"ok": True, "tools": tools})
 
     # ---------------------------------------------------------------- //
     # Phase 3：技能库

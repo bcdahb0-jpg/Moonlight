@@ -255,6 +255,26 @@ class TestProbeServers:
 
         asyncio.run(scenario())
 
+    def test_probe_exception_group_exposes_leaf_error(self, tmp_path):
+        cfg = _cfg(tmp_path, bad=_stdio("bad"))
+
+        class _GroupedClient:
+            async def get_tools(self, server_name=None):
+                raise ExceptionGroup(
+                    "unhandled errors in a TaskGroup",
+                    [FileNotFoundError("uvx not found")],
+                )
+
+        async def scenario():
+            statuses = await mcp_client.probe_servers(
+                cfg, client_factory=lambda _cfg: _GroupedClient()
+            )
+            assert statuses[0]["status"] == "error"
+            assert "FileNotFoundError" in statuses[0]["error"]
+            assert "uvx not found" in statuses[0]["error"]
+
+        asyncio.run(scenario())
+
 
 # --------------------------------------------------------------------------- #
 # 3b. available_tools：GET /api/tasks/tools 委托

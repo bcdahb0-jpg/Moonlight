@@ -57,6 +57,23 @@ def init_readiness_route(default_context_cache: ServiceContext) -> APIRouter:
             return True, "检测到 Ollama，可本地运行模型"
         return False, "未检测到 Ollama（本地对话需要；使用云端 API 可忽略）"
 
+    async def _ollama_required() -> bool:
+        """当前 LLM endpoint 指向 Ollama 时，才把 Ollama 作为必需项。"""
+        data = await _load_conf_safe()
+        try:
+            from .llm_config_route import _get_openai_block
+
+            block = _get_openai_block(data or {}) or {}
+            base_url = str(block.get("base_url") or "").lower()
+            provider = str(block.get("provider") or "").lower()
+            return (
+                "ollama" in provider
+                or ":11434" in base_url
+                or "localhost:11434" in base_url
+            )
+        except Exception:
+            return False
+
     @router.get("/api/readiness")
     async def get_readiness(request: Request):
         if not _is_local_request(request):
@@ -69,6 +86,9 @@ def init_readiness_route(default_context_cache: ServiceContext) -> APIRouter:
                 "ollama": _check_ollama,
             }
             results = await check_async(checks)
+            ollama_required = await _ollama_required()
+            for result in results:
+                result["required"] = result["id"] != "ollama" or ollama_required
             return JSONResponse({"ready": all_passed(results), "checks": results})
         except Exception as e:
             logger.error(f"readiness check failed: {type(e).__name__}: {e}")

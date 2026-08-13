@@ -8,7 +8,8 @@
 - `GET  /api/export/character|config`      角色卡/配置导出（脱敏）
 - `POST /api/import`                        配置导入（merge 白名单）
 - `GET  /api/intent/config` / `POST /api/intent/config`  意图配置
-- `POST /api/intent/classify`               {text} → {intent, emotion}
+- `POST /api/intent/analyze`               {text} → {intent, emotion}（勿扰/情绪状态条；
+  与 task_platform 的 `/api/intent/classify`（chat/task 路由闸门）区分——两契约不同，路径不可共用）
 """
 
 from __future__ import annotations
@@ -407,7 +408,7 @@ def init_plugin_route() -> APIRouter:
         ok = _upsert_intent_block(fields)
         return {"ok": ok, **intent_config()}
 
-    @router.post("/api/intent/classify")
+    @router.post("/api/intent/analyze")
     async def intent_classify(request: Request):
         if not _is_local_request(request):
             return _forbidden()

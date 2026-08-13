@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { playerApi, translatorApi, deeplxApi, type TranslatorConfig, type DeeplxStatus } from '@/api/rest';
 import { useAppState } from '@/state/AppStateContext';
+import { PerfSettings } from './PerfSettings';
 import {
   SettingsActionBar,
   SettingsGroup,
@@ -322,14 +323,19 @@ export function VoiceLanguageSettings({ mode = 'chat' }: VoiceLanguageSettingsPr
  *
  * 2026-08-13 改造：去掉 4 Tab（聊天回复/语音识别/语音合成前翻译/语音合成），
  * 平铺「聊天回复 + 语音合成前翻译」两组标准设置——与其他真实组件卡片（LLM /
- * 角色 / 屏幕感知等）的 SettingsGroup 列表样式一致。ASR/TTS 细分配置由
- * 「语音引擎」卡片（voice-engine）覆盖，不在此重复。
+ * 角色 / 屏幕感知等）的 SettingsGroup 列表样式一致。
+ *
+ * 2026-08-13 修复：改造时误删了 ASR/TTS 引擎库入口（PerfSettings 曾由
+ * Dashboard 直接渲染，改造后无任何组件引用）。此处重新接入「语音引擎」
+ * （引擎库 + VOICEVOX 音色引擎下载/启动/停止），保证 setting-tts-engine
+ * 搜索定位与「语音引擎」配置入口可用。
  */
 export function VoiceSettingsPanel(): ReactElement {
   return (
     <div className="settings-section settings-console-root voice-settings-panel">
       <VoiceLanguageSettings mode="chat" />
       <VoiceLanguageSettings mode="translation" />
+      <PerfSettings />
     </div>
   );
 }

@@ -128,8 +128,7 @@ export class SoullinkAdapter implements Live2DAdapter {
       autoDensity: true,
       resolution: dpr,
       powerPreference: 'high-performance',
-      // Needed so canvas.toDataURL() captures the rendered model (thumbnail gen).
-      preserveDrawingBuffer: true,
+      preserveDrawingBuffer: false,
     });
 
     this.model = await Live2DModel.from(this.modelUrl, {

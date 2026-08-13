@@ -218,6 +218,34 @@ export function useScreenAwareness({
     // Phase 2：巡检 / 状态灯共用按需采集句柄。
     captureOnceRef.current = captureOnce;
 
+    const onSchedulerWindowState = (
+      activeWindow: { title: string; app: string; pid: number },
+      idleTime: number | null,
+    ): void => {
+      dispatch({
+        type: 'SET_ACTIVE_WINDOW',
+        info: {
+          title: activeWindow.title,
+          app: activeWindow.app,
+          idleTime: idleTime ?? 0,
+          capturedAt: Date.now(),
+        },
+      });
+      const shouldTrigger =
+        proactiveEnabled &&
+        !(busyRef.current?.() ?? false) &&
+        (idleTime ?? 0) >= proactiveIdleSec;
+      if (shouldTrigger && !idling && !triggeredRef.current) {
+        idling = true;
+        triggeredRef.current = true;
+        triggerFnRef.current();
+      } else if (!shouldTrigger && idling) {
+        idling = false;
+      } else if (!shouldTrigger) {
+        triggeredRef.current = false;
+      }
+    };
+
     if (!captureOnDemand) {
       // 自动采集模式：事件驱动 + 低频轮询调度器。
       scheduler = createCaptureScheduler({
@@ -239,6 +267,7 @@ export function useScreenAwareness({
             return null;
           }
         },
+        onWindowState: onSchedulerWindowState,
         capture: () => api.captureActiveWindowV2({ maxSide: 1280, quality: 78 }),
         isUserBusy: () => busyRef.current?.() ?? false,
         onPrivacyBlocked: (reason) => {
@@ -258,11 +287,13 @@ export function useScreenAwareness({
     }
 
     client.enable();
-    void pollWindow();
-    windowTimer = window.setInterval(
-      () => void pollWindow(),
-      Math.max(1, pollIntervalSec) * 1000,
-    );
+    if (captureOnDemand) {
+      void pollWindow();
+      windowTimer = window.setInterval(
+        () => void pollWindow(),
+        Math.max(1, pollIntervalSec) * 1000,
+      );
+    }
 
     return () => {
       disposed = true;

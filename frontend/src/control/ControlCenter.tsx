@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
 import { Icon, type IconName } from '@/ui/icons';
 import type { WSClient } from '@/api/wsClient';
@@ -13,7 +13,6 @@ import { ScreenAwareSettings } from '@/settings/ScreenAwareSettings';
 import { ProactiveSettings } from '@/settings/ProactiveSettings';
 import { TaskPlatformSettings } from '@/settings/TaskPlatformSettings';
 import { Live2DAppearanceSettings } from '@/settings/Live2DAppearanceSettings';
-import { MultiModelSettings } from '@/settings/MultiModelSettings';
 import { ExpressionSettings } from '@/settings/ExpressionSettings';
 import { EmotionStateMachine } from '@/settings/EmotionStateMachine';
 import { ConversationStateMachine } from '@/settings/ConversationStateMachine';
@@ -275,7 +274,6 @@ const COMPONENT_MAP: Record<ControlComponentKey, (ctx: ComponentContext) => Reac
   systemInfo: () => <SystemInfo />,
   emotionDebug: () => <EmotionDebug />,
   live2dAppearance: () => <Live2DAppearanceSettings />,
-  multimodel: () => <MultiModelSettings />,
   expression: () => <ExpressionSettings />,
   emotionMachine: () => <EmotionStateMachine />,
   conversationStateMachine: (ctx) => <ConversationStateMachine ws={ctx.ws} />,
@@ -306,13 +304,38 @@ function ControlCardView({
   card,
   onFieldClick,
   ctx,
+  eager = false,
 }: {
   card: ControlCard;
   onFieldClick: (fieldId: string, e: React.MouseEvent) => void;
   ctx: ComponentContext;
+  /** 每个分区只立即挂载第一张真实设置卡，其余卡片接近可视区时再初始化。 */
+  eager?: boolean;
 }): ReactElement {
+  const cardRef = useRef<HTMLElement | null>(null);
+  const [componentReady, setComponentReady] = useState(eager || !card.component);
+
+  useEffect(() => {
+    if (!card.component || componentReady) return;
+    const element = cardRef.current;
+    if (!element || typeof IntersectionObserver === 'undefined') {
+      setComponentReady(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setComponentReady(true);
+        observer.disconnect();
+      },
+      { root: element.closest('.cc-main'), rootMargin: '180px 0px' },
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [card.component, componentReady]);
+
   return (
-    <section className={`cc-card${card.id === 'home-lab' ? ' cc-card-home-lab' : ''}`}>
+    <section ref={cardRef} className={`cc-card${card.id === 'home-lab' ? ' cc-card-home-lab' : ''}`}>
       <header className="cc-card-head">
         {card.icon && (
           <span className="cc-card-icon" aria-hidden>
@@ -332,7 +355,13 @@ function ControlCardView({
             <span className="cc-quick-arrow">›</span>
           </div>
         ) : card.component ? (
-          <div className="cc-component-host">{COMPONENT_MAP[card.component](ctx)}</div>
+          componentReady ? (
+            <div className="cc-component-host">{COMPONENT_MAP[card.component](ctx)}</div>
+          ) : (
+            <div className="cc-lazy-card-placeholder" aria-busy="true">
+              滚动到这里后加载设置…
+            </div>
+          )
         ) : (
           (card.fields ?? []).map((field) => (
             <div className="cc-field" key={field.id}>
@@ -534,12 +563,13 @@ export function ControlCenter({ onClose, initialSection, ws, settingsSync, confU
           </div>
 
           <div className="cc-cards">
-            {filteredCards.map((card) => (
+            {filteredCards.map((card, index) => (
               <ControlCardView
                 card={card}
                 key={card.id}
                 onFieldClick={handleFieldClick}
                 ctx={{ ws, settingsSync, confUid }}
+                eager={index === 0}
               />
             ))}
           </div>

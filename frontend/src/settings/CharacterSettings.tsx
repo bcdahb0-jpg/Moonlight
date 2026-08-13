@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import {
   characterApi,
   voiceApi,
-  live2dApi,
   ttsApi,
   engineApi,
+  live2dCatalogApi,
   ApiError,
   API_BASE,
   type CharacterField,
-  type SkinInfo,
-  type Live2dModelEntry,
+  type CatalogModel,
   type TtsVoiceCatalogResult,
   type EngineInfo,
 } from '@/api/rest';
@@ -32,16 +31,25 @@ export interface CharacterSettingsProps {
 export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement {
   const { state } = useAppState();
   const [characters, setCharacters] = useState<CharacterField[]>([]);
-  const [skins, setSkins] = useState<SkinInfo[]>([]);
+  /** 模型清单（单一数据源：live2d_catalog 扫描，含专属 Prompt 与缩略图）。 */
+  const [catalog, setCatalog] = useState<CatalogModel[]>([]);
   const [selectedFile, setSelectedFile] = useState('');
-  const [form, setForm] = useState({ conf_name: '', persona: '', skin: '', voice: '', tts_engine: '' });
+  const [form, setForm] = useState({
+    conf_name: '',
+    persona: '',
+    skin: '',
+    model_prompt: '',
+    voice: '',
+    tts_engine: '',
+  });
   const [status, setStatus] = useState('');
   /** 已配置可用的 TTS 引擎（角色卡只显示这些，中文名）。 */
   const [ttsEngines, setTtsEngines] = useState<EngineInfo[]>([]);
+  const [ttsEnginesLoading, setTtsEnginesLoading] = useState(false);
+  const ttsLoadStarted = useRef(false);
   /** 当前引擎的音色目录（list=下拉 / input=手填）。 */
   const [voiceCatalog, setVoiceCatalog] = useState<TtsVoiceCatalogResult | null>(null);
   const [previewing, setPreviewing] = useState(false);
-  const [models, setModels] = useState<Live2dModelEntry[]>([]);
   const [generating, setGenerating] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
 
@@ -72,24 +80,48 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
   };
 
   const load = useCallback(async (): Promise<void> => {
-    // 各自容错：单个接口失败不影响角色列表刷新（避免"创建成功但列表不更新"）
+    // 分别更新：模型目录不再等待角色列表，角色列表也不再等待更慢的引擎探测。
     const results = await Promise.allSettled([
-      characterApi.list(),
-      characterApi.skins(),
-      live2dApi.info(),
-      engineApi.configured('tts'),
+      characterApi.list().then((result) => {
+        setCharacters(result.characters);
+        return result;
+      }),
+      live2dCatalogApi.models().then((result) => {
+        setCatalog(result.models);
+        return result;
+      }),
     ]);
-    if (results[0].status === 'fulfilled') setCharacters(results[0].value.characters);
-    if (results[1].status === 'fulfilled') setSkins(results[1].value.skins);
-    if (results[2].status === 'fulfilled') setModels(results[2].value.characters);
-    if (results[3].status === 'fulfilled') setTtsEngines(results[3].value.engines);
     const failed = results.find((r) => r.status === 'rejected');
     if (failed) setStatus(errorMessage(failed.reason));
+  }, []);
+
+  /**
+   * 引擎目录会扫描本地引擎并探测服务，首屏不需要它。
+   * 仅在用户进入编辑器时懒加载，且整个组件生命周期只发起一次请求。
+   */
+  const loadTtsEngines = useCallback(async (): Promise<void> => {
+    if (ttsLoadStarted.current) return;
+    ttsLoadStarted.current = true;
+    setTtsEnginesLoading(true);
+    try {
+      const result = await engineApi.configured('tts');
+      setTtsEngines(result.engines);
+    } catch (err) {
+      // 允许用户返回列表后再次进入编辑器重试。
+      ttsLoadStarted.current = false;
+      setStatus(errorMessage(err));
+    } finally {
+      setTtsEnginesLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (editing) void loadTtsEngines();
+  }, [editing, loadTtsEngines]);
 
   /** 拉取某引擎的音色目录（list=下拉 / input=手填）。 */
   const loadVoiceCatalog = async (engine: string): Promise<void> => {
@@ -113,11 +145,43 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
       conf_name: c.conf_name ?? '',
       persona: c.persona_prompt ?? '',
       skin: c.live2d_model_name ?? '',
+      model_prompt: c.model_prompt ?? '',
       voice: c.voice ?? '',
       tts_engine: c.tts_model ?? '',
     });
     setEditing(true);
     void loadVoiceCatalog(c.tts_model ?? '');
+  };
+
+  /** 选择 Live2D 模型：写入 skin，并把该模型的专属 Prompt 带入文本域（可微调）。 */
+  const handleModelSelect = (name: string): void => {
+    const model = catalog.find((m) => m.name === name);
+    setForm((f) => ({
+      ...f,
+      skin: name,
+      model_prompt: model?.custom_prompt ?? f.model_prompt,
+    }));
+  };
+
+  /** 把当前选中模型的默认专属 Prompt 重新带入（覆盖文本域）。 */
+  const resetModelPrompt = (): void => {
+    const model = catalog.find((m) => m.name === form.skin);
+    if (!model) return;
+    setForm((f) => ({ ...f, model_prompt: model.custom_prompt ?? '' }));
+    setStatus(`已从「${model.name}」重新带入默认专属指令`);
+  };
+
+  /** 把当前文本域内容保存为该模型的默认专属 Prompt（model_prompt.txt），影响后续新建角色。 */
+  const saveModelDefaultPrompt = async (): Promise<void> => {
+    if (!form.skin) return;
+    if (!window.confirm(`将当前指令保存为「${form.skin}」模型的默认专属 Prompt（model_prompt.txt）？\n新建角色时默认带入此内容。`)) return;
+    try {
+      await live2dCatalogApi.savePrompt(form.skin, form.model_prompt);
+      setStatus(`已保存为「${form.skin}」模型默认专属指令`);
+      await load();
+    } catch (err) {
+      setStatus(errorMessage(err));
+    }
   };
 
   /** 某角色文件是否就是当前激活角色（按 conf_uid 判定）。 */
@@ -185,6 +249,7 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
       conf_name: form.conf_name,
       persona_prompt: form.persona,
       live2d_model_name: form.skin,
+      model_prompt: form.model_prompt,
       voice: form.voice,
     };
     if (form.tts_engine) body.tts_model = form.tts_engine;
@@ -232,7 +297,7 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
   /** 开始新建角色卡（清空表单，进入编辑视图）。 */
   const startNew = (): void => {
     setSelectedFile('');
-    setForm({ conf_name: '', persona: '', skin: '', voice: '', tts_engine: '' });
+    setForm({ conf_name: '', persona: '', skin: '', model_prompt: '', voice: '', tts_engine: '' });
     setStatus('填写下方信息，点击「保存」即可创建新角色卡');
     setEditing(true);
   };
@@ -246,21 +311,21 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
 
   /** 取某 Live2D 模型的缩略图 URL。 */
   const modelAvatar = (modelName: string): string | null => {
-    const m = models.find((x) => x.name === modelName);
-    return resolveAvatar(m?.avatar ?? null);
+    const m = catalog.find((x) => x.name === modelName);
+    return resolveAvatar(m?.thumbnail ?? null);
   };
 
   const currentCharacter = characters.find((c) => c.conf_uid === state.confUid);
 
   /** 渲染模型生成完整立绘缩略图并保存到模型文件夹。 */
-  const generateThumbnail = async (m: Live2dModelEntry): Promise<void> => {
+  const generateThumbnail = async (m: CatalogModel): Promise<void> => {
     if (generating) return;
     setGenerating(m.name);
     setStatus('');
     try {
-      const url = `${API_BASE}/${m.model_path.replace(/^\/+/, '')}`;
+      const url = `${API_BASE}/${m.model_url.replace(/^\/+/, '')}`;
       const png = await renderModelToPng(url);
-      await live2dApi.saveThumbnail(m.name, png);
+      await live2dCatalogApi.saveThumbnail(m.name, png);
       await load();
       setStatus(`已生成「${m.name}」立绘缩略图`);
     } catch (err) {
@@ -298,7 +363,7 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
                 >
                   <div className="character-card-avatar">
                     {avatar ? (
-                      <img src={avatar} alt={c.conf_name ?? c.filename} />
+                      <img src={avatar} alt={c.conf_name ?? c.filename} loading="lazy" decoding="async" />
                     ) : (
                       <span>🎭</span>
                     )}
@@ -354,9 +419,9 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
             <input value={form.conf_name} onChange={(e) => setForm({ ...form, conf_name: e.target.value })} />
           </SettingsRow>
           <SettingsRow label="Live2D 模型" className="character-model-row">
-            <select value={form.skin} onChange={(e) => setForm({ ...form, skin: e.target.value })}>
+            <select value={form.skin} onChange={(e) => handleModelSelect(e.target.value)}>
               <option value="">选择模型…</option>
-              {skins.map((s) => (
+              {catalog.map((s) => (
                 <option key={s.name} value={s.name}>
                   {s.name}
                 </option>
@@ -365,15 +430,15 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
           </SettingsRow>
           <div className="model-picker">
             <div className="model-grid">
-              {models.map((m) => (
+              {catalog.map((m) => (
                 <div
                   key={m.name}
                   className={`model-card ${form.skin === m.name ? 'active' : ''}`}
-                  onClick={() => setForm({ ...form, skin: m.name })}
+                  onClick={() => handleModelSelect(m.name)}
                 >
                   <div className="model-card-avatar">
-                    {resolveAvatar(m.avatar) ? (
-                      <img src={resolveAvatar(m.avatar) ?? undefined} alt={m.name} />
+                    {resolveAvatar(m.thumbnail) ? (
+                      <img src={resolveAvatar(m.thumbnail) ?? undefined} alt={m.name} loading="lazy" decoding="async" />
                     ) : (
                       <span>🎭</span>
                     )}
@@ -394,15 +459,41 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
               ))}
             </div>
           </div>
+          <SettingsRow
+            label="模型专属指令"
+            description={`已带入「${form.skin || '—'}」的默认指令，可微调；保存后写入角色卡`}
+          >
+            <div className="console-stack">
+              <textarea
+                className="console-textarea"
+                rows={3}
+                value={form.model_prompt}
+                onChange={(e) => setForm({ ...form, model_prompt: e.target.value })}
+                placeholder="选择模型后自动带入其专属指令，可在此微调…"
+              />
+              <div className="console-btn-row">
+                <button type="button" className="console-btn" onClick={() => void resetModelPrompt()} disabled={!form.skin} title="重新带入所选模型的默认专属指令">
+                  重置为模型默认
+                </button>
+                <button type="button" className="console-btn" onClick={() => void saveModelDefaultPrompt()} disabled={!form.skin} title="将当前内容保存为模型的默认专属指令（model_prompt.txt）">
+                  存为模型默认
+                </button>
+              </div>
+            </div>
+          </SettingsRow>
           <SettingsRow label="TTS 引擎">
-            <select value={form.tts_engine} onChange={(e) => handleEngineChange(e.target.value)}>
-              <option value="">继承默认（基础配置）</option>
-              {ttsEngines.map((e) => (
-                <option key={e.key} value={e.key}>
-                  {e.zh}
-                </option>
-              ))}
-            </select>
+            {ttsEnginesLoading ? (
+              <span className="character-inline-label">正在读取可用引擎…</span>
+            ) : (
+              <select value={form.tts_engine} onChange={(e) => handleEngineChange(e.target.value)}>
+                <option value="">继承默认（基础配置）</option>
+                {ttsEngines.map((e) => (
+                  <option key={e.key} value={e.key}>
+                    {e.zh}
+                  </option>
+                ))}
+              </select>
+            )}
           </SettingsRow>
           {form.tts_engine ? (
             <div className="console-row character-voice-row">
