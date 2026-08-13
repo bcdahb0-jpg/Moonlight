@@ -34,6 +34,8 @@ export interface ConversationSidebarProps {
   onMoveHistory: (uid: string, workspace: string) => void;
   /** v5：清空全部存量会话（调用方负责确认弹窗）。 */
   onClearAllHistories: () => void;
+  /** 侧栏顶部功能区（FeatureDock，随侧栏一起折叠）。 */
+  dock?: ReactElement;
 }
 
 const COLLAPSED_KEY = 'moonlight.sidebar.collapsed';
@@ -124,6 +126,7 @@ export function ConversationSidebar({
   onRename,
   onMoveHistory,
   onClearAllHistories,
+  dock,
 }: ConversationSidebarProps): ReactElement {
   const [open, setOpen] = useState<boolean>(() => {
     try {
@@ -333,6 +336,8 @@ export function ConversationSidebar({
   return (
     <div className={`conv-sidebar-wrap ${open ? 'open' : 'closed'}`}>
       <aside className="conv-sidebar" aria-label="会话列表">
+        {/* 功能组件区（工作区上方，随侧栏折叠） */}
+        {dock}
         <header className="conv-sidebar-header">
           <span className="conv-sidebar-title">
             <Icon name="history" size={14} />

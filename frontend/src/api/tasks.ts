@@ -163,6 +163,9 @@ export function streamTaskEvents(
       resp = await fetch(url, { signal: controller.signal });
     } catch (err) {
       if ((err as Error).name === 'AbortError') return;
+      // 网络层失败（后端重启/短暂不可达）同样触发 onClose 走自动重连，
+      // 否则重连退避循环不会启动，错误提示常驻且任务流永久死掉。
+      onClose?.();
       throw new ApiError(0, '任务事件流连接失败');
     }
     if (!resp.ok || !resp.body) {

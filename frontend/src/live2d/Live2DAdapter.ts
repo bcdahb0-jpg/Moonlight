@@ -43,6 +43,14 @@ export interface Live2DAdapter {
    */
   setLipSync(value: number, viseme?: VisemeVector | null): void;
 
+  /**
+   * P1 连续动作：叠加外部参数帧（motion-plan 产物）。
+   * 在引擎/动画输出之上按参数 ID 覆盖；实现应合并（非覆盖整帧），
+   * 并在下一帧调用前清除上一帧残留（实现内管理）。可选接口，旧适配器可忽略。
+   * @param params 参数 ID → 值（来自 /api/expression/motion-plan 帧）
+   */
+  applyExternalParams?(params: Record<string, number>): void;
+
   /** 捕获当前渲染帧为 PNG data URL。 */
   capturePng(): string;
 

@@ -14,11 +14,12 @@ import { ChatPanel } from '@/chat/ChatPanel';
 import { ConversationSidebar, WorkspacePicker } from '@/chat/ConversationSidebar';
 import { TitleBar } from '@/components/TitleBar';
 import { RightPanel } from '@/components/RightPanel';
+import { FeatureDock } from '@/components/FeatureDock';
 import type { WSClient } from '@/api/wsClient';
 import type { AudioPlayer } from '@/api/audioPlayer';
 import type { AffectionSummary } from '@/types/ws';
 import type { ConnStatus, Emotion, ChatMessage, HistoryEntry } from '@/state/types';
-import type { ErrorCode } from '@/types/ws';
+import type { ErrorCode, ScreenStatusMessage } from '@/types/ws';
 import type { TaskEvent } from '@/task/types';
 import { useTaskMode } from '@/task/useTaskMode';
 import { TaskStreamPanel } from '@/task/TaskStreamPanel';
@@ -62,6 +63,7 @@ export interface WindowModeViewProps {
   connected: boolean;
   historyList: HistoryEntry[];
   currentHistoryUid: string | null;
+  screenStatus?: ScreenStatusMessage | null;
   lastError: string | null;
   errorCode: ErrorCode | null;
   affection: AffectionSummary | null;
@@ -109,6 +111,7 @@ export function WindowModeView({
   connected,
   historyList,
   currentHistoryUid,
+  screenStatus = null,
   lastError,
   errorCode,
   affection,
@@ -139,6 +142,12 @@ export function WindowModeView({
     );
     const ws = String(current?.workspace ?? '').trim();
     return ws || null;
+  }, [historyList, currentHistoryUid]);
+  const currentSessionTitle = useMemo(() => {
+    const current = historyList.find(
+      (h) => String(h.uid ?? h.history_uid ?? '') === currentHistoryUid,
+    );
+    return String(current?.title ?? current?.name ?? '').trim() || null;
   }, [historyList, currentHistoryUid]);
 
   // 任务模式控制器：模式/活动任务/事件流/新建弹窗。shell 汇报经 onTaskShellEvent 外发。
@@ -195,35 +204,8 @@ export function WindowModeView({
     });
   }, [task.activeTask, task.eventsByRun, messages]);
 
-  // effect B：锚点维护——失效重建 + user 锚点迁移到 AI 确认消息（per-run 版 v4）。
-  //  - 锚点消息已不在本会话流中（切会话/CLEAR_MESSAGES）→ 先尝试按 run_start 指令
-  //    内容匹配重建（历史会话重新加载后消息 id 全变，但内容还在）；匹配不到再沉底；
-  //  - 锚点仍是 user 消息、且其后已出现 AI 消息 → 迁移到紧随其后的第一条 AI 消息
-  //    （此后锚点是 AI 消息不再动，完成汇报自然排在任务卡之后）。
-  useEffect(() => {
-    setRunAnchors((prev) => {
-      const next = { ...prev };
-      let changed = false;
-      for (const [runId, anchorId] of Object.entries(next)) {
-        if (anchorId == null) continue;
-        const idx = messages.findIndex((m) => m.id === anchorId);
-        if (idx < 0) {
-          // 2026-08-10：消息流重建（历史加载）→ 内容匹配重建锚点，避免卡片沉底堆叠
-          const rebuilt = findRunAnchor(task.eventsByRun[runId] ?? [], messages);
-          next[runId] = rebuilt;
-          changed = true;
-          continue;
-        }
-        if (messages[idx].role !== 'user') continue; // 已迁移到 AI 消息，保持不动
-        const nextAi = messages.slice(idx + 1).find((m) => m.role === 'ai');
-        if (nextAi) {
-          next[runId] = nextAi.id;
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [messages, runAnchors, task.eventsByRun]);
+  // 任务卡锚点一旦绑定到发起任务的用户消息就保持不变。
+  // 后续普通对话不能触发锚点迁移，否则任务卡会被挪到新的 AI 回复下面。
   const recentWorkspaces = useMemo(
     () =>
       Array.from(
@@ -293,6 +275,7 @@ export function WindowModeView({
           onRename={(uid, title) => ws()?.sendSetHistoryTitle(uid, title)}
           onMoveHistory={(uid, workspace) => ws()?.sendSetHistoryWorkspace(uid, workspace)}
           onClearAllHistories={() => ws()?.sendClearAllHistories()}
+          dock={<FeatureDock onOpenSection={onOpenSettingsSection} />}
         />
         <ChatPanel
           messages={messages}
@@ -300,11 +283,16 @@ export function WindowModeView({
           subtitle={subtitle}
           toolStatus={toolStatus}
           connected={connected}
+          sessionTitle={currentSessionTitle}
+          workspace={currentWorkspace}
+          screenStatus={screenStatus}
           lastError={lastError}
           errorCode={errorCode}
           onDismissError={onDismissError}
           onOpenSettingsSection={onOpenSettingsSection}
-          showWorkspaceGuide={!currentHistoryUid}
+          // Phase 1（pet-ptt-workflow）：无会话 **或** 有会话但未绑定工作目录 → 引导
+          // 选择/迁移目录（旧无目录会话不静默伪造，继续输入前显式绑定）。
+          showWorkspaceGuide={!currentHistoryUid || !currentWorkspace}
           onPickWorkspace={() => setSessionPickerOpen(true)}
           onSend={(text) => {
             // 2026-08-09 统一输入：不分模式。意图路由 resolveSend 自动分流——
@@ -368,6 +356,7 @@ export function WindowModeView({
           }}
           taskMode={task}
           taskRuns={taskRuns}
+          onOpenSection={onOpenSettingsSection}
         />
         <RightPanel
           modelUrl={modelUrl}
@@ -399,13 +388,22 @@ export function WindowModeView({
         }}
       />
 
-      {/* v5：无会话发送引导 → 选择工作目录新建会话 */}
+      {/* v5：无会话发送引导 → 选择工作目录新建会话；
+          Phase 1：有会话但无工作目录（旧会话）→ 迁移目录 */}
       {sessionPickerOpen && (
         <WorkspacePicker
-          title="新建会话 · 选择工作目录"
+          title={
+            currentHistoryUid && !currentWorkspace
+              ? '迁移会话 · 选择工作目录'
+              : '新建会话 · 选择工作目录'
+          }
           recent={recentWorkspaces}
           onConfirm={(workspace) => {
-            ws()?.sendCreateNewHistory(workspace);
+            if (currentHistoryUid && !currentWorkspace) {
+              ws()?.sendSetHistoryWorkspace(currentHistoryUid, workspace);
+            } else {
+              ws()?.sendCreateNewHistory(workspace);
+            }
             setSessionPickerOpen(false);
           }}
           onClose={() => setSessionPickerOpen(false)}

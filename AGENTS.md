@@ -13,6 +13,9 @@ AI 桌宠（Moonlight）：FastAPI 后端 + React/Electron 前端 + Live2D + 语
 2. **沙箱/托管环境（WorkBuddy 等）启动 Electron 必须设 `MOONLIGHT_USER_DATA=.electron-user-data`**（在 frontend 目录下），否则 Electron 在 `%APPDATA%\moonlight-frontend` 建 SingletonLock 失败（Error code: 5）白屏。用户自己终端启动则不需要。
 3. **杀后端进程用 `taskkill /F /PID <pid>`（不带 `/T`）**——`/T` 连坐杀死后端名下所有子进程，会把 VOICEVOX 引擎一起杀掉。
 4. 后端存活判断 = `curl http://127.0.0.1:12393` 返回 200；端口在 LISTENING 但 HTTP 000 属于假死，需要重启。
+5. **后端只能由用户在自己终端启动**（`cd backend && ./.venv/Scripts/python.exe run_server.py`）。WorkBuddy/沙箱启动的后端进程落在沙箱身份上：会在用户目录建 `C:\Users\Elysia\.pi` 等目录并注入 `CodexSandboxUsers:(OI)(CI)(RX)` 只读 ACL → 桌宠 delegate_to_task 建任务 mkdir 被拒，**Windows 伪报 [WinError 2] 系统找不到指定的文件**（并非路径不存在）→ 聊天一切工具调用 500。识别沙箱启动：进程 ppid 链到 `~/.workbuddy/vendor/PortableGit/usr/bin/bash.exe`。验证/调试后端可用沙箱，但**长期运行必须移交用户终端**。
+6. **后端启动 segfault（Segment fault）时先查 onnxruntime DLL 劫持**（2026-08-12 修复）：`C:\Windows\SYSTEM32\onnxruntime.dll`（Windows 内置 ORT 1.17）会劫持 sherpa_onnx pyd 的按名加载 → 加载模型时 C++ 层崩溃（伴随警告 "The requested API version [27] is not available..."）。**修复已内置**：`run_server.py` 与 `asr/sherpa_onnx_asr.py` 顶部 `_preload_onnxruntime_dll()`（必须在 `import sherpa_onnx` 前显式 `ctypes.WinDLL` venv 的 `onnxruntime/capi/onnxruntime.dll`）。若改了 import 顺序或换了 C 扩展，保持"先 preload 后 import"。
+7. **MCP 服务端（12394）由 `run_server.py` 在 `server.initialize()` 成功后启动**（`server.start_mcp_service()`，2026-08-12 从 WebSocketServer 构造函数移出）——构造函数里启动会与 ASR 模型加载并发。改后端启动流程时勿把 MCP 启动移回构造函数。
 
 ## 端口表
 
@@ -91,6 +94,16 @@ DeepLX 管理接口（仿 VOICEVOX 引擎管理）：`GET /api/deeplx/status`、
 - MCP 外部工具 `time`（SDK `McpError` 命名冲突）/ `ddg-search`（PyPI 无此包）连接失败 → MCP 工具数为 0，**不影响主链路**。
 - 翻译引擎：conf.yaml `translate_provider` 实际为 **deeplx**（见「本地引擎」节一键管理）；`llm`（DeepSeek）可切换，前端「跨语音翻译」卡可切换。
 - 桌宠默认角色小月：DeepSeek + VOICEVOX（日语引擎），中文回复经翻译引擎（deeplx）翻成日文合成，属正常链路。
+
+## 屏幕感知（screen_awareness，Phase 0~6 已完成）
+
+- 后端包：`backend/src/open_llm_vtuber/screen_awareness/`；API `/api/screen/{status,metrics,analyze,clear,config,feedback}`（localhost-only）；WS 入站 `screen-frame/screen-enable/screen-clear`，出站 `screen-status/screen-context`。
+- 配置：conf.yaml `system_config.screen_awareness`（provider/base_url/model/api_key/local_only/阈值/冷却/黑名单/单价）。当前已配 **SiliconFlow Qwen3-VL-8B-Instruct**（视觉识别），key 复用 vector_embedding_api_key；DeepSeek 纯文本不支持视觉 → analyze 返回 None（fail-soft）。
+- 前端：`frontend/src/screen/`（useScreenAwareness 编排 + CaptureScheduler + frameDiff pHash + screenContextClient 上传 + privacyRules + screenActions + ScreenEyeIndicator 状态灯 + ScreenAuthModal 授权 + onDemandCapture）；Electron IPC `screen:capture-active-window-v2`。
+- 聊天融合：`single_conversation._attach_screen_context` —— 摘要 `[屏幕上下文]` 只进 LLM 不进历史/记忆；关键词（屏幕/报错/这里/这个页面等）命中才附图像。
+- 主动陪聊：`conversation_handler` ai-speak-signal 接入 `screen_awareness.policy.decide_proactive_for`（silence 放弃本轮；interrupt/light_chat 注入 hint）；video/reading/game 沉浸静默，冷却 180s；抑制原因统计在 `/api/screen/metrics`。
+- 成本/反馈：metrics 按输入/输出 token 分计，`estimated_cost_usd` 按 conf 单价估算；`POST /api/screen/feedback`（useful/disruptive/misrecognition）。
+- 测试：`tests/test_screen_awareness.py`（43 用例）；soak：`scripts/screen_soak.py`。文档：`docs/screen-awareness-implementation.md`（交付）+ `docs/screen-awareness-ops.md`（运维/隐私/故障/回滚）。
 
 ## 安全红线
 

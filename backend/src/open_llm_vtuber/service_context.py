@@ -23,6 +23,7 @@ from .tts.tts_factory import TTSFactory
 from .vad.vad_factory import VADFactory
 from .agent.agent_factory import AgentFactory
 from .translate.translate_factory import TranslateFactory
+from .contracts import ErrorCode, send_error, send_message
 
 from .config_manager import (
     Config,
@@ -817,6 +818,7 @@ class ServiceContext:
         self,
         websocket: WebSocket,
         config_file_name: str,
+        client_uid: str = "",
     ) -> None:
         """
         Handle the configuration switch request.
@@ -898,24 +900,24 @@ class ServiceContext:
                 )
 
                 # Send responses to client
-                await websocket.send_text(
-                    json.dumps(
-                        {
-                            "type": "set-model-and-conf",
-                            "model_info": self.live2d_model.model_info,
-                            "conf_name": self.character_config.conf_name,
-                            "conf_uid": self.character_config.conf_uid,
-                        }
-                    )
+                await send_message(
+                    websocket.send_text,
+                    {
+                        "type": "set-model-and-conf",
+                        "model_info": self.live2d_model.model_info,
+                        "conf_name": self.character_config.conf_name,
+                        "character_name": self.character_config.conf_name,
+                        "conf_uid": self.character_config.conf_uid,
+                        "client_uid": client_uid,
+                    },
                 )
 
-                await websocket.send_text(
-                    json.dumps(
-                        {
-                            "type": "config-switched",
-                            "message": f"Switched to config: {config_file_name}",
-                        }
-                    )
+                await send_message(
+                    websocket.send_text,
+                    {
+                        "type": "config-switched",
+                        "message": f"Switched to config: {config_file_name}",
+                    },
                 )
 
                 logger.info(f"Configuration switched to {config_file_name}")
@@ -927,13 +929,10 @@ class ServiceContext:
         except Exception as e:
             logger.error(f"Error switching configuration: {e}")
             logger.debug(self)
-            await websocket.send_text(
-                json.dumps(
-                    {
-                        "type": "error",
-                        "message": f"Error switching configuration: {str(e)}",
-                    }
-                )
+            await send_error(
+                websocket.send_text,
+                ErrorCode.CONFIG_INVALID,
+                f"Error switching configuration: {str(e)}",
             )
             raise e
 

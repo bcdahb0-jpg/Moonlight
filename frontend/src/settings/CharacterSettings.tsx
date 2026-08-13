@@ -16,6 +16,12 @@ import {
 import { useAppState } from '@/state/AppStateContext';
 import { renderModelToPng } from '@/live2d/captureThumbnail';
 import { SettingStatus } from './SettingStatus';
+import {
+  SettingsActionBar,
+  SettingsGroup,
+  SettingsMetricStrip,
+  SettingsRow,
+} from './SettingsConsole';
 import type { WSClient } from '@/api/wsClient';
 
 export interface CharacterSettingsProps {
@@ -34,7 +40,6 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
   const [ttsEngines, setTtsEngines] = useState<EngineInfo[]>([]);
   /** 当前引擎的音色目录（list=下拉 / input=手填）。 */
   const [voiceCatalog, setVoiceCatalog] = useState<TtsVoiceCatalogResult | null>(null);
-  const [voiceLoading, setVoiceLoading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [models, setModels] = useState<Live2dModelEntry[]>([]);
   const [generating, setGenerating] = useState<string | null>(null);
@@ -88,15 +93,12 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
 
   /** 拉取某引擎的音色目录（list=下拉 / input=手填）。 */
   const loadVoiceCatalog = async (engine: string): Promise<void> => {
-    setVoiceLoading(true);
     setVoiceCatalog(null);
     try {
       if (!engine) return;
       setVoiceCatalog(await ttsApi.listVoices(engine));
     } catch (err) {
       setStatus(errorMessage(err));
-    } finally {
-      setVoiceLoading(false);
     }
   };
 
@@ -248,6 +250,8 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
     return resolveAvatar(m?.avatar ?? null);
   };
 
+  const currentCharacter = characters.find((c) => c.conf_uid === state.confUid);
+
   /** 渲染模型生成完整立绘缩略图并保存到模型文件夹。 */
   const generateThumbnail = async (m: Live2dModelEntry): Promise<void> => {
     if (generating) return;
@@ -267,79 +271,89 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
   };
 
   return (
-    <div className="settings-section">
-      <h3>角色卡</h3>
+    <div className="settings-section settings-console-root settings-character-console">
+      <SettingsMetricStrip
+        metrics={[
+          { label: '当前角色', value: currentCharacter?.conf_name ?? state.confName ?? '基础角色', tone: currentCharacter ? 'ok' : 'neutral' },
+          { label: '角色卡', value: `${characters.length} 个` },
+          { label: 'Live2D', value: currentCharacter?.live2d_model_name ?? '未选择', tone: currentCharacter?.live2d_model_name ? 'ok' : 'warn' },
+        ]}
+      />
+
       {!editing ? (
-        <div className="character-grid">
-          {characters.map((c) => {
-            const avatar = modelAvatar(c.live2d_model_name ?? '');
-            const isCurrent = c.conf_uid === state.confUid;
-            return (
-              <div
-                key={c.filename}
-                className={`character-card ${isCurrent ? 'current' : ''}`}
-                onClick={() => selectCharacter(c)}
-                title={isCurrent ? '当前角色（点击编辑）' : '点击编辑此角色'}
-              >
-                <div className="character-card-avatar">
-                  {avatar ? (
-                    <img src={avatar} alt={c.conf_name ?? c.filename} />
+        <SettingsGroup
+          title="角色卡"
+          className="console-group-primary character-gallery-group"
+        >
+          <div className="character-grid" data-setting-key="setting-character-cards">
+            {characters.map((c) => {
+              const avatar = modelAvatar(c.live2d_model_name ?? '');
+              const isCurrent = c.conf_uid === state.confUid;
+              return (
+                <div
+                  key={c.filename}
+                  className={`character-card ${isCurrent ? 'current' : ''}`}
+                  onClick={() => selectCharacter(c)}
+                  title={isCurrent ? '当前角色（点击编辑）' : '点击编辑此角色'}
+                >
+                  <div className="character-card-avatar">
+                    {avatar ? (
+                      <img src={avatar} alt={c.conf_name ?? c.filename} />
+                    ) : (
+                      <span>🎭</span>
+                    )}
+                    {isCurrent ? <span className="character-card-badge">当前</span> : null}
+                  </div>
+                  <div className="character-card-copy">
+                    <div className="character-card-name">{c.conf_name ?? c.filename}</div>
+                  </div>
+                  {!isCurrent ? (
+                    <button
+                      className="character-card-enable"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        applyCharacter(c.filename);
+                      }}
+                      title={`切换到「${c.conf_name ?? c.filename}」，立即生效`}
+                    >
+                      启用角色
+                    </button>
                   ) : (
-                    <span>🎭</span>
+                    <button
+                      className="character-card-enable current"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        applyCharacter(c.filename);
+                      }}
+                      title="重新加载当前角色（修改后立即生效）"
+                    >
+                      已启用 · 重新加载
+                    </button>
                   )}
-                  {isCurrent ? <span className="character-card-badge">当前</span> : null}
                 </div>
-                <div className="character-card-name">{c.conf_name ?? c.filename}</div>
-                {!isCurrent ? (
-                  <button
-                    className="character-card-enable"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      applyCharacter(c.filename);
-                    }}
-                    title={`切换到「${c.conf_name ?? c.filename}」，立即生效`}
-                  >
-                    启用
-                  </button>
-                ) : (
-                  <button
-                    className="character-card-enable current"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      applyCharacter(c.filename);
-                    }}
-                    title="重新加载当前角色（修改后立即生效）"
-                  >
-                    重新加载
-                  </button>
-                )}
-              </div>
-            );
-          })}
-          <div
-            className="character-card character-card-new"
-            onClick={startNew}
-            title="创建新角色卡"
-          >
-            <div className="character-card-avatar">
-              <span className="character-card-plus">＋</span>
-            </div>
-            <div className="character-card-name">新建角色</div>
+              );
+            })}
+            <button className="character-card character-card-new" type="button" onClick={startNew} title="创建新角色卡">
+              <span className="character-card-new-icon" aria-hidden="true">＋</span>
+              <span className="character-card-new-label">新建角色</span>
+            </button>
           </div>
-        </div>
+        </SettingsGroup>
       ) : (
         <>
-          <div className="btn-row">
+          <SettingsGroup
+            title={selectedFile ? '编辑角色卡' : '新建角色卡'}
+            className="character-editor-group"
+          >
+          <SettingsActionBar className="character-editor-back">
             <button className="btn" onClick={() => setEditing(false)}>
               ← 返回角色卡列表
             </button>
-          </div>
-          <label className="field">
-            <span>显示名称</span>
+          </SettingsActionBar>
+          <SettingsRow label="显示名称" settingKey="setting-character-persona">
             <input value={form.conf_name} onChange={(e) => setForm({ ...form, conf_name: e.target.value })} />
-          </label>
-          <label className="field">
-            <span>Live2D 模型</span>
+          </SettingsRow>
+          <SettingsRow label="Live2D 模型" className="character-model-row">
             <select value={form.skin} onChange={(e) => setForm({ ...form, skin: e.target.value })}>
               <option value="">选择模型…</option>
               {skins.map((s) => (
@@ -348,9 +362,8 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
                 </option>
               ))}
             </select>
-          </label>
+          </SettingsRow>
           <div className="model-picker">
-            <div className="model-picker-label">模型库（点击选用）</div>
             <div className="model-grid">
               {models.map((m) => (
                 <div
@@ -379,13 +392,9 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
                   </button>
                 </div>
               ))}
-              {models.length === 0 && (
-                <div className="setting-status">没有可用的 Live2D 模型。</div>
-              )}
             </div>
           </div>
-          <label className="field">
-            <span>TTS 引擎</span>
+          <SettingsRow label="TTS 引擎">
             <select value={form.tts_engine} onChange={(e) => handleEngineChange(e.target.value)}>
               <option value="">继承默认（基础配置）</option>
               {ttsEngines.map((e) => (
@@ -394,17 +403,14 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
                 </option>
               ))}
             </select>
-            {ttsEngines.length === 0 && (
-              <div className="setting-note">
-                暂无已配置可用的 TTS 引擎 —— 请到「声音 TTS / ASR」设置里配置（如填 API Key）后，引擎会自动出现在这里。
-              </div>
-            )}
-          </label>
+          </SettingsRow>
           {form.tts_engine ? (
-            <label className="field">
+            <div className="console-row character-voice-row">
+              <div className="console-row-copy"><span className="console-row-label">音色</span></div>
+              <div className="console-row-control">
               {voiceCatalog?.mode === 'input' ? (
                 <>
-                  <span>音色 · {voiceCatalog.input?.label}</span>
+                  <span className="character-inline-label">{voiceCatalog.input?.label}</span>
                   <div className="voice-row">
                     <input
                       value={form.voice}
@@ -423,11 +429,9 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
                       </button>
                     ) : null}
                   </div>
-                  <span className="voice-preview-hint">试听文本：{PREVIEW_TEXT}</span>
                 </>
               ) : (
                 <>
-                  <span>音色</span>
                   <div className="voice-row">
                     <select value={form.voice} onChange={(e) => setForm({ ...form, voice: e.target.value })}>
                       <option value="">继承默认</option>
@@ -449,24 +453,19 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
                       </button>
                     ) : null}
                   </div>
-                  <span className="voice-preview-hint">试听文本：{PREVIEW_TEXT}</span>
                 </>
               )}
-              {voiceCatalog && !voiceCatalog.previewable && voiceCatalog.previewNote ? (
-                <div className="setting-note">{voiceCatalog.previewNote}</div>
-              ) : null}
-              {voiceLoading && <div className="setting-status">加载音色列表…</div>}
-            </label>
+              </div>
+            </div>
           ) : null}
-          <label className="field">
-            <span>人设 (persona)</span>
+          <SettingsRow label="人设（persona）">
             <textarea
               rows={5}
               value={form.persona}
               onChange={(e) => setForm({ ...form, persona: e.target.value })}
             />
-          </label>
-          <div className="btn-row">
+          </SettingsRow>
+          <SettingsActionBar>
             <button className="btn btn-primary" onClick={() => void save()}>
               保存
             </button>
@@ -478,12 +477,9 @@ export function CharacterSettings({ ws }: CharacterSettingsProps): ReactElement 
                 删除
               </button>
             ) : null}
-          </div>
-          <div className="restart-notice">
-            保存修改后会自动热重载当前角色（Live2D / 人设 / 音色立即生效，无需重启）。「保存并启用」用于编辑
-            {selectedFile ? '非当前角色' : '新角色'}时立即切换过去。
-          </div>
+          </SettingsActionBar>
           <SettingStatus message={status} />
+          </SettingsGroup>
         </>
       )}
     </div>

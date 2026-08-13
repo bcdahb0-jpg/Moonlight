@@ -42,6 +42,8 @@ dependencies = [
     "duckduckgo-search>=8.1.1",
     "agent-client-protocol>=0.12.0",
     "playwright>=1.62.0",
+    "bilibili-api-python>=17.4.2",
+    "pypdf>=6.15.0",
 ]
 
 [project.optional-dependencies]

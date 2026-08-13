@@ -202,6 +202,17 @@ class BasicMemoryAgent(AgentInterface):
         except ImportError:
             return {"ok": False, "status": "error", "summary": "", "error": "后端缺 httpx，无法委派任务。"}
 
+        # 时间是一个需要“现在这一刻”语义的特例。不要把它交给任务
+        # agent 再经网络 API/LLM 摘要一遍：公共 GET 可能命中旧缓存，
+        # LLM 也可能从上下文复述上一次时间。
+        try:
+            from ...task_platform.time_tool import accurate_time_result, is_current_time_goal
+
+            if is_current_time_goal(goal):
+                return await accurate_time_result()
+        except Exception as exc:
+            _logger.warning(f"[chat-delegate] direct time result unavailable: {exc}")
+
         conf_uid = ""
         history_uid = ""
         try:
@@ -256,7 +267,13 @@ class BasicMemoryAgent(AgentInterface):
                 status = str(data.get("status") or "")
                 if not summary:
                     summary = f"任务执行完成（{status}），但无输出摘要。"
-                return {"ok": True, "status": status or "completed", "summary": summary[:4000], "error": ""}
+                return {
+                    "ok": True,
+                    "status": status or "completed",
+                    "summary": summary[:4000],
+                    "task_id": str(data.get("task_id") or ""),
+                    "error": "",
+                }
             except Exception as e:
                 _logger.warning(f"[chat-delegate] HTTP call failed (attempt {attempt + 1}/3): {e}")
                 last_err = f"{type(e).__name__}: {e}"
@@ -948,17 +965,28 @@ class BasicMemoryAgent(AgentInterface):
                                     "type": "task_result",
                                     "status": result.get("status") or "completed",
                                     "content": summary,
+                                    "task_id": result.get("task_id") or None,
                                 }
+                            if result.get("direct"):
+                                # 结构化事实直接成为最终气泡，避免下一轮
+                                # LLM 又把准确时间改写成旧时间。
+                                if summary:
+                                    yield summary
+                                    self._add_message(summary, "assistant")
+                                return
                             tool_content = (
                                 f"{summary[:4000]}\n\n"
-                                "（提示：完整任务结果已由系统直接展示在用户的聊天区，"
-                                "请用一两句话简短总结要点即可，不要逐字复述完整清单/表格内容。）"
+                                "请先直接回答用户原问题，第一句必须是结论，不要以‘我来查一下’或‘搜索结果是’开头；"
+                                "如果结果没有确认该事实，第一句明确说‘目前无法确认/没有查到’，再简短说明原因。"
+                                "完整任务结果已由系统展示在任务卡中，回复只总结与问题直接相关的要点，"
+                                "不要逐字复述完整清单或表格。"
                             )
                         else:
                             err = str(result.get("error") or "任务执行失败").strip()
                             tool_content = (
                                 f"任务委派执行失败：{err}\n\n"
-                                "请用简体中文、自然的语气告诉用户：刚才的操作没有完成，"
+                                "请用简体中文、自然的语气先直接回答用户问题，第一句必须是结论；若没有查到答案，"
+                                "第一句明确说‘目前无法确认/没有查到’，再告诉用户刚才的操作没有完成，"
                                 "并给出可操作的建议（如：稍后重试、提供更明确的目标、"
                                 "或说明结果在哪个工作目录），不要展示 HTTP 状态码/异常类名/"
                                 "堆栈等技术细节，不要编造任务结果。"

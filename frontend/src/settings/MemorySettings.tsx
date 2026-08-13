@@ -8,6 +8,7 @@ import {
   type V2Proposal,
 } from '@/api/rest';
 import { SettingStatus } from './SettingStatus';
+import { SettingsActionBar, SettingsGroup, SettingsMetricStrip, SettingsRow } from './SettingsConsole';
 
 export interface MemorySettingsProps {
   confUid: string;
@@ -101,51 +102,42 @@ export function MemorySettings({ confUid }: MemorySettingsProps): ReactElement {
   }
 
   return (
-    <div className="settings-section">
-      {/* 标题行 + 记忆总开关 */}
-      <div className="mem-header">
-        <h3>记忆</h3>
-        <label className="mem-master-toggle">
-          <span>启用记忆</span>
+    <div className="settings-section settings-console-root settings-memory-console" data-setting-key="setting-memory">
+      <SettingsMetricStrip
+        metrics={[
+          { label: '记忆状态', value: memory?.enabled ? '已启用' : '已停用', tone: memory?.enabled ? 'ok' : 'neutral' },
+          { label: '核心画像', value: `${memory?.char_count ?? 0}/${memory?.cap ?? 0} 字` },
+          { label: '事实 / 反思', value: `${memory?.v2_facts ?? 0} / ${memory?.v2_reflections ?? 0}` },
+          { label: '待审提案', value: `${memory?.v2_proposals_pending ?? 0}`, tone: (memory?.v2_proposals_pending ?? 0) > 0 ? 'warn' : 'neutral' },
+        ]}
+      />
+      <SettingsGroup title="记忆总览" description="控制记忆注入、自动沉淀和历史检索">
+        <SettingsRow label="启用记忆" description="将核心画像和相关回忆注入对话上下文">
           <input
+            className="switch"
             type="checkbox"
             checked={memory?.enabled ?? false}
             disabled={!memory}
             onChange={(e) => void toggle(e.target.checked)}
           />
-        </label>
-      </div>
+        </SettingsRow>
 
       {memory && (
         <>
-          {/* 状态总览：一屏看懂记忆体量 */}
-          <div className="mem-overview">
-            <span className="mem-chip">
-              核心画像
-              <b>
-                {memory.char_count}/{memory.cap} 字
-              </b>
-            </span>
-            <span className="mem-chip">
-              事实
-              <b>{memory.v2_facts}</b>
-            </span>
-            <span className="mem-chip">
-              反思
-              <b>{memory.v2_reflections}</b>
-            </span>
-            <span className={`mem-chip${memory.v2_proposals_pending > 0 ? ' warn' : ''}`}>
-              待审提案
-              <b>{memory.v2_proposals_pending}</b>
-            </span>
+          <div className="console-memory-inline-summary">
+            <span>核心画像 {memory.char_count}/{memory.cap} 字</span>
+            <span>事实 {memory.v2_facts}</span>
+            <span>反思 {memory.v2_reflections}</span>
+            <span className={memory.v2_proposals_pending > 0 ? 'warn' : ''}>待审 {memory.v2_proposals_pending}</span>
           </div>
+        </>
+      )}
+      </SettingsGroup>
 
+      {memory && (
+        <>
           {/* ① 核心画像：persona 注入源 */}
-          <div className="mem-card">
-            <div className="mem-card-head">
-              <span className="mem-card-title">核心画像</span>
-              <span className="mem-card-desc">AI 对你的稳定认知 · 每轮对话注入 · 可直接编辑修正</span>
-            </div>
+          <SettingsGroup title="核心画像" description="AI 对你的稳定认知 · 每轮对话注入 · 可直接编辑修正">
             <textarea
               className="mem-textarea"
               rows={6}
@@ -153,7 +145,7 @@ export function MemorySettings({ confUid }: MemorySettingsProps): ReactElement {
               disabled={!memory.enabled}
               onChange={(e) => setContent(e.target.value)}
             />
-            <div className="btn-row">
+            <SettingsActionBar>
               <button className="btn btn-primary" onClick={() => void save()} disabled={!memory.enabled}>
                 保存画像
               </button>
@@ -172,17 +164,14 @@ export function MemorySettings({ confUid }: MemorySettingsProps): ReactElement {
               >
                 清空
               </button>
-            </div>
-          </div>
+            </SettingsActionBar>
+          </SettingsGroup>
 
           {/* ② 记忆沉淀：v2 类型化记忆（事实 → 反思 → 睡眠合并 → 固化画像） */}
-          <div className="mem-card">
-            <div className="mem-card-head">
-              <span className="mem-card-title">记忆沉淀</span>
-              <span className="mem-card-desc">对话自动沉淀 · 事实与反思 · 矛盾需你审批</span>
-              <label className="mem-master-toggle compact">
-                <span>{memory.v2_enabled ? '已开启' : '已关闭'}</span>
+          <SettingsGroup title="记忆沉淀" description="对话自动沉淀 · 事实与反思 · 矛盾需你审批">
+              <SettingsRow label="启用自动沉淀" description="开启后自动抽取事实并合成反思">
                 <input
+                  className="switch"
                   type="checkbox"
                   checked={memory.v2_enabled}
                   onChange={(e) =>
@@ -192,8 +181,7 @@ export function MemorySettings({ confUid }: MemorySettingsProps): ReactElement {
                       .catch((err) => setStatus(errorMessage(err)))
                   }
                 />
-              </label>
-            </div>
+              </SettingsRow>
             {memory.v2_enabled ? (
               <>
                 <div className="mem-tabs">
@@ -334,14 +322,10 @@ export function MemorySettings({ confUid }: MemorySettingsProps): ReactElement {
             ) : (
               <p className="mem-empty">记忆沉淀未开启 · 开启后每轮对话会自动抽取事实并合成反思</p>
             )}
-          </div>
+          </SettingsGroup>
 
           {/* ③ 回忆检索：对话时能翻出什么 */}
-          <div className="mem-card">
-            <div className="mem-card-head">
-              <span className="mem-card-title">回忆检索</span>
-              <span className="mem-card-desc">对话时从历史里翻出相关内容注入提示词</span>
-            </div>
+          <SettingsGroup title="回忆检索" description="对话时从历史里翻出相关内容注入提示词">
             <div className="mem-grid-2">
               <label className="toggle-row">
                 <span>全文检索 FTS{memory.fts_indexed ? '' : '（尚未建立索引）'}</span>
@@ -409,7 +393,7 @@ export function MemorySettings({ confUid }: MemorySettingsProps): ReactElement {
                 </label>
               )}
             </div>
-            <div className="btn-row">
+            <SettingsActionBar note="FTS 适合关键词；向量检索适合语义相似内容">
               <button
                 className="btn"
                 onClick={() =>
@@ -421,15 +405,11 @@ export function MemorySettings({ confUid }: MemorySettingsProps): ReactElement {
               >
                 重建全文索引
               </button>
-            </div>
-          </div>
+            </SettingsActionBar>
+          </SettingsGroup>
 
           {/* ④ 整理策略：记忆如何自动维护 */}
-          <div className="mem-card">
-            <div className="mem-card-head">
-              <span className="mem-card-title">整理策略</span>
-              <span className="mem-card-desc">自动整理的频率与容量</span>
-            </div>
+          <SettingsGroup title="整理策略" description="自动整理的频率与容量">
             <div className="mem-grid-2">
               <label className="field">
                 <span>画像整理间隔（每几轮对话整理一次）</span>
@@ -485,7 +465,7 @@ export function MemorySettings({ confUid }: MemorySettingsProps): ReactElement {
                 <span className="range-val">{memory.cap}</span>
               </div>
             </label>
-          </div>
+          </SettingsGroup>
         </>
       )}
       <SettingStatus message={status} />

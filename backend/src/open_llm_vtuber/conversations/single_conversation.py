@@ -1,6 +1,8 @@
-from typing import Union, List, Dict, Any, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Union, List, Dict, Any, Optional
 import asyncio
-import json
+import time
 from loguru import logger
 import numpy as np
 
@@ -16,8 +18,11 @@ from .conversation_utils import (
 from .types import WebSocketSend
 from .tts_manager import TTSTaskManager
 from ..chat_history_manager import store_message
-from ..service_context import ServiceContext
 from ..contracts import ErrorCode, send_error, send_message
+from ..agent.input_types import ImageSource
+
+if TYPE_CHECKING:
+    from ..service_context import ServiceContext
 
 # Import necessary types from agent outputs
 from ..agent.output_types import SentenceOutput, AudioOutput
@@ -44,6 +49,174 @@ def _embedding_llm(character_config) -> tuple[str, str, str]:
     model = getattr(character_config, "vector_embedding_model", "") or llm.model
     key = getattr(character_config, "vector_embedding_api_key", "") or llm.llm_api_key
     return base, model, key
+
+
+# 用户「明确要求看屏幕」的关键词（Phase 3：命中才附带原始图像）。
+_SCREEN_LOOK_KEYWORDS = (
+    "屏幕",
+    "看下屏幕",
+    "看看屏幕",
+    "看屏幕",
+    "我的屏幕",
+    "我屏幕",
+    "屏幕上",
+    "正在看",
+    "这个页面",
+    "这个窗口",
+    "这里",
+    "这报错",
+    "这个报错",
+    "报错",
+    "看一下",
+    "帮我看看",
+    "你看",
+)
+
+
+def _attach_screen_context(
+    client_uid: str,
+    input_text: str,
+    images,
+    is_proactive: bool,
+) -> tuple[str, object]:
+    """Phase 3：把屏幕上下文作为临时 turn context 注入（不污染长期记忆）。
+
+    - 未开启屏幕感知 / 摘要过期 / 窗口切换 → 原样返回；
+    - 摘要有效 → 以「[屏幕上下文]」一行附加到 LLM 输入（不进聊天历史、
+      不进核心记忆，仅本回合临时可见）；
+    - 用户明确提到屏幕/报错/这里 且最近有效帧带图像 → 附带图像进多模态对话；
+    - 完全 fail-soft：任何异常都按无屏幕上下文处理。
+    """
+    try:
+        from ..screen_awareness.service import get_store
+
+        store = get_store()
+        if not store.is_enabled():
+            return input_text, images
+        if is_proactive:
+            # 主动陪聊场景由 policy hint 注入（Phase 4），这里跳过摘要。
+            return input_text, images
+
+        snap = store.latest_snapshot(client_uid)
+        if snap is None:
+            return input_text, images
+
+        summary = (snap.summary or "").strip()
+        scene = snap.scene or "unknown"
+        parts = []
+        if summary:
+            parts.append(summary)
+        if snap.possible_topic:
+            parts.append(f"话题：{snap.possible_topic}")
+        if not parts:
+            return input_text, images
+        ctx_line = (
+            f"\n[屏幕上下文] 用户当前在{scene}场景，画面摘要：{ '；'.join(parts) }。"
+            "（这是临时屏幕信息，仅本回合参考，不要写进记忆）"
+        )
+
+        # 用户明确要求看屏幕 → 默认只注入文本摘要（上方已附加）。
+        # 可选附带最近有效帧图像：仅当 conf attach_screen_image_to_llm=True
+        # （对话 LLM 支持视觉时，如 gpt-4o/qwen-vl）。修复（2026-08-11）：
+        # 无视觉 LLM（DeepSeek）收到图像会 chat 报错崩溃；摘要由 screen_awareness
+        # 视觉模型（Qwen3-VL）产出，已足够回答「看看屏幕/这里报错」类问题。
+        screen_cfg = store.config()
+        # 屏幕视觉模型和对话模型是两个独立 provider。只有用户同时显式开启
+        # 图片注入并确认当前对话模型支持视觉时，才把原始帧交给对话链路；
+        # 否则只使用已结构化的屏幕摘要，避免文本模型收到 image_url 后整轮失败。
+        if (
+            images is None
+            and screen_cfg.attach_screen_image_to_llm
+            and screen_cfg.chat_model_supports_vision
+        ):
+            low = input_text.lower()
+            if any(k in low for k in _SCREEN_LOOK_KEYWORDS):
+                frame = store.latest_frame(client_uid)
+                if frame is not None and frame.image:
+                    images = [
+                        {
+                            "source": ImageSource.SCREEN.value,
+                            "data": frame.image,
+                            "mime_type": "image/jpeg",
+                        }
+                    ]
+        return input_text + ctx_line, images
+    except Exception:
+        return input_text, images
+
+
+async def _auto_create_history(
+    context: ServiceContext,
+    metadata: Optional[Dict[str, Any]],
+    websocket_send: WebSocketSend,
+    *,
+    input_text: Union[str, np.ndarray],
+) -> Optional[str]:
+    """首次「真人」对话自动创建会话记录（历史持久化）。
+
+    Phase 1（pet-ptt-workflow）：透传 metadata.workspace —— 新会话全部绑定工作目录；
+    metadata 无 workspace（旧行为）时留空，由前端在输入时引导绑定，不静默伪造目录。
+
+    返回新 history_uid；无创建条件 / 失败返回 None（fail-soft）。
+    """
+    from ..chat_history_manager import create_new_history
+
+    _is_proactive_turn = bool(metadata and metadata.get("proactive_speak"))
+    if (
+        _is_proactive_turn
+        or not isinstance(input_text, str)
+        or not input_text.strip()
+        or context.history_uid
+    ):
+        return None
+
+    _ws = ""
+    try:
+        _ws = str(metadata.get("workspace") or "").strip() if metadata else ""
+    except Exception:
+        _ws = ""
+    _hid = create_new_history(context.character_config.conf_uid, workspace=_ws)
+    if not _hid:
+        return None
+    context.history_uid = _hid
+    _ag = context.agent_engine
+    if _ag is not None and hasattr(_ag, "set_memory_from_history"):
+        try:
+            _ag.set_memory_from_history(
+                conf_uid=context.character_config.conf_uid,
+                history_uid=_hid,
+            )
+        except Exception:
+            pass
+    await send_message(
+        websocket_send,
+        {
+            "type": "new-history-created",
+            "history_uid": _hid,
+            # 对话中途自动创建：前端不能清空聊天区，否则刚回显的
+            # user-input-transcription（语音识别文本）会被立即清掉。
+            "auto": True,
+        },
+    )
+    logger.info(f"[history] auto-created session {_hid} on first message")
+    return _hid
+
+
+async def _wait_for_screen_snapshot(client_uid: str, timeout_sec: float = 8.0) -> None:
+    """等待该客户端出现有效屏幕快照（轮询，最多 timeout_sec 秒）。
+
+    场景：语音回合 PTT 结束时前端 fire-and-forget 上传了采集帧，视觉分析
+    （SiliconFlow 约 12s）还在后台跑；ASR 转写完成时快照可能刚过期/尚未
+    生成。命中「看屏幕」关键词时短暂等待，让对话 LLM 拿到新鲜屏幕摘要。
+    """
+    from ..screen_awareness.service import get_store
+
+    store = get_store()
+    deadline = asyncio.get_event_loop().time() + timeout_sec
+    while asyncio.get_event_loop().time() < deadline:
+        if store.latest_snapshot(client_uid) is not None:
+            return
+        await asyncio.sleep(0.5)
 
 
 async def process_single_conversation(
@@ -94,18 +267,82 @@ async def process_single_conversation(
             user_input, context.asr_engine, websocket_send
         )
 
+        # P5.1 意图副模型（fire-and-forget，不阻塞对话）：勿扰/闲聊/任务 + 情绪
+        # → WS 出站 intent-event（前端状态条实时显示）。失败静默（聊天链路不受影响）。
+        if isinstance(input_text, str) and input_text.strip():
+            try:
+                from ..plugin.intent import analyze_intent  # noqa: PLC0415
+                from ..plugin_route import intent_config  # noqa: PLC0415
+
+                _intent_enabled = bool(intent_config().get("enabled", True))
+            except Exception:
+                _intent_enabled = False
+            if _intent_enabled:
+
+                async def _publish_intent(_text: str) -> None:
+                    try:
+                        _r = await analyze_intent(_text)
+                        await send_message(
+                            websocket_send,
+                            {
+                                "type": "intent-event",
+                                "intent": _r.get("intent", "chat"),
+                                "emotion": _r.get("emotion", "neutral"),
+                                "source": _r.get("source", "rule"),
+                                "text": _text[:40],
+                            },
+                        )
+                    except Exception:  # noqa: BLE001 — 副模型失败绝不阻塞对话
+                        pass
+
+                asyncio.create_task(_publish_intent(input_text))
+
+        # Phase 3：屏幕上下文融合（摘要进 LLM 不进历史；仅明确要求时附带图像）。
+        # 修复（2026-08-11）：用户明确问屏幕（关键词命中）但快照尚未就绪时
+        # （语音回合前端 fire-and-forget 采集的分析还在飞），短暂等待新快照——
+        # 否则 AI 拿不到屏幕内容只能「猜/说不知道」。普通对话零等待。
+        _is_proactive_turn = bool(metadata and metadata.get("proactive_speak"))
+        if not _is_proactive_turn and isinstance(input_text, str) and input_text.strip():
+            try:
+                from ..screen_awareness.service import get_store
+
+                _store = get_store()
+                _wants_screen = any(
+                    k in input_text.lower() for k in _SCREEN_LOOK_KEYWORDS
+                )
+                if _wants_screen and _store.latest_snapshot(client_uid) is None:
+                    await _wait_for_screen_snapshot(client_uid, timeout_sec=8.0)
+            except Exception:
+                pass  # fail-soft：等不到也不阻塞对话
+
+        _llm_input, images = _attach_screen_context(
+            client_uid, input_text, images, _is_proactive_turn
+        )
+
         # Create batch input
         batch_input = create_batch_input(
-            input_text=input_text,
+            input_text=_llm_input,
             images=images,
             from_name=context.character_config.human_name,
             metadata=metadata,
         )
 
+        # 首次真人输入必须先创建会话，再写入首条用户消息；否则 history_uid
+        # 为空时 store_message 会静默跳过，首轮消息会永久丢失。
+        try:
+            await _auto_create_history(
+                context, metadata, websocket_send, input_text=input_text
+            )
+        except Exception as _hist_e:
+            logger.warning(f"[history] auto-create failed: {_hist_e}")
+
         # Store user message (check if we should skip storing to history)
         skip_history = metadata and metadata.get("skip_history", False)
         if context.history_uid and not skip_history:
-            store_message(
+            # JSON history persistence is synchronous file I/O. Keep it off the
+            # event loop so the websocket/LLM stream can continue promptly.
+            await asyncio.to_thread(
+                store_message,
                 conf_uid=context.character_config.conf_uid,
                 history_uid=context.history_uid,
                 role="human",
@@ -136,43 +373,65 @@ async def process_single_conversation(
         except Exception as _q_e:
             logger.warning(f"[quiet_mode] toggle failed: {_q_e}")
 
-        # 首次「真人」对话自动创建会话记录（历史持久化）。否则 context.history_uid 为空，
-        # store_message 会跳过、消息不落盘，历史对话栏永远是空的。
-        try:
-            _is_proactive_turn = bool(metadata and metadata.get("proactive_speak"))
-            if (
-                not _is_proactive_turn
-                and isinstance(input_text, str)
-                and input_text.strip()
-                and not context.history_uid
-            ):
-                from ..chat_history_manager import create_new_history
+        # P5 插件钩子 + P2 唱歌触发（替代回复，跳过 LLM）：
+        # - 插件 on_message 返回非 None → 吞掉消息，直接以插件文案回复（含 TTS）；
+        # - 「唱歌+歌名」触发词 → 点歌入队（sing_core 真实歌名校验），回复安排结果。
+        # 任何异常静默回落到正常 LLM 对话（插件烂不拖垮聊天）。
+        _direct_reply: Optional[str] = None
+        if isinstance(input_text, str) and input_text.strip():
+            try:
+                from ..plugin.manager import get_plugin_manager  # noqa: PLC0415
 
-                _hid = create_new_history(context.character_config.conf_uid)
-                if _hid:
-                    context.history_uid = _hid
-                    _ag = context.agent_engine
-                    if _ag is not None and hasattr(_ag, "set_memory_from_history"):
-                        try:
-                            _ag.set_memory_from_history(
-                                conf_uid=context.character_config.conf_uid,
-                                history_uid=_hid,
-                            )
-                        except Exception:
-                            pass
-                    await send_message(
-                        websocket_send,
-                        {
-                            "type": "new-history-created",
-                            "history_uid": _hid,
-                            # 对话中途自动创建：前端不能清空聊天区，否则刚回显的
-                            # user-input-transcription（语音识别文本）会被立即清掉。
-                            "auto": True,
-                        },
+                _plug_reply = get_plugin_manager().on_message(
+                    {"text": input_text, "source": "user", "ts": time.time()}
+                )
+                if _plug_reply:
+                    _direct_reply = str(_plug_reply)
+            except Exception as _plug_e:
+                logger.warning(f"[plugin] on_message 分发失败: {_plug_e}")
+            if _direct_reply is None:
+                try:
+                    from ..singing.sing_core import (  # noqa: PLC0415
+                        extract_sing_request,
+                        get_sing_core,
                     )
-                    logger.info(f"[history] auto-created session {_hid} on first message")
-        except Exception as _hist_e:
-            logger.warning(f"[history] auto-create failed: {_hist_e}")
+
+                    if extract_sing_request(input_text):
+                        _core = await get_sing_core()
+                        _req = await _core.request(input_text)
+                        if _req.get("ok"):
+                            _direct_reply = (
+                                f"好呀，这就安排唱《{_req.get('songname')}》！"
+                            )
+                        else:
+                            _direct_reply = _req.get("reason") or "这首歌暂时点不了呢"
+                except Exception as _sing_e:
+                    logger.warning(f"[singing] 对话触发失败: {_sing_e}")
+        if _direct_reply:
+            try:
+                await send_message(
+                    websocket_send, {"type": "full-text", "text": _direct_reply}
+                )
+                await tts_manager.speak(_direct_reply)
+                await tts_manager.flush()
+                await finalize_conversation_turn(
+                    tts_manager=tts_manager,
+                    websocket_send=websocket_send,
+                    client_uid=client_uid,
+                )
+                if context.history_uid:
+                    await asyncio.to_thread(
+                        store_message,
+                        conf_uid=context.character_config.conf_uid,
+                        history_uid=context.history_uid,
+                        role="ai",
+                        content=_direct_reply,
+                        name=context.character_config.conf_name,
+                        avatar=context.character_config.avatar,
+                    )
+            except Exception as _dr_e:
+                logger.warning(f"[direct-reply] 发送失败: {_dr_e}")
+            return _direct_reply
 
         # 對話前刷新核心記憶到 system prompt（phase 1.5）：
         # agent_engine 在 server 開機時烤死 system prompt、新連線只 pass by reference 不重讀，
@@ -262,7 +521,10 @@ async def process_single_conversation(
                             embed_texts(
                                 [input_text], _emb_base, _emb_model, _emb_key
                             ),
-                            timeout=0.35,
+                            # Vector memory is an enhancement, not a reason to
+                            # hold the first model token. FTS/memory-v2 remain
+                            # available when a remote embedding endpoint is slow.
+                            timeout=0.2,
                         )
                         if _embs and _embs[0]:
                             vec_snippets = search(
@@ -331,39 +593,19 @@ async def process_single_conversation(
                     and output_item.get("type") == "tool_call_status"
                 ):
                     # Handle tool status event: send WebSocket message
-                    output_item["name"] = context.character_config.character_name
+                    output_item["name"] = context.character_config.conf_name
                     logger.debug(f"Sending tool status update: {output_item}")
 
-                    await websocket_send(json.dumps(output_item))
+                    await send_message(websocket_send, output_item)
 
                 elif (
                     isinstance(output_item, dict)
                     and output_item.get("type") == "task_result"
                 ):
-                    # 2026-08-09 修复：delegate 任务的完整结果直达聊天区。
-                    # 推送给前端（task-result 消息 → AI 气泡显示完整清单/表格），
-                    # 并累加进 full_response（会话历史落库），不等 LLM 逐句复述。
-                    # 2026-08-10：仅成功结果直达；失败由 LLM 口语转述（错误不再
-                    # 以「任务结果」形式展示，避免 HTTP 502 等技术细节外泄）。
-                    status = str(output_item.get("status") or "completed")
-                    task_result = str(output_item.get("content") or "").strip()
-                    if task_result and status in ("completed", "success", ""):
-                        char_name = (
-                            context.character_config.character_name
-                            or context.character_config.conf_name
-                            or ""
-                        )
-                        await websocket_send(
-                            json.dumps(
-                                {
-                                    "type": "task-result",
-                                    "text": f"【任务结果】\n{task_result}",
-                                    "name": char_name,
-                                    "avatar": context.character_config.avatar,
-                                }
-                            )
-                        )
-                        full_response += f"\n\n【任务结果】\n{task_result}"
+                    # The task card/state stream is the single UI surface for
+                    # structured task output. Do not duplicate it as a chat
+                    # bubble or persist the internal result in chat history.
+                    continue
 
                 elif isinstance(output_item, (SentenceOutput, AudioOutput)):
                     # Handle SentenceOutput or AudioOutput
@@ -419,13 +661,13 @@ async def process_single_conversation(
             await send_message(websocket_send, {"type": "tool_call_status", "text": ""})
 
         if context.history_uid and full_response:  # Check full_response before storing
-            store_message(
+            await asyncio.to_thread(
+                store_message,
                 conf_uid=context.character_config.conf_uid,
                 history_uid=context.history_uid,
                 role="ai",
                 content=full_response,
-                name=context.character_config.character_name
-                or context.character_config.conf_name,
+                name=context.character_config.conf_name,
                 avatar=context.character_config.avatar,
             )
             logger.info(f"AI response: {full_response}")

@@ -41,6 +41,30 @@ async def handle_conversation_trigger(
             logger.info("[quiet_mode] proactive speak suppressed（晚安~早安之間）")
             return
 
+        # Phase 4：屏幕感知驱动的主动决策（ProactivePolicy 替换纯空闲触发）。
+        # 命中「值得提醒/适合轻聊」时注入 hint 指导角色发言；silence 则放弃本轮。
+        proactive_hint = ""
+        try:
+            from ..screen_awareness.service import get_store
+            from ..screen_awareness.policy import decide_proactive_for
+
+            _store = get_store()
+            if _store.is_enabled():
+                # user_busy：本客户端已有对话任务在跑 → 不打扰。
+                _task = current_conversation_tasks.get(client_uid)
+                _busy = bool(_task and not _task.done())
+                _decision = decide_proactive_for(
+                    client_uid, user_busy=_busy
+                )
+                if _decision.kind == "silence":
+                    logger.info(
+                        f"[screen_awareness] proactive suppressed: {_decision.reason}"
+                    )
+                    return
+                proactive_hint = _decision.hint
+        except Exception as _sc_e:
+            logger.debug(f"[screen_awareness] proactive decision failed: {_sc_e}")
+
         try:
             # Get proactive speak prompt from config
             prompt_name = "proactive_speak_prompt"
@@ -53,6 +77,14 @@ async def handle_conversation_trigger(
         except Exception as e:
             logger.error(f"Error loading proactive speak prompt: {e}")
             user_input = "Please say something."
+
+        if proactive_hint:
+            user_input = (
+                f"{proactive_hint}\n"
+                "（以上是屏幕上下文提示，据此主动搭话；保持角色设定，简短自然，"
+                "不要提到这段指令本身）\n"
+                f"{user_input}"
+            )
 
         # Add metadata to indicate this is a proactive speak request
         # that should be skipped in both memory and history
@@ -94,6 +126,15 @@ async def handle_conversation_trigger(
         received_data_buffers[client_uid] = []
 
     images = data.get("images")
+
+    # Phase 1（pet-ptt-workflow）：会话与工作目录贯通 —— text-input / mic-audio-end
+    # 可携带可选 workspace（前端从当前会话 metadata 解析），透传给 auto-create 落盘。
+    # ai-speak-signal 的 metadata 已在上面设置，这里不覆盖。
+    if metadata is None and msg_type in ("text-input", "mic-audio-end"):
+        _ws = (data.get("workspace") or "").strip()
+        if _ws:
+            metadata = {"workspace": _ws}
+
     session_emoji = np.random.choice(EMOJI_LIST)
 
     group = chat_group_manager.get_client_group(client_uid)
@@ -121,6 +162,12 @@ async def handle_conversation_trigger(
             )
     else:
         # Use client_uid as task key for individual conversations
+        existing_task = current_conversation_tasks.get(client_uid)
+        if existing_task and not existing_task.done():
+            logger.warning(
+                f"Ignoring overlapping conversation trigger for {client_uid}"
+            )
+            return
         current_conversation_tasks[client_uid] = asyncio.create_task(
             process_single_conversation(
                 context=context,
@@ -157,8 +204,7 @@ async def handle_individual_interrupt(
                 history_uid=context.history_uid,
                 role="ai",
                 content=heard_response,
-                name=context.character_config.character_name
-                or context.character_config.conf_name,
+                name=context.character_config.conf_name,
                 avatar=context.character_config.avatar,
             )
             store_message(
@@ -218,7 +264,7 @@ async def handle_group_interrupt(
                         history_uid=member_ctx.history_uid,
                         role="ai",
                         content=heard_response,
-                        name=context.character_config.character_name,
+                        name=context.character_config.conf_name,
                         avatar=context.character_config.avatar,
                     )
                     store_message(

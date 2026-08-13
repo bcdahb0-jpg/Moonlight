@@ -102,4 +102,11 @@ def init_emotion_route() -> APIRouter:
             "recent": get_emotion_tracker().recent_events(10),
         }
 
+    @router.get("/api/emotion/state-machine")
+    async def emotion_state_machine(request: Request, uid: str = ""):
+        """情感状态机视图（emotion-machine 卡片）：状态集 + 当前会话情绪 + 衰减配置。"""
+        if not _is_local_request(request):
+            return _forbidden()
+        return get_emotion_tracker().state_machine(uid or None)
+
     return router

@@ -19,9 +19,31 @@ export interface CapturedWindow {
   app: string;
 }
 
+export interface CapturedWindowV2 {
+  ok: boolean;
+  /** blocked=true 表示隐私规则命中（0 张图像离开本机）。 */
+  blocked?: boolean;
+  reason?: string;
+  error?: string;
+  base64?: string;
+  title?: string;
+  app?: string;
+  pid?: number;
+  width?: number;
+  height?: number;
+  /** 截图源类型：window（前台窗口）| screen（全屏 fallback）。 */
+  sourceType?: 'window' | 'screen';
+  matchedBy?: string;
+}
+
 export interface MoonlightAPI {
   /** Capture the currently active window (fallback: full screen) as a data URL. */
   captureActiveWindow(): Promise<CapturedWindow>;
+  /**
+   * Capture the active window matched by foreground PID/title (Phase 1):
+   * main-process resize + JPEG encode + privacy pre-check.
+   */
+  captureActiveWindowV2(opts?: { maxSide?: number; quality?: number }): Promise<CapturedWindowV2>;
   /** Get the title + app of the foreground window. */
   getActiveWindow(): Promise<ActiveWindowInfo>;
   /** Seconds since the user last pressed a key / moved the mouse. */
@@ -56,13 +78,18 @@ export interface MoonlightAPI {
   onScreenAwareness(callback: (info: ScreenAwarenessInfo) => void): () => void;
   /** v5：原生目录选择对话框（取消返回 null）。 */
   selectDirectory(): Promise<string | null>;
+  /** Phase 1（pet-ptt-workflow）：默认工作目录（用户主目录），桌宠自动建会话用。 */
+  getDefaultWorkspace(): Promise<string>;
 }
 
 const api: MoonlightAPI = {
   captureActiveWindow: () => ipcRenderer.invoke('screen:capture-active-window'),
+  captureActiveWindowV2: (opts?: { maxSide?: number; quality?: number }) =>
+    ipcRenderer.invoke('screen:capture-active-window-v2', opts),
   getActiveWindow: () => ipcRenderer.invoke('screen:get-active-window'),
   getIdleTime: () => ipcRenderer.invoke('screen:get-idle-time'),
   selectDirectory: () => ipcRenderer.invoke('dialog:select-directory'),
+  getDefaultWorkspace: () => ipcRenderer.invoke('workspace:get-default'),
   toggleAlwaysOnTop: () => ipcRenderer.invoke('win:toggle-always-on-top'),
   showWindow: () => ipcRenderer.invoke('win:show'),
   hideWindow: () => ipcRenderer.invoke('win:hide'),

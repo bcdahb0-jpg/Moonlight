@@ -10,7 +10,7 @@
  *    PUT /api/config 以 JSON Merge Patch 落盘；失败静默（下次变更重试）。
  * 3. 后端热重载成功后广播 config-updated（前端当前 no-op），不会造成同步回环。
  */
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppState } from '@/state/AppStateContext';
 import { configApi } from '@/api/rest';
 import type { LocalSettings } from '@/state/types';/** LocalSettings → 后端 UiPrefs（config_manager/system.py）的字段映射。 */
@@ -23,9 +23,19 @@ const UI_PREFS_MAP: Array<[keyof LocalSettings, string]> = [
   // UX 修复（2026-08-10）：与后端 UiPrefs 新增字段保持同步
   ['proactivePetModeOnly', 'proactive_pet_mode_only'],
   ['subtitleEnabled', 'subtitle_enabled'],
+  // Phase 2（pet-ptt-workflow）：定时屏幕巡检间隔
+  ['screenProactiveIntervalSec', 'screen_proactive_interval_sec'],
 ];
 
 const SYNC_DEBOUNCE_MS = 600;
+
+export type SettingsSyncStatus = 'clean' | 'dirty' | 'saving' | 'saved' | 'error';
+
+export interface SettingsSyncState {
+  status: SettingsSyncStatus;
+  error: string | null;
+  retry: () => void;
+}
 
 function pickUiPrefs(settings: LocalSettings): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -33,10 +43,15 @@ function pickUiPrefs(settings: LocalSettings): Record<string, unknown> {
   return out;
 }
 
-export function useSettingsSync(): void {
+export function useSettingsSync(): SettingsSyncState {
   const { state, dispatch } = useAppState();
   const timerRef = useRef<number | null>(null);
   const stateRef = useRef(state);
+  const firstSettingsEffectRef = useRef(true);
+  const ignoreNextSettingsEffectRef = useRef(false);
+  const [status, setStatus] = useState<SettingsSyncStatus>('clean');
+  const [error, setError] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
   stateRef.current = state;
 
   // 1) 启动拉取：服务端 ui_prefs 覆盖本地（迁移旧 localStorage 值）。
@@ -58,9 +73,14 @@ export function useSettingsSync(): void {
           autoSpeakOnIdle: prefs.auto_speak_on_idle ?? cur.autoSpeakOnIdle,
           proactivePetModeOnly: prefs.proactive_pet_mode_only ?? cur.proactivePetModeOnly,
           subtitleEnabled: prefs.subtitle_enabled ?? cur.subtitleEnabled,
+          screenProactiveIntervalSec:
+            prefs.screen_proactive_interval_sec ?? cur.screenProactiveIntervalSec,
         };
         const changed = UI_PREFS_MAP.some(([localKey]) => next[localKey] !== cur[localKey]);
-        if (changed) dispatch({ type: 'UPDATE_SETTINGS', settings: next });
+        if (changed) {
+          ignoreNextSettingsEffectRef.current = true;
+          dispatch({ type: 'UPDATE_SETTINGS', settings: next });
+        }
       })
       .catch(() => {
         // 后端未启动/不可达：沿用本地默认，下次启动再同步。
@@ -72,17 +92,40 @@ export function useSettingsSync(): void {
   }, []);
 
   // 2) 变更防抖落盘。
+  const retry = useCallback(() => {
+    setStatus('dirty');
+    setError(null);
+    setRetryNonce((value) => value + 1);
+  }, []);
+
   useEffect(() => {
+    if (firstSettingsEffectRef.current) {
+      firstSettingsEffectRef.current = false;
+      return;
+    }
+    if (ignoreNextSettingsEffectRef.current) {
+      ignoreNextSettingsEffectRef.current = false;
+      setStatus('clean');
+      return;
+    }
     const patch = pickUiPrefs(state.settings);
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    setStatus('dirty');
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;
-      void configApi.update({ system_config: { ui_prefs: patch } }).catch(() => {
-        // 落盘失败静默：后端不可达或校验拒绝；保留本地态，下次变更重试。
+      setStatus('saving');
+      setError(null);
+      void configApi.update({ system_config: { ui_prefs: patch } }).then(() => {
+        setStatus('saved');
+      }).catch((err: unknown) => {
+        setStatus('error');
+        setError(err instanceof Error ? err.message : '设置保存失败，请重试');
       });
     }, SYNC_DEBOUNCE_MS);
     return () => {
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     };
-  }, [state.settings, dispatch]);
+  }, [state.settings, dispatch, retryNonce]);
+
+  return { status, error, retry };
 }

@@ -23,6 +23,11 @@ import { SettingStatus } from './SettingStatus';
 
 type TabKey = 'asr' | 'tts';
 
+export interface PerfSettingsProps {
+  initialTab?: TabKey;
+  showTabs?: boolean;
+}
+
 const KIND_LABELS: Record<string, string> = {
   cloud: '云端 API',
   local: '本地模型',
@@ -35,8 +40,8 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : '发生未知错误';
 }
 
-export function PerfSettings(): ReactElement {
-  const [tab, setTab] = useState<TabKey>('tts');
+export function PerfSettings({ initialTab = 'tts', showTabs = true }: PerfSettingsProps): ReactElement {
+  const [tab, setTab] = useState<TabKey>(initialTab);
   const [perf, setPerf] = useState<PerfResult | null>(null);
   const [engines, setEngines] = useState<EnginesResult | null>(null);
   const [expanded, setExpanded] = useState('');
@@ -48,6 +53,10 @@ export function PerfSettings(): ReactElement {
   const [status, setStatus] = useState('');
   /** 引擎库只显示已配置可用的引擎（默认开；关闭可看到全部引擎用于配置）。 */
   const [onlyReady, setOnlyReady] = useState(true);
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
 
   /** VOICEVOX 引擎手动启动命令（PowerShell / CMD 均可；cmd 中不要加 ./ 前缀）。 */
   const VOICEVOX_START_CMD =
@@ -195,7 +204,6 @@ export function PerfSettings(): ReactElement {
   const list: EngineInfo[] | undefined = allList?.filter((e) => !onlyReady || e.configured);
   const currentKey = tab === 'tts' ? perf?.tts_model : perf?.asr_model;
   const current = list?.find((e) => e.key === currentKey);
-  const currentVoice = tab === 'tts' ? perf?.tts_voice : undefined;
 
   const engineLabel = (key: string, scope: TabKey): string => {
     const l = scope === 'tts' ? engines?.tts : engines?.asr;
@@ -213,8 +221,8 @@ export function PerfSettings(): ReactElement {
   // 渲染
   // ------------------------------------------------------------------ //
   return (
-    <div className="settings-section engine-settings">
-      <div className="engine-settings-head">
+    <div className="settings-section engine-settings" data-setting-key="setting-tts-engine">
+      {showTabs && <div className="engine-settings-head">
         <div className="engine-tabs" role="tablist">
           <button
             className={`engine-tab ${tab === 'asr' ? 'active' : ''}`}
@@ -235,10 +243,7 @@ export function PerfSettings(): ReactElement {
             语音合成
           </button>
         </div>
-        <span className="engine-settings-sub">
-          {tab === 'asr' ? '把你说的话转成文字' : '把回复念给你听'}
-        </span>
-      </div>
+      </div>}
 
       {/* 当前引擎面板 */}
       <div className={`engine-current ${current?.configured ? 'ready' : ''}`}>
@@ -252,10 +257,6 @@ export function PerfSettings(): ReactElement {
               ) : (
                 <span className="engine-badge warn">未配置</span>
               )}
-            </div>
-            <div className="engine-current-desc">
-              {current?.desc ?? '从下方引擎库选择一个引擎'}
-              {currentVoice ? ` · 音色 ${currentVoice}` : ''}
             </div>
           </div>
         </div>
@@ -303,7 +304,6 @@ export function PerfSettings(): ReactElement {
                   <span className="engine-card-title">{e.zh}</span>
                   <span className="engine-card-kind">{KIND_LABELS[e.kind] ?? e.kind}</span>
                 </div>
-                <div className="engine-card-desc">{e.desc}</div>
               </div>
               <button
                 className={`engine-card-btn ${expanded === e.key ? 'active' : ''}`}
@@ -315,12 +315,6 @@ export function PerfSettings(): ReactElement {
                 {expanded === e.key ? '收起' : e.configured ? '详情' : '配置'}
               </button>
             </div>
-            {!e.configured && (
-              <div className="engine-card-reason">
-                <span className="engine-reason-dot" />
-                {e.reason}
-              </div>
-            )}
             {expanded === e.key && (
               e.key === 'voicevox_tts' ? (
                 /* VOICEVOX 特殊卡：展开后是本地引擎管理（下载/启动/停止），并入引擎库 */
@@ -336,17 +330,6 @@ export function PerfSettings(): ReactElement {
                             : vv?.state === 'failed'
                               ? '下载失败'
                               : '未安装'}
-                    </span>
-                    <span className="voicevox-state-text">
-                      {vv?.running
-                        ? '引擎运行于 127.0.0.1:50021（日语语音，含萝莉音）'
-                        : vv?.state === 'downloading'
-                          ? `${vv.phase === 'downloading' ? `正在下载 ${vv.progress}%` : vv.phase}${vv.size_mb ? `（约 ${vv.size_mb} MB）` : ''}，下载完成后请点击启动`
-                          : vv?.state === 'downloaded'
-                            ? '引擎已就绪，点击「启动引擎」即可在角色卡中使用'
-                            : vv?.state === 'failed'
-                              ? `下载失败：${String(vv.phase ?? '').replace(/^failed:\s*/, '')}（可重试或换镜像）`
-                              : '下载约 1.7 GB 到 backend/vendor/voicevox_engine/，支持直连或镜像加速'}
                     </span>
                   </div>
                   {vv?.state === 'downloading' && (

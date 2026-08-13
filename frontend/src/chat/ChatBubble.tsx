@@ -1,6 +1,5 @@
-import type { ReactElement } from 'react';
+import { memo, type ReactElement } from 'react';
 import type { ChatMessage } from '@/state/types';
-import { useAppState } from '@/state/AppStateContext';
 import { useTypewriter } from './useTypewriter';
 import { Icon } from '@/ui/icons';
 import { Markdown } from '@/components/Markdown';
@@ -10,15 +9,15 @@ export interface ChatBubbleProps {
   message: ChatMessage;
   /** 气泡「再次播放」回调（2026-08-10）：消息带语音数据时显示重播按钮。 */
   onReplayAudio?: (message: ChatMessage) => void;
+  subtitleEnabled?: boolean;
 }
 
-export function ChatBubble({ message, onReplayAudio }: ChatBubbleProps): ReactElement {
+export const ChatBubble = memo(function ChatBubble({ message, onReplayAudio, subtitleEnabled = false }: ChatBubbleProps): ReactElement {
   const isUser = message.role === 'user';
   const isStreaming = message.streaming ?? false;
   // UX 修复（2026-08-10）：双语气泡开关必须是前端渲染闸门——消息里带了
   // subtitle 不等于要显示，开关关掉就一律不渲染（修复"有些有有些没有"）。
-  const { state } = useAppState();
-  const showSubtitle = state.settings.subtitleEnabled;
+  const showSubtitle = subtitleEnabled;
   const { visible, done } = useTypewriter(isStreaming ? message.text : '', { speedMs: 14 });
 
   // 2026-08-10：任务简报 → 折叠卡片渲染，不占用普通气泡的语音/字幕/打字机链路。
@@ -88,4 +87,4 @@ export function ChatBubble({ message, onReplayAudio }: ChatBubbleProps): ReactEl
       )}
     </div>
   );
-}
+});

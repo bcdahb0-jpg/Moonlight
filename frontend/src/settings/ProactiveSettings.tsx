@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactElement } from 'react';
 import { topicsApi, ApiError, type ProactiveTopicsResult } from '@/api/rest';
 import { useAppState } from '@/state/AppStateContext';
 import { Icon } from '@/ui/icons';
+import { SettingsActionBar, SettingsGroup, SettingsMetricStrip, SettingsRow } from './SettingsConsole';
 
 export function ProactiveSettings(): ReactElement {
   const { state, dispatch } = useAppState();
@@ -60,28 +61,26 @@ export function ProactiveSettings(): ReactElement {
   };
 
   return (
-    <div className="settings-section general-settings">
-      {/* 主动对话开关（原「屏幕感知」页移入） */}
-      <section className="settings-card">
-        <div className="settings-card-head">
-          <span className="settings-card-icon">
-            <Icon name="zap" size={16} />
-          </span>
-          <div className="settings-card-title">
-            <h3>主动对话</h3>
-          </div>
-        </div>
-        <div className="settings-card-body">
-          <label className="toggle-row">
-            <span>启用主动对话</span>
+    <div className="settings-section settings-console-root settings-proactive-console">
+      <SettingsMetricStrip
+        metrics={[
+          { label: '主动陪伴', value: state.settings.proactiveEnabled ? '已启用' : '已停用', tone: state.settings.proactiveEnabled ? 'ok' : 'neutral' },
+          { label: '空闲触发', value: `${state.settings.proactiveIdleSec} 秒` },
+          { label: '屏幕巡检', value: state.settings.screenProactiveIntervalSec > 0 ? `${state.settings.screenProactiveIntervalSec} 秒` : '已关闭' },
+          { label: '话题数量', value: data ? `${data.topics.length} 个` : '加载中' },
+        ]}
+      />
+
+      <SettingsGroup title="主动对话" description="允许 Moonlight 在空闲时主动发起交流" className="console-group-primary">
+        <SettingsRow label="启用主动对话" description="控制空闲搭话能力">
             <input
+              className="switch"
               type="checkbox"
               checked={state.settings.proactiveEnabled}
               onChange={(e) => updateSetting({ proactiveEnabled: e.target.checked })}
             />
-          </label>
-          <label className="field">
-            <span>空闲触发（秒）</span>
+        </SettingsRow>
+        <SettingsRow label="空闲触发（秒）" description="无交互达到此时长后允许搭话">
             <input
               type="number"
               min={5}
@@ -89,39 +88,49 @@ export function ProactiveSettings(): ReactElement {
               value={state.settings.proactiveIdleSec}
               onChange={(e) => updateSetting({ proactiveIdleSec: Math.max(5, Number(e.target.value)) })}
             />
-          </label>
-          <label className="toggle-row">
-            <span>自动发送话题</span>
+        </SettingsRow>
+        <SettingsRow label="自动发送话题" description="让角色主动选择话题并发送">
             <input
+              className="switch"
               type="checkbox"
               checked={state.settings.autoSpeakOnIdle}
               onChange={(e) => updateSetting({ autoSpeakOnIdle: e.target.checked })}
             />
-          </label>
-          <label className="toggle-row">
-            <span>仅桌宠模式触发</span>
+        </SettingsRow>
+        <SettingsRow label="仅桌宠模式触发" description="窗口模式中不打扰任务或输入流程">
             <input
+              className="switch"
               type="checkbox"
               checked={state.settings.proactivePetModeOnly}
               onChange={(e) => updateSetting({ proactivePetModeOnly: e.target.checked })}
             />
-          </label>
-          <div className="field-note">
-            开启后，主动找话题只在桌宠模式触发；窗口模式（等待任务/思考输入）不会被打扰。
-          </div>
-        </div>
-      </section>
+        </SettingsRow>
+      </SettingsGroup>
 
-      <section className="settings-card">
-        <div className="settings-card-head">
-          <span className="settings-card-icon">
-            <Icon name="message" size={16} />
-          </span>
-          <div className="settings-card-title">
-            <h3>主动话题</h3>
-          </div>
-        </div>
-        <div className="settings-card-body">
+      {/* Phase 2（pet-ptt-workflow）：定时屏幕巡检 —— 与「空闲主动」相互独立，
+          避免用户误以为同一开关控制两种触发。 */}
+      <SettingsGroup title="定时屏幕巡检" description="只在发现新内容时触发策略判断；静态画面、沉浸场景或忙碌时保持安静">
+        <SettingsRow label="巡检间隔（秒）" description="0 表示关闭；建议同时开启屏幕感知" settingKey="setting-proactive-scan">
+            <input
+              type="number"
+              min={0}
+              max={3600}
+              step={60}
+              value={state.settings.screenProactiveIntervalSec}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                updateSetting({
+                  screenProactiveIntervalSec: Number.isFinite(v)
+                    ? Math.min(3600, Math.max(0, v))
+                    : 0,
+                });
+              }}
+              />
+        </SettingsRow>
+      </SettingsGroup>
+
+      <SettingsGroup title="主动话题" description="管理角色主动搭话时使用的主题" count={data ? `${data.topics.length} 个` : undefined}>
+        <div data-setting-key="setting-proactive-topics">
           {data ? (
             <>
               <div className="topic-chips">
@@ -134,7 +143,7 @@ export function ProactiveSettings(): ReactElement {
                   </span>
                 ))}
               </div>
-              <div className="btn-row">
+              <SettingsActionBar>
                 <input
                   className="topic-input"
                   value={newTopic}
@@ -146,7 +155,7 @@ export function ProactiveSettings(): ReactElement {
                   <Icon name="plus" size={13} />
                   添加
                 </button>
-              </div>
+              </SettingsActionBar>
               {data.suggestions.length > 0 && (
                 <div className="suggestions">
                   {data.suggestions.map((s) => (
@@ -161,30 +170,20 @@ export function ProactiveSettings(): ReactElement {
             <div className="empty-state">加载中…</div>
           )}
         </div>
-      </section>
+      </SettingsGroup>
 
-      <section className="settings-card">
-        <div className="settings-card-head">
-          <span className="settings-card-icon">
-            <Icon name="wifi" size={16} />
-          </span>
-          <div className="settings-card-title">
-            <h3>新闻来源</h3>
-          </div>
-        </div>
-        <div className="settings-card-body">
+      <SettingsGroup title="新闻来源" description="自动拉取新闻，为主动话题提供补充内容">
           {data && (
             <>
-              <label className="toggle-row">
-                <span>启用 Google News 自动拉取</span>
+              <SettingsRow label="启用 Google News" description="定期拉取新闻并加入话题候选">
                 <input
+                  className="switch"
                   type="checkbox"
                   checked={data.news.enabled}
                   onChange={(e) => void save({ news: { enabled: e.target.checked } })}
                 />
-              </label>
-              <label className="field">
-                <span>刷新间隔（小时）</span>
+              </SettingsRow>
+              <SettingsRow label="刷新间隔（小时）" description="新闻源自动更新频率">
                 <input
                   type="number"
                   min={1}
@@ -194,17 +193,16 @@ export function ProactiveSettings(): ReactElement {
                     void save({ news: { interval_hours: Number(e.target.value) } })
                   }
                 />
-              </label>
-              <div className="btn-row">
+              </SettingsRow>
+              <SettingsActionBar>
                 <button className="btn" onClick={() => void refreshNow()}>
                   <Icon name="refresh" size={13} />
                   立即刷新
                 </button>
-              </div>
+              </SettingsActionBar>
             </>
           )}
-        </div>
-      </section>
+      </SettingsGroup>
 
       {status && <div className="setting-status">{status}</div>}
     </div>

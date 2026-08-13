@@ -38,9 +38,12 @@ class TestMessageRegistry(unittest.TestCase):
             "history-deleted", "history-list", "history-title-updated",
             "new-history-created",
             "set-model-and-conf", "transcript", "user-input-transcription",
+            "history-workspace-updated", "histories-cleared", "config-switched",
             # v6.1：聊天 agent 工具状态与 delegate 任务结果（single_conversation 发送，
             # 走 contracts 校验；此前缺类型导致 send_message 抛 unknown type → PROTOCOL_ERROR）。
             "tool_call_status", "task-result",
+            # screen_awareness（Phase 0）：屏幕状态推送与上下文就绪通知。
+            "screen-status", "screen-context",
         }
         self.assertEqual(set(_MESSAGE_MODELS.keys()), expected)
 
@@ -64,6 +67,31 @@ class TestMessageRegistry(unittest.TestCase):
         self.assertEqual(m.model_dump()["text"], "【任务结果】\nok")
         with self.assertRaises(Exception):
             build_server_message({"type": "tool_call_status"})  # 缺 text
+
+    def test_chat_history_and_config_events_build(self):
+        self.assertEqual(
+            build_server_message(
+                {
+                    "type": "history-workspace-updated",
+                    "success": True,
+                    "history_uid": "h1",
+                    "workspace": "C:\\work",
+                }
+            ).model_dump()["type"],
+            "history-workspace-updated",
+        )
+        self.assertEqual(
+            build_server_message({"type": "histories-cleared", "removed": 2}).model_dump()[
+                "removed"
+            ],
+            2,
+        )
+        self.assertEqual(
+            build_server_message(
+                {"type": "config-switched", "message": "ok"}
+            ).model_dump()["type"],
+            "config-switched",
+        )
 
     def test_invalid_messages_rejected(self):
         with self.assertRaises(Exception):

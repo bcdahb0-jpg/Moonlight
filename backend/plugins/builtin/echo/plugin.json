@@ -1,0 +1,9 @@
+{
+  "name": "echo",
+  "title": "Echo 示例插件",
+  "version": "0.1.0",
+  "author": "Moonlight",
+  "description": "最小示例插件：消息以「echo: 」开头时吞掉并原样返回。演示 plugin.json + on_load/on_message 钩子契约。",
+  "hooks": ["on_load", "on_unload", "on_message"],
+  "entry": "main.py"
+}

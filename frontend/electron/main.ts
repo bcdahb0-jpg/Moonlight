@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, screen, desktopCapturer, nativeImage, powerMonitor, dialog } from 'electron';
 import * as path from 'node:path';
 import { getActiveWindow } from './active-window';
+import { privacyBlock } from './screen-privacy';
 
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 
@@ -203,6 +204,91 @@ function registerIpcHandlers(): void {
     return info ?? { title: '', app: '', pid: 0 };
   });
 
+  // screen_awareness Phase 1：按前台 PID/标题匹配截图源（不再取第一个窗口）。
+  // 主进程完成缩放 + JPEG 编码，避免大 Base64 进入 renderer；隐私前置阻断。
+  ipcMain.handle(
+    'screen:capture-active-window-v2',
+    async (_event, opts?: { maxSide?: number; quality?: number }) => {
+      const maxSide = Math.max(320, Math.min(2560, opts?.maxSide ?? 1280));
+      const quality = Math.max(50, Math.min(92, opts?.quality ?? 78));
+      try {
+        const info = await getActiveWindow();
+        if (!info || (!info.title && !info.app)) {
+          return { ok: false, error: 'no_active_window' };
+        }
+        // ① 隐私前置阻断（主进程第一道闸；后端收到帧还会二次校验）。
+        const block = privacyBlock(info.title, info.app);
+        if (block) {
+          return { ok: false, blocked: true, reason: block, title: info.title, app: info.app };
+        }
+
+        const big = { width: 2560, height: 1440 };
+        // ② 按 PID 匹配（source.id 形如 "window:<pid>:<hwnd>"），失败再按标题匹配。
+        let source: Electron.DesktopCapturerSource | undefined;
+        let matchedBy = '';
+        const pidStr = String(info.pid);
+        const windowSources = await desktopCapturer.getSources({
+          types: ['window'],
+          thumbnailSize: big,
+        });
+        if (info.pid) {
+          source = windowSources.find(
+            (s) => s.id.startsWith('window:') && s.id.split(':')[1] === pidStr,
+          );
+          if (source) matchedBy = 'pid';
+        }
+        if (!source && info.title) {
+          const titleLower = info.title.toLowerCase();
+          source = windowSources.find(
+            (s) => s.name.toLowerCase() === titleLower || (titleLower && s.name.toLowerCase().includes(titleLower)),
+          );
+          if (source) matchedBy = 'title';
+        }
+        // ③ 前台窗口不可截（UWP/最小化等）→ 明确失败，不扩大截图范围。
+        if (!source) {
+          return {
+            ok: false,
+            error: 'active_window_not_capturable',
+            title: info.title,
+            app: info.app,
+            pid: info.pid,
+          };
+        }
+        const img = source.thumbnail;
+        if (!img || img.isEmpty()) return { ok: false, error: 'empty_thumbnail' };
+
+        // ④ 长边缩放到视觉模型友好尺寸（保持纵横比）。
+        const { width: w, height: h } = img.getSize();
+        let resized = img;
+        const longest = Math.max(w, h);
+        if (longest > maxSide) {
+          const scale = maxSide / longest;
+          resized = img.resize({
+            width: Math.max(1, Math.round(w * scale)),
+            height: Math.max(1, Math.round(h * scale)),
+            quality: 'good',
+          });
+        }
+        const jpeg = resized.toJPEG(quality);
+        return {
+          ok: true,
+          base64: `data:image/jpeg;base64,${jpeg.toString('base64')}`,
+          title: info.title,
+          app: info.app,
+          pid: info.pid,
+          width: resized.getSize().width,
+          height: resized.getSize().height,
+          sourceType: 'window',
+          matchedBy,
+        };
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('[screen] capture-v2 failed:', err);
+        return { ok: false, error: 'capture_failed' };
+      }
+    },
+  );
+
   ipcMain.handle('screen:get-idle-time', () => powerMonitor.getSystemIdleTime());
 
   // v5：会话绑定工作目录 —— 原生目录选择对话框（取消返回 null）。
@@ -215,6 +301,10 @@ function registerIpcHandlers(): void {
     if (result.canceled || result.filePaths.length === 0) return null;
     return result.filePaths[0];
   });
+
+  // Phase 1（pet-ptt-workflow）：默认工作目录（用户主目录）。
+  // 桌宠模式首次 PTT 无会话时用于自动创建会话；窗口模式仍用目录选择器。
+  ipcMain.handle('workspace:get-default', () => app.getPath('home'));
 
   ipcMain.handle('win:toggle-always-on-top', () => {
     alwaysOnTop = !alwaysOnTop;

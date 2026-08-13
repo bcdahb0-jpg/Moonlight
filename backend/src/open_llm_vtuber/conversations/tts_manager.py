@@ -1,5 +1,4 @@
 import asyncio
-import json
 import re
 import uuid
 from datetime import datetime
@@ -213,13 +212,31 @@ class TTSTaskManager:
                 # Send payloads in order
                 while self._next_sequence_to_send in buffered_payloads:
                     next_payload = buffered_payloads.pop(self._next_sequence_to_send)
-                    await websocket_send(json.dumps(next_payload))
+                    from ..contracts import send_message
+
+                    await send_message(websocket_send, next_payload)
                     self._next_sequence_to_send += 1
 
                 self._payload_queue.task_done()
 
             except asyncio.CancelledError:
                 break
+            except Exception as exc:
+                logger.error(f"[tts] audio payload delivery failed: {exc}")
+                self._payload_queue.task_done()
+
+    async def wait_for_delivery(self) -> bool:
+        """等待本轮 TTS 生成及 payload 真正完成发送。
+
+        生成 task 完成只代表 payload 已入队；sender task 是常驻循环，
+        不能等待它结束来判断最后一帧是否已发出。
+        """
+        had_delivery = bool(self.task_list or self._payload_queue._unfinished_tasks)
+        if self.task_list:
+            await asyncio.gather(*self.task_list, return_exceptions=True)
+        if self._payload_queue._unfinished_tasks:
+            await self._payload_queue.join()
+        return had_delivery
 
     async def _send_silent_payload(
         self,

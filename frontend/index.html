@@ -8,6 +8,16 @@
       content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src * data: blob:; media-src * data: blob:; font-src 'self' data:; connect-src * data: blob:; worker-src 'self' blob:;"
     />
     <title>Moonlight</title>
+    <style>
+      /* 首帧关键重置：global.css 由 Vite 经 JS 注入，窗口首帧可能先于其绘制。
+         此规则确保 chat textarea 在样式注入前也不显示原生边框/背景/聚焦环，
+         避免与 .input-wrap 容器边框叠加成「双框」（2026-08-11 修复）。 */
+      textarea.input-box {
+        border: none;
+        outline: none;
+        background: transparent;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

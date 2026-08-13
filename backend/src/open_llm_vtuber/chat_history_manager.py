@@ -2,9 +2,23 @@ import os
 import re
 import json
 import uuid
+import threading
 from datetime import datetime
 from typing import Literal, List, TypedDict, Optional
 from loguru import logger
+
+
+_HISTORY_LOCK = threading.RLock()
+
+
+def _write_history_file(filepath: str, history_data: list[dict]) -> None:
+    """Atomically replace a history file; caller must hold _HISTORY_LOCK."""
+    tmp_path = f"{filepath}.{os.getpid()}.{threading.get_ident()}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(history_data, f, ensure_ascii=False, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, filepath)
 
 
 class HistoryMessage(TypedDict):
@@ -19,6 +33,41 @@ class HistoryMessage(TypedDict):
     kind: Optional[str]
     # 2026-08-10：简报归属的任务 id —— 同一任务多次 run 只保留最新一条（upsert）。
     task_id: Optional[str]
+
+
+def _is_internal_task_message(message: dict) -> bool:
+    """Return whether a persisted message belongs to the task plumbing.
+
+    Older task-platform versions wrote the delegated goal as a normal human
+    message.  That made the implementation detail reappear after a history
+    reload.  Keep this compatibility filter at the storage boundary so old
+    files are also rendered correctly; new code must not persist these rows.
+    """
+    kind = message.get("kind")
+    if kind in {"task_shell", "task_result", "task_report"}:
+        return True
+    content = str(message.get("content") or "").strip()
+    if message.get("role") == "human" and any(
+        marker in content
+        for marker in (
+            "先尝试执行 date 命令",
+            "优先用网络时间 API",
+            "获取当前准确时间",
+            "获取当前系统时间",
+            "获取当前北京时间",
+        )
+    ):
+        return True
+    # Older task runs also persisted the task agent's final report as an
+    # untyped assistant message.  Hide only the stable task-report prefix;
+    # ordinary assistant replies remain untouched.
+    if message.get("role") == "ai" and (
+        content.startswith("任务完成啦")
+        or content.startswith("任务执行完成")
+        or content.startswith("任务执行失败")
+    ):
+        return True
+    return False
 
 
 def _is_safe_filename(filename: str) -> bool:
@@ -111,7 +160,7 @@ def _derive_default_title(content: str) -> str:
     return compact[:10]
 
 
-def store_message(
+def _store_message_unlocked(
     conf_uid: str,
     history_uid: str,
     role: Literal["human", "ai"],
@@ -184,12 +233,17 @@ def store_message(
         if not meta.get("title"):
             meta["title"] = _derive_default_title(content)
 
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(history_data, f, ensure_ascii=False, indent=2)
+    _write_history_file(filepath, history_data)
     logger.debug(f"Successfully stored {role} message")
 
 
-def upsert_task_brief(
+def store_message(*args, **kwargs):
+    """Append one message without allowing concurrent read-modify-write loss."""
+    with _HISTORY_LOCK:
+        return _store_message_unlocked(*args, **kwargs)
+
+
+def _upsert_task_brief_unlocked(
     conf_uid: str,
     history_uid: str,
     task_id: str,
@@ -206,6 +260,8 @@ def upsert_task_brief(
     """
     if not conf_uid or not history_uid or not task_id:
         return None
+
+
     try:
         filepath = _get_safe_history_path(conf_uid, history_uid)
         history_data: list[dict] = []
@@ -244,13 +300,18 @@ def upsert_task_brief(
             history_data.append(new_item)
             action = "inserted"
 
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(history_data, f, ensure_ascii=False, indent=2)
+        _write_history_file(filepath, history_data)
         logger.debug(f"[brief] {action} task_brief({task_id}) -> {filepath}")
         return action
     except Exception as e:  # fail-soft：简报去重失败静默，不阻断 run
         logger.debug(f"[brief] upsert_task_brief 失败（静默）：{e}")
         return None
+
+
+def upsert_task_brief(*args, **kwargs) -> str | None:
+    """Upsert a task brief under the same history write lock as chat messages."""
+    with _HISTORY_LOCK:
+        return _upsert_task_brief_unlocked(*args, **kwargs)
 
 
 def get_metadata(conf_uid: str, history_uid: str) -> dict:
@@ -273,7 +334,7 @@ def get_metadata(conf_uid: str, history_uid: str) -> dict:
     return {}
 
 
-def update_metadate(conf_uid: str, history_uid: str, metadata: dict) -> bool:
+def _update_metadate_unlocked(conf_uid: str, history_uid: str, metadata: dict) -> bool:
     """Set metadata in history file
 
     Updates existing metadata with new fields, preserving existing ones.
@@ -302,14 +363,19 @@ def update_metadate(conf_uid: str, history_uid: str, metadata: dict) -> bool:
             new_metadata.update(metadata)  # Add new fields
             history_data.insert(0, new_metadata)
 
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(history_data, f, ensure_ascii=False, indent=2)
+        _write_history_file(filepath, history_data)
 
         logger.debug(f"Updated metadata for history {history_uid}")
         return True
     except Exception as e:
         logger.error(f"Failed to set metadata: {e}")
     return False
+
+
+def update_metadate(conf_uid: str, history_uid: str, metadata: dict) -> bool:
+    """Update metadata under the same lock as message append/upsert."""
+    with _HISTORY_LOCK:
+        return _update_metadate_unlocked(conf_uid, history_uid, metadata)
 
 
 def get_history(conf_uid: str, history_uid: str) -> List[HistoryMessage]:
@@ -331,7 +397,18 @@ def get_history(conf_uid: str, history_uid: str) -> List[HistoryMessage]:
         with open(filepath, "r", encoding="utf-8") as f:
             history_data = json.load(f)
             # Filter out metadata
-            return [msg for msg in history_data if msg["role"] != "metadata"]
+            visible: list[dict] = []
+            previous_was_task_shell = False
+            for msg in history_data:
+                if msg["role"] == "metadata":
+                    continue
+                legacy_internal = (
+                    msg.get("role") == "human" and previous_was_task_shell
+                )
+                if not _is_internal_task_message(msg) and not legacy_internal:
+                    visible.append(msg)
+                previous_was_task_shell = msg.get("kind") == "task_shell"
+            return visible
     except Exception:
         return []
 
@@ -416,12 +493,21 @@ def get_history_list(conf_uid: str, keep_uid: str | None = None) -> List[dict]:
                     continue
 
                 # Filter out metadata for checking if history is empty
-                actual_messages = [msg for msg in messages if msg["role"] != "metadata"]
+                actual_messages = [
+                    msg
+                    for msg in messages
+                    if msg["role"] != "metadata" and not _is_internal_task_message(msg)
+                ]
                 if not actual_messages:
                     empty_history_uids.append(history_uid)
-                    continue
-
-                latest_message = actual_messages[-1]
+                    # 刚创建的空会话（keep_uid，前端「在此目录新建会话」后仍在等待）
+                    # 也要进列表：前端靠 history-list 里的 workspace 解析 currentWorkspace，
+                    # 空会话不进列表会导致「选择工作目录」引导常显/闪烁。
+                    if history_uid != keep_uid:
+                        continue
+                    latest_message = None
+                else:
+                    latest_message = actual_messages[-1]
                 # metadata（首条）里可含用户自定义/自动生成的会话标题
                 metadata = (
                     messages[0]
@@ -434,7 +520,9 @@ def get_history_list(conf_uid: str, keep_uid: str | None = None) -> List[dict]:
                     "workspace": metadata.get("workspace") or "",
                     "latest_message": latest_message,
                     "timestamp": (
-                        latest_message["timestamp"] if latest_message else None
+                        latest_message["timestamp"]
+                        if latest_message
+                        else metadata.get("timestamp")  # 空会话用创建时间，前端倒序排在顶部
                     ),
                 }
                 histories.append(history_info)
@@ -496,8 +584,7 @@ def modify_latest_message(
             return False
 
         latest_message["content"] = new_content
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(history_data, f, ensure_ascii=False, indent=2)
+        _write_history_file(filepath, history_data)
 
         logger.debug(f"Successfully modified latest {role} message")
         return True

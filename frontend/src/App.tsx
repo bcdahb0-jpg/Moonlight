@@ -1,12 +1,15 @@
-import { useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { AppStateProvider, useAppState } from '@/state/AppStateContext';
 import { useAppShell } from '@/hooks/useAppShell';
 import { PetView } from '@/components/PetView';
 import { PetOverlay } from '@/components/PetOverlay';
 import { WindowModeView } from '@/components/WindowModeView';
-import { Dashboard, type DashboardSection } from '@/dashboard/Dashboard';
+import { ControlCenter } from '@/control/ControlCenter';
+import type { ControlSectionId } from '@/control/controlData';
 import { Onboarding, ONBOARDED_KEY } from '@/onboarding/Onboarding';
+import { ScreenAuthModal, SCREEN_AUTH_KEY } from '@/screen/ScreenAuthModal';
 import type { TaskEvent } from '@/task/types';
+import { usePttSession } from '@/chat/usePttSession';
 
 function setGlobalError(error: Error): void {
   // eslint-disable-next-line no-console
@@ -16,6 +19,21 @@ function setGlobalError(error: Error): void {
 function AppInner(): ReactElement {
   const { state, dispatch } = useAppState();
   const shell = useAppShell();
+
+  // Phase 1（pet-ptt-workflow）：当前会话绑定的工作目录（会话共用 UID 的来源）。
+  const currentWorkspace = useMemo(() => {
+    const cur = state.historyList.find(
+      (h) => String(h.uid ?? h.history_uid ?? '') === state.currentHistoryUid,
+    );
+    return String(cur?.workspace ?? '').trim() || undefined;
+  }, [state.historyList, state.currentHistoryUid]);
+
+  // Phase 1：桌宠对讲会话确保（无会话 → 自动创建，PCM 暂存后发送）。
+  const pttSession = usePttSession({
+    ws: () => shell.wsRef.current,
+    getHistoryUid: () => state.currentHistoryUid,
+    getHistoryList: () => state.historyList,
+  });
 
   // 引擎类型诊断（soullink / legacy）：Live2DCanvas 选择完成后回调
   const [engineType, setEngineType] = useState<'soullink' | 'legacy' | null>(null);
@@ -27,11 +45,57 @@ function AppInner(): ReactElement {
       return false;
     }
   });
-  // 错误修复卡跳转的设置分区（Dashboard initialSection）。
-  const [settingsSection, setSettingsSection] = useState<DashboardSection | null>(null);
+  // 错误修复卡跳转的控制台分区（同名映射：role/brain/voice/sense/…）。
+  const [settingsSection, setSettingsSection] = useState<ControlSectionId | null>(null);
+  const taskReportKeysRef = useRef(new Set<string>());
+
+  // Phase 5：首次开启屏幕感知 → 授权说明（确认后 localStorage 标记，不再打扰）。
+  const [screenAuthOpen, setScreenAuthOpen] = useState(false);
+  const [screenAuthGranted, setScreenAuthGranted] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(SCREEN_AUTH_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const screenAuthCheckedRef = useRef(false);
+
+  useEffect(() => {
+    if (!state.settings.screenAwareEnabled || screenAuthGranted || screenAuthCheckedRef.current) {
+      return;
+    }
+    screenAuthCheckedRef.current = true;
+    // 授权前立即回滚开关，保证设置同步和采集 hook 都处于关闭态。
+    dispatch({ type: 'UPDATE_SETTINGS', settings: { screenAwareEnabled: false } });
+    setScreenAuthOpen(true);
+  }, [dispatch, screenAuthGranted, state.settings.screenAwareEnabled]);
+
+  const confirmScreenAuth = (): void => {
+    try {
+      localStorage.setItem(SCREEN_AUTH_KEY, '1');
+    } catch {
+      /* storage unavailable */
+    }
+    setScreenAuthGranted(true);
+    dispatch({ type: 'UPDATE_SETTINGS', settings: { screenAwareEnabled: true } });
+    setScreenAuthOpen(false);
+  };
+
+  /** Phase 5：眼睛状态灯快捷暂停/恢复。 */
+  const toggleScreenAwareness = (): void => {
+    dispatch({
+      type: 'UPDATE_SETTINGS',
+      settings: { screenAwareEnabled: !state.settings.screenAwareEnabled },
+    });
+    if (state.settings.screenAwareEnabled) {
+      // 关闭：立即停采并清空后端上下文。
+      void import('@/screen/screenActions').then(({ screenActions: sa }) => sa.pause('user_paused'));
+    }
+  };
 
   const openSettingsSection = (section: string): void => {
-    setSettingsSection(section as DashboardSection);
+    // 旧版传 'general' 等值，控制台侧统一回退到概览分区
+    setSettingsSection(section as ControlSectionId);
     shell.setSettingsOpen(true);
   };
 
@@ -43,9 +107,20 @@ function AppInner(): ReactElement {
     shell.wsRef.current?.sendInterrupt();
   };
 
-  /** 语音录音结束：先回显占位消息（识别中），后端识别完成后原地替换为文本。 */
+  // P6 UI 重构：桌宠「勿扰」静音开关（本地状态；开启即打断当前语音）。
+  const [petMuted, setPetMuted] = useState(false);
+  const togglePetMute = (): void => {
+    setPetMuted((prev) => {
+      const next = !prev;
+      if (next) handleInterrupt();
+      return next;
+    });
+  };
+
+  /** 语音录音结束：先回显占位消息（识别中），后端识别完成后原地替换为文本。
+   *  Phase 1：透传当前会话 workspace（无目录会话输入时后端引导，不静默伪造）。 */
   const handleMicAudioEnd = (): void => {
-    shell.wsRef.current?.sendMicAudioEnd();
+    shell.wsRef.current?.sendMicAudioEnd(currentWorkspace);
     dispatch({
       type: 'ADD_MESSAGE',
       message: {
@@ -55,6 +130,58 @@ function AppInner(): ReactElement {
         timestamp: Date.now(),
         streaming: true,
       },
+    });
+  };
+
+  /** Phase 0（PTT）：桌宠对讲 —— 边录边发（与窗口模式 ChatInput 一致）。
+   *  每个 PCM chunk 实时发送；无会话时先自动创建（workspace 解析），
+   *  创建完成前 chunk 经 ensurePttHistory 暂存，完成后按序 flush。
+   *  修复（2026-08-11）：改为实时发送 + promise 排队，取代「录完一次性
+   *  发送缓冲」的链路（该链路曾因缓冲交付时序发空音频）。 */
+  const ensurePttHistoryRef = useRef<Promise<string | null> | null>(null);
+  const ensurePttHistory = (): Promise<string | null> => {
+    if (!ensurePttHistoryRef.current) {
+      ensurePttHistoryRef.current = pttSession
+        .ensureHistory()
+        .finally(() => {
+          ensurePttHistoryRef.current = null;
+        });
+    }
+    return ensurePttHistoryRef.current;
+  };
+
+  const handlePttChunk = (chunk: Float32Array): void => {
+    const ws = shell.wsRef.current;
+    if (!ws) return;
+    void ensurePttHistory().then((uid) => {
+      if (!uid) return; // 会话创建失败：丢弃（handlePttEnd 统一报错）
+      shell.wsRef.current?.sendMicAudioChunk(chunk);
+    });
+  };
+
+  const handlePttEnd = (): void => {
+    void ensurePttHistory().then((uid) => {
+      if (!uid) {
+        dispatch({
+          type: 'SET_ERROR',
+          message: '无法自动创建会话（工作目录不可用），请切到窗口模式选择工作目录。',
+        });
+        return;
+      }
+      // 语音回合刷新屏幕快照（fire-and-forget：供后端 _attach_screen_context 注入）。
+      if (shell.state.settings.screenAwareEnabled) {
+        void import('@/screen/screenActions').then(({ screenActions: sa }) => {
+          void sa.captureOnce();
+        });
+      }
+      handleMicAudioEnd();
+    });
+  };
+
+  const handlePttMicError = (error: Error): void => {
+    dispatch({
+      type: 'SET_ERROR',
+      message: `麦克风不可用：${error.message}`,
     });
   };
 
@@ -79,11 +206,19 @@ function AppInner(): ReactElement {
     return id;
   };
 
-  /** 文字输入发送（聊天链路）：回显已由 handleEchoText 先行，这里只发 WS。 */
-  const handleTextSend = (text: string): void => {
+  /** 文字输入发送（聊天链路）：回显已由 handleEchoText 先行，这里只发 WS。
+   *  修复（2026-08-11）：用户消息命中屏幕关键词时，先按需采集一帧并等待
+   *  后端分析出新快照再发送 —— 摘要 TTL 45s 过期/静态画面去重后，问屏幕
+   *  依然能拿到新鲜上下文（此前仅 captureOnDemand 模式触发，且不等待）。 */
+  const handleTextSend = async (text: string): Promise<void> => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    shell.wsRef.current?.sendTextInput(trimmed);
+    if (shell.state.settings.screenAwareEnabled) {
+      await import('@/screen/onDemandCapture').then(({ maybeCaptureOnDemand }) =>
+        maybeCaptureOnDemand(trimmed),
+      );
+    }
+    shell.wsRef.current?.sendTextInput(trimmed, currentWorkspace);
   };
 
   /** 任务模式：用户消息本地回显（不发 WS，任务走 REST/SSE）。 */
@@ -112,7 +247,28 @@ function AppInner(): ReactElement {
    * （TaskRunCard）仍提供状态反馈。此处仅保留函数签名兼容。 */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleTaskShellEvent = (_ev: TaskEvent): void => {
-    // no-op：外壳汇报由后端 WS audio 消息驱动（P0）
+    if (_ev.event_type !== 'run_end') return;
+    const payload = _ev.payload as { status?: unknown; report?: unknown };
+    const report = typeof payload.report === 'string' ? payload.report.trim() : '';
+    if (!report || payload.status !== 'completed') return;
+    // SSE 可能在断线重连后回放同一事件；每个 run 只投影一条气泡。
+    const key = `task-report:${_ev.task_id}:${_ev.run_id}`;
+    if (taskReportKeysRef.current.has(key)) return;
+    if (state.messages.some((message) => message.role === 'ai' && message.text.trim() === report)) {
+      taskReportKeysRef.current.add(key);
+      return;
+    }
+    taskReportKeysRef.current.add(key);
+    dispatch({
+      type: 'ADD_MESSAGE',
+      message: {
+        id: key,
+        role: 'ai',
+        text: report,
+        name: state.characterName || state.confName || 'hiyori',
+        timestamp: Date.now(),
+      },
+    });
   };
 
   if (!onboarded) {
@@ -149,6 +305,7 @@ function AppInner(): ReactElement {
       connected={state.connStatus === 'connected'}
       historyList={state.historyList}
       currentHistoryUid={state.currentHistoryUid}
+      screenStatus={state.screenStatus}
       lastError={state.lastError}
       errorCode={state.errorCode}
       affection={state.affection}
@@ -196,15 +353,46 @@ function AppInner(): ReactElement {
           onToggleMode={shell.toggleMode}
           onOpenSettings={() => shell.setSettingsOpen(true)}
           onInterrupt={handleInterrupt}
+          // Phase 5：屏幕感知眼睛状态灯（快捷暂停/恢复）
+          screenEnabled={state.settings.screenAwareEnabled}
+          screenAuthorized={screenAuthGranted}
+          screenCapturing={state.screenStatus?.capturing ?? false}
+          screenLastAnalyzeAt={state.screenStatus?.last_analyze_at ?? null}
+          screenError={state.screenStatus?.last_error ?? null}
+          onToggleScreen={toggleScreenAwareness}
+          // Phase 0：对讲（PTT）——AI 状态 = 思考中 || 语音播放中；边录边发
+          aiSpeaking={state.isThinking || shell.audioPlaying}
+          onPttChunk={handlePttChunk}
+          onPttEnd={handlePttEnd}
+          onMicError={handlePttMicError}
+          // Phase 3：桌宠字幕条（最近一条流式 AI full-text）
+          petSubtitle={state.petSubtitle}
+          // P6 UI 重构：功能快捷入口 + 勿扰静音
+          onOpenSection={openSettingsSection}
+          muted={petMuted}
+          onToggleMute={togglePetMute}
         />
       ) : null}
 
+      {/* Phase 5：首次开启屏幕感知的授权说明 */}
+      <ScreenAuthModal
+        open={screenAuthOpen}
+        onConfirm={confirmScreenAuth}
+          onCancel={() => {
+            screenAuthCheckedRef.current = false;
+            setScreenAuthOpen(false);
+            dispatch({ type: 'UPDATE_SETTINGS', settings: { screenAwareEnabled: false } });
+          }}
+      />
+
       {shell.settingsOpen ? (
-        <Dashboard
+        <ControlCenter
           key={settingsSection ?? 'default'}
           initialSection={settingsSection ?? undefined}
           onClose={() => shell.setSettingsOpen(false)}
           ws={() => shell.wsRef.current}
+          settingsSync={shell.settingsSync}
+          confUid={state.confUid}
         />
       ) : null}
     </div>

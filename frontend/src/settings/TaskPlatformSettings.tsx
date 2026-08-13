@@ -11,6 +11,7 @@ import {
 } from '@/api/rest';
 import { Icon } from '@/ui/icons';
 import { SettingStatus } from './SettingStatus';
+import { SettingsMetricStrip } from './SettingsConsole';
 
 function errorMessage(err: unknown): string {
   if (err instanceof ApiError) return err.message;
@@ -301,9 +302,17 @@ export function TaskPlatformSettings(): ReactElement {
   const contextDirty = dirtyFor(CONTEXT_KEYS).length;
 
   return (
-    <div className="settings-section task-platform-settings">
+    <div className="settings-section task-platform-settings settings-console-section settings-task-console">
+      <SettingsMetricStrip
+        metrics={[
+          { label: '任务平台', value: draft?.enabled ? '已启用' : '已停用', tone: draft?.enabled ? 'ok' : 'neutral' },
+          { label: 'MCP 服务器', value: `${draft?.mcp_servers.length ?? 0} 个` },
+          { label: '技能 / Agent / 插件', value: `${skills.length} / ${agents.length} / ${plugins.length}` },
+          { label: '联网能力', value: draft?.allow_network && draft?.web_search_enabled ? '已开启' : '受限', tone: draft?.allow_network && draft?.web_search_enabled ? 'ok' : 'warn' },
+        ]}
+      />
       {/* 卡片 1：通用 */}
-      <section className="settings-card">
+      <section className="settings-card settings-primary-card" data-setting-key="setting-task-general">
         <div className="settings-card-head">
           <span className="settings-card-icon">
             <Icon name="tool" size={16} />
@@ -352,7 +361,7 @@ export function TaskPlatformSettings(): ReactElement {
       </section>
 
       {/* 卡片 2：沙箱限制 */}
-      <section className="settings-card">
+      <section className="settings-card" data-setting-key="setting-task-sandbox">
         <div className="settings-card-head">
           <span className="settings-card-icon">
             <Icon name="monitor" size={16} />
@@ -422,7 +431,7 @@ export function TaskPlatformSettings(): ReactElement {
       </section>
 
       {/* 卡片 3：智能体能力（v3：文件编辑 / bash 审计） */}
-      <section className="settings-card">
+      <section className="settings-card" data-setting-key="setting-task-mcp">
         <div className="settings-card-head">
           <span className="settings-card-icon">
             <Icon name="zap" size={16} />
@@ -466,7 +475,7 @@ export function TaskPlatformSettings(): ReactElement {
       </section>
 
       {/* 卡片 4：网页搜索（v3） */}
-      <section className="settings-card">
+      <section className="settings-card" data-setting-key="setting-task-network">
         <div className="settings-card-head">
           <span className="settings-card-icon">
             <Icon name="search" size={16} />

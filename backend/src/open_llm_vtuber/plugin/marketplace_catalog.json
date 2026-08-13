@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "note": "内置技能市场目录册（离线兜底）。远程目录册可经 conf system_config.plugin.marketplace_url 覆盖。",
+  "plugins": [
+    {
+      "name": "hello-world",
+      "display_name": "Hello World 示例插件",
+      "description": "最小插件：收到任意消息时打印并返回打招呼回复。演示 plugin.json + on_message 钩子契约。",
+      "author": "Moonlight",
+      "version": "0.1.0",
+      "category": "sample",
+      "download_url": ""
+    },
+    {
+      "name": "danmaku-cheer",
+      "display_name": "弹幕喝彩",
+      "description": "直播间弹幕包含「666/牛/太强了」时触发高光喝彩话术（演示弹幕玩法联动）。",
+      "author": "Moonlight",
+      "version": "0.1.0",
+      "category": "live",
+      "download_url": ""
+    },
+    {
+      "name": "daily-topic",
+      "display_name": "每日话题",
+      "description": "每小时自动向对话注入一条闲聊话题（演示 on_load 定时器钩子）。",
+      "author": "Moonlight",
+      "version": "0.1.0",
+      "category": "chat",
+      "download_url": ""
+    }
+  ]
+}

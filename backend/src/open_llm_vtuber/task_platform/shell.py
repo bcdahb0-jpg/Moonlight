@@ -32,6 +32,28 @@ _tts_engine_guard = asyncio.Lock()
 _translator: Optional[Any] = None
 _translator_guard = asyncio.Lock()
 
+
+def _chat_ctx(task: Any) -> tuple[str, str] | None:
+    """Resolve chat-history identity without importing task_route circularly."""
+    try:
+        import yaml
+        from pathlib import Path
+
+        conf_path = Path(conf_bridge.CONF_PATH)
+        if not conf_path.exists():
+            return None
+        data = yaml.safe_load(conf_path.read_text(encoding="utf-8")) or {}
+        character = data.get("character_config") or {}
+        conf_uid = str(character.get("conf_uid") or character.get("conf_name") or "").strip()
+        if not conf_uid:
+            return None
+        # Use the selected character card name consistently. Legacy
+        # character_name may describe a different persona and must not leak
+        # into task/chat output.
+        return conf_uid, str(character.get("conf_name") or "AI")
+    except Exception:
+        return None
+
 #: 轻量「有实质内容」检测（CJK/假名/谚文/拉丁/数字任一即有意义；
 #: 纯 emoji/纯符号 → False，跳过翻译，避免把提示语当结果）。
 _RE_MEANINGFUL = re.compile(
@@ -202,7 +224,7 @@ async def _llm_rephrase(
         data = yaml.safe_load(conf_path.read_text(encoding="utf-8")) or {}
         cc = data.get("character_config") or {}
         persona = str(cc.get("persona_prompt") or "").strip()
-        char_name = str(cc.get("character_name") or "AI")
+        char_name = str(cc.get("conf_name") or "AI")
         if not persona:
             return ""
 
@@ -297,7 +319,13 @@ async def speak(
     if not text.strip():
         text = _FALLBACK.get(event_type, "")
 
+    # Shell speech is transient UI narration.  It is already delivered through
+    # the live WS audio/display path; persisting it duplicates task cards and
+    # makes internal task plumbing leak into refreshed chat history.
     # 构造 audio payload（复用现有链路：display_text + actions.expressions 表情）
+    if send_func is None:
+        return
+
     from ..agent.output_types import Actions, DisplayText
     from ..utils.stream_audio import prepare_audio_payload
 

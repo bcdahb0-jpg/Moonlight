@@ -1,4 +1,9 @@
-import type { ClientMessage, DisplayText, ServerMessage } from '@/types/ws';
+import type {
+  ClientMessage,
+  DisplayText,
+  ScreenFramePayload,
+  ServerMessage,
+} from '@/types/ws';
 import { isServerMessage } from '@/types/ws';
 
 export const WS_URL = 'ws://127.0.0.1:12393/client-ws';
@@ -33,6 +38,10 @@ export class WSClient {
   private reconnectAttempt = 0;
   private manuallyClosed = false;
   private alive = false;
+  private requestedHistoryUid: string | null = null;
+  /** Phase 1（pet-ptt-workflow）：一次性消息监听（等待会话创建等）。 */
+  private readonly onceHandlers = new Map<string, Set<(msg: ServerMessage) => void>>();
+  private readonly handlers = new Map<string, Set<(msg: ServerMessage) => void>>();
 
   constructor(options: WSClientOptions) {
     this.options = options;
@@ -41,6 +50,47 @@ export class WSClient {
 
   get clientUid(): string {
     return this.uid;
+  }
+
+  /**
+   * 注册一次性消息监听：下一条匹配 type 的入站消息触发后自动移除。
+   * 返回取消函数。Phase 1：桌宠首次 PTT 等待 new-history-created。
+   */
+  once<T extends ServerMessage['type']>(
+    type: T,
+    handler: (msg: Extract<ServerMessage, { type: T }>) => void,
+  ): () => void {
+    let set = this.onceHandlers.get(type);
+    if (!set) {
+      set = new Set();
+      this.onceHandlers.set(type, set);
+    }
+    const wrapped = (msg: ServerMessage): void => {
+      handler(msg as Extract<ServerMessage, { type: T }>);
+    };
+    set.add(wrapped);
+    return () => {
+      set?.delete(wrapped);
+    };
+  }
+
+  on<T extends ServerMessage['type']>(
+    type: T,
+    handler: (msg: Extract<ServerMessage, { type: T }>) => void,
+  ): () => void {
+    let set = this.handlers.get(type);
+    if (!set) {
+      set = new Set();
+      this.handlers.set(type, set);
+    }
+    const wrapped = (msg: ServerMessage): void => {
+      handler(msg as Extract<ServerMessage, { type: T }>);
+    };
+    set.add(wrapped);
+    return () => {
+      set?.delete(wrapped);
+      if (set?.size === 0) this.handlers.delete(type);
+    };
   }
 
   connect(): void {
@@ -59,8 +109,10 @@ export class WSClient {
   // Outgoing messages (spec: websocket_handler.MessageType)
   // ------------------------------------------------------------------ //
 
-  sendTextInput(text: string): void {
-    this.send({ type: 'text-input', text });
+  sendTextInput(text: string, workspace?: string): void {
+    this.send(
+      workspace ? { type: 'text-input', text, workspace } : { type: 'text-input', text },
+    );
   }
 
   sendMicAudioChunk(chunk: Float32Array): void {
@@ -74,8 +126,12 @@ export class WSClient {
     this.ws.send(frame);
   }
 
-  sendMicAudioEnd(): void {
-    this.send({ type: 'mic-audio-end' });
+  sendMicAudioEnd(workspace?: string): void {
+    this.send(
+      workspace
+        ? { type: 'mic-audio-end', workspace }
+        : { type: 'mic-audio-end' },
+    );
   }
 
   sendInterrupt(heardResponse = ''): void {
@@ -103,7 +159,12 @@ export class WSClient {
   }
 
   sendFetchAndSetHistory(historyUid: string): void {
+    this.requestedHistoryUid = historyUid;
     this.send({ type: 'fetch-and-set-history', history_uid: historyUid });
+  }
+
+  get latestRequestedHistoryUid(): string | null {
+    return this.requestedHistoryUid;
   }
 
   /** v5：新建会话必须绑定工作目录（绝对路径）。 */
@@ -144,6 +205,25 @@ export class WSClient {
     this.send({ type: 'frontend-playback-complete' });
   }
 
+  // ------------------------------------------------------------------ //
+  // screen_awareness（Phase 0）：独立协议帧
+  // ------------------------------------------------------------------ //
+
+  /** 上传一帧屏幕图像（独立协议；后端去重/单飞分析后回 screen-status）。 */
+  sendScreenFrame(frame: Omit<ScreenFramePayload, 'type'>): void {
+    this.send({ type: 'screen-frame', ...frame } as ClientMessage);
+  }
+
+  /** 启用/停用屏幕感知（关闭即清空后端内存上下文）。 */
+  sendScreenEnable(enabled: boolean, reason = ''): void {
+    this.send({ type: 'screen-enable', enabled, reason });
+  }
+
+  /** 即时清除后端屏幕上下文（图像+摘要+窗口身份）。 */
+  sendScreenClear(): void {
+    this.send({ type: 'screen-clear' });
+  }
+
   private send(message: ClientMessage): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
@@ -170,7 +250,31 @@ export class WSClient {
     ws.onmessage = (event: MessageEvent<string>) => {
       try {
         const raw: unknown = JSON.parse(event.data);
-        if (isServerMessage(raw)) this.options.onMessage(raw);
+        if (isServerMessage(raw)) {
+          // Phase 1：一次性监听优先分发（等待会话创建等），再走常规分发。
+          const set = this.onceHandlers.get(raw.type);
+          if (set && set.size > 0) {
+            for (const h of [...set]) {
+              try {
+                h(raw);
+              } catch {
+                /* 监听器异常不影响主链路 */
+              }
+            }
+            this.onceHandlers.delete(raw.type);
+          }
+          const listeners = this.handlers.get(raw.type);
+          if (listeners) {
+            for (const listener of [...listeners]) {
+              try {
+                listener(raw);
+              } catch {
+                /* 订阅者异常不应中断 WS 主链路。 */
+              }
+            }
+          }
+          this.options.onMessage(raw);
+        }
       } catch {
         // Ignore malformed frames; the backend guards its own JSON errors.
       }

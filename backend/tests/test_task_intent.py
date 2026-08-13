@@ -70,6 +70,14 @@ class TestRuleClassify(unittest.TestCase):
         for text in cases:
             self.assertEqual(intent_route._rule_classify(text), "task", text)
 
+    def test_correction_and_follow_up_are_chat(self):
+        cases = [
+            "为什么要上官网了，可以上视频网站搜索消息，比如B站",
+            "我不是问为什么，我是问明天到底更新不更新",
+        ]
+        for text in cases:
+            self.assertEqual(intent_route._rule_classify(text), "chat", text)
+
 
 class TestClassifyText(unittest.TestCase):
     """classify_text 全链路：规则短路 + 空输入 + 兜底 chat。"""

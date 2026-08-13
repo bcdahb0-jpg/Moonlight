@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>歌单队列 · Moonlight Overlay</title>
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; overflow: hidden;
+    font-family: "Microsoft YaHei", sans-serif; }
+  #panel { position: fixed; right: 16px; bottom: 16px; width: 300px;
+    background: rgba(0,0,0,0.45); border-radius: 10px; padding: 10px 12px; color: #fff; }
+  #now { font-size: 16px; font-weight: 600; color: #6ee7a8; margin-bottom: 6px; min-height: 22px; }
+  #queue { list-style: none; margin: 0; padding: 0; font-size: 13px; color: rgba(255,255,255,.8); }
+  #queue li { padding: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #queue li::before { content: "♪ "; color: #ffd666; }
+  .empty { color: rgba(255,255,255,.4); font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="panel">
+  <div id="now">🎤 正在演唱：—</div>
+  <ul id="queue"><li class="empty">暂无队列</li></ul>
+</div>
+<script>
+const nowEl = document.getElementById('now');
+const queueEl = document.getElementById('queue');
+async function poll() {
+  try {
+    const r = await fetch('http://127.0.0.1:12393/api/live/overlay/songlist');
+    const data = await r.json();
+    nowEl.textContent = data.current ? '🎤 正在演唱：' + data.current : '🎤 正在演唱：—';
+    const items = [...(data.ready || []), ...(data.queue || [])];
+    queueEl.innerHTML = '';
+    if (!items.length) {
+      const li = document.createElement('li');
+      li.className = 'empty';
+      li.textContent = '暂无队列';
+      queueEl.appendChild(li);
+    } else {
+      items.slice(0, 8).forEach(s => {
+        const li = document.createElement('li');
+        li.textContent = s;
+        queueEl.appendChild(li);
+      });
+    }
+  } catch (e) { /* noop */ }
+}
+setInterval(poll, 3000); poll();
+</script>
+</body>
+</html>

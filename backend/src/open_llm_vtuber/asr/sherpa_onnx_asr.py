@@ -1,10 +1,47 @@
 import os
+import onnxruntime
+from loguru import logger
+
+
+def _preload_onnxruntime_dll() -> None:
+    """Windows 下抢先加载 venv 自己的 onnxruntime.dll，防止命中系统目录的旧版。
+
+    背景（2026-08-12 实测）：sherpa_onnx 的 pyd 动态依赖 onnxruntime.dll。
+    ``import onnxruntime`` 是懒加载，不会把 DLL 拉进进程；于是 sherpa 的 pyd
+    加载时按 Windows 默认搜索顺序解析到 ``C:\\Windows\\SYSTEM32\\onnxruntime.dll``
+    （Windows 内置 ORT 1.17，仅支持 API 1-17），而 sherpa-onnx 1.13.4 编译期
+    请求 API 27 → 打印 "The requested API version [27] is not available..." 后，
+    加载模型时在 C++ 层 segfault，整个后端启动崩溃。
+
+    修复：按绝对路径显式预加载 venv 的 onnxruntime（1.28），此后任何
+    ``LoadLibrary("onnxruntime.dll")`` 都会复用这个已加载的模块，System32 的
+    旧版不再被解析。预加载失败时静默降级（回到原来的行为，最多只是老问题复现）。
+
+    注意：必须在 ``import sherpa_onnx`` 之前调用——pyd 导入时就会解析
+    onnxruntime.dll，晚了 System32 旧版已进进程，双双加载仍会崩。
+    """
+    try:
+        dll = os.path.join(
+            os.path.dirname(onnxruntime.__file__), "capi", "onnxruntime.dll"
+        )
+        if os.path.isfile(dll):
+            import ctypes
+
+            ctypes.WinDLL(dll)
+            logger.debug(
+                f"Preloaded onnxruntime DLL from venv: {dll} "
+                "(avoids SYSTEM32 onnxruntime.dll 1.17 segfault)"
+            )
+    except Exception as e:  # noqa: BLE001 — 预加载只是防御性手段
+        logger.debug(f"Preload onnxruntime DLL skipped ({type(e).__name__}: {e})")
+
+
+_preload_onnxruntime_dll()
+
 import numpy as np
 import sherpa_onnx
-from loguru import logger
 from .asr_interface import ASRInterface
 from .utils import download_and_extract, check_and_extract_local_file
-import onnxruntime
 
 # 繁轉簡（t2s）：SenseVoice 可能輸出繁體（粵語/繁體口音時），統一轉為簡體中文輸出。
 # lazy-init + fail-soft：opencc 初始化或轉換失敗時直接回傳原文，不讓 ASR 整個掛掉。

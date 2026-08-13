@@ -9,11 +9,14 @@ import { useAppState } from '@/state/AppStateContext';
 import { useWindowDrag } from '@/hooks/useWindowDrag';
 import { useWindowResize } from '@/hooks/useWindowResize';
 import { useScreenAwareness } from '@/screen/useScreenAwareness';
-import { useSettingsSync } from '@/hooks/useSettingsSync';
+import { useSettingsSync, type SettingsSyncState } from '@/hooks/useSettingsSync';
 import { WSClient } from '@/api/wsClient';
 import { AudioPlayer } from '@/api/audioPlayer';
+import { expressionApi } from '@/api/rest';
 import { LipSyncDriver } from '@/live2d/LipSyncDriver';
+import { MotionPlayer } from '@/live2d/MotionPlayer';
 import { expressionToEmotion } from '@/emotion/expression';
+import { setConversationState } from '@/state/conversationStateBus';
 import { dispatchServerMessage, type WsHandlerDeps } from '@/ws/messageHandlers';
 import type { Live2DAdapter } from '@/live2d/Live2DAdapter';
 import type { VisemeVector } from '@/live2d/Live2DAdapter';
@@ -42,6 +45,8 @@ export interface AppShell {
   adapterRef: React.MutableRefObject<Live2DAdapter | null>;
   audioPlayerRef: React.MutableRefObject<AudioPlayer | null>;
   wsRef: React.MutableRefObject<WSClient | null>;
+  /** Phase 0（PTT）：音频是否正在播放（onItemStart/onItemEnd/onStop 驱动）。 */
+  audioPlaying: boolean;
   toggleMode: () => void;
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
@@ -50,6 +55,7 @@ export interface AppShell {
   handlePointerUp: () => void;
   petVisible: boolean;
   maximized: boolean;
+  settingsSync: SettingsSyncState;
 }
 
 export function useAppShell(): AppShell {
@@ -58,6 +64,8 @@ export function useAppShell(): AppShell {
   const adapterRef = useRef<Live2DAdapter | null>(null);
   const audioPlayerRef = useRef<AudioPlayer | null>(null);
   const lipDriverRef = useRef<LipSyncDriver | null>(null);
+  /** P1 连续动作播放器（motion-plan 帧，TTS 播放期间逐秒应用）。 */
+  const motionPlayerRef = useRef<MotionPlayer | null>(null);
   /** 情绪生命周期计时（Phase 2：duration_ms 到期 revert 表情）。 */
   const emotionTimerRef = useRef<number | null>(null);
   const wsRef = useRef<WSClient | null>(null);
@@ -65,13 +73,15 @@ export function useAppShell(): AppShell {
   const synthCompleteRef = useRef(false);
   const pendingAudioRef = useRef(0);
   const completeTimerRef = useRef<number | null>(null);
+  /** Phase 0（PTT）：音频播放中标记（onItemStart → true；onItemEnd/onStop → false）。 */
+  const [audioPlaying, setAudioPlaying] = useReactState(false);
 
   stateRef.current = state;
 
   // ------------------------------------------------------------------ //
   // 设置：主题持久化到 localStorage；其余 ui_prefs 与后端配置 API 同步
   // ------------------------------------------------------------------ //
-  useSettingsSync();
+  const settingsSync = useSettingsSync();
 
   useEffect(() => {
     document.documentElement.dataset.theme = state.theme;
@@ -103,6 +113,9 @@ export function useAppShell(): AppShell {
     // 口型驱动层：rAF 平滑 + 说话状态机 + 动作联动（Talk ↔ Idle）
     const lipDriver = new LipSyncDriver(() => adapterRef.current);
     lipDriverRef.current = lipDriver;
+    // P1 连续动作：TTS 播放期间逐秒应用 motion-plan 参数帧（onItemStart 触发）
+    const motionPlayer = new MotionPlayer();
+    motionPlayerRef.current = motionPlayer;
 
     const player = new AudioPlayer({
       onVolume: (value, viseme) => {
@@ -112,6 +125,7 @@ export function useAppShell(): AppShell {
         lipDriverRef.current?.onVolume(value, v);
       },
       onItemStart: (item) => {
+        setAudioPlaying(true);
         if (item.expression && item.expression.length > 0) {
           // Phase 1：emotion_meta.intensity 透传为表情强度（Soullink 生效）
           adapterRef.current?.setExpression(
@@ -136,13 +150,33 @@ export function useAppShell(): AppShell {
             }, dur);
           }
         }
+        // P1 连续动作：TTS 播放期间按 displayText 生成逐秒动作帧（fail-soft）
+        const motionText = (item.displayText ?? '').trim();
+        if (motionText && motionPlayerRef.current) {
+          const durationSec = Math.max(2, Math.min(30, Math.ceil(motionText.length / 4)));
+          void expressionApi
+            .motionPlan({ text: motionText, duration_sec: durationSec })
+            .then((plan) => {
+              if (plan.ok && plan.frames.length > 0) {
+                void expressionApi
+                  .config()
+                  .then((cfg) => motionPlayerRef.current?.play(plan, adapterRef.current, cfg.easing))
+                  .catch(() => motionPlayerRef.current?.play(plan, adapterRef.current, true));
+              }
+            })
+            .catch(() => {
+              /* 后端不可用 / LLM 超时：静默跳过，不影响口型 */
+            });
+        }
         if (item.displayText) {
           wsRef.current?.sendAudioPlayStart({ text: item.displayText });
         }
         lipDriverRef.current?.onItemStart();
       },
       onItemEnd: (item) => {
+        setAudioPlaying(false);
         adapterRef.current?.revertExpression();
+        motionPlayerRef.current?.stop();
         if (emotionTimerRef.current !== null) {
           window.clearTimeout(emotionTimerRef.current);
           emotionTimerRef.current = null;
@@ -154,7 +188,9 @@ export function useAppShell(): AppShell {
       },
       onStop: () => {
         // 打断：stop() 不触发 onItemEnd，这里立即复位口型、动作与情绪计时
+        setAudioPlaying(false);
         adapterRef.current?.revertExpression();
+        motionPlayerRef.current?.stop();
         if (emotionTimerRef.current !== null) {
           window.clearTimeout(emotionTimerRef.current);
           emotionTimerRef.current = null;
@@ -166,6 +202,8 @@ export function useAppShell(): AppShell {
     audioPlayerRef.current = player;
     return () => {
       player.stop();
+      motionPlayerRef.current?.stop();
+      motionPlayerRef.current = null;
       if (emotionTimerRef.current !== null) {
         window.clearTimeout(emotionTimerRef.current);
         emotionTimerRef.current = null;
@@ -221,6 +259,12 @@ export function useAppShell(): AppShell {
     };
   }, [dispatch, handleServerMessage]);
 
+  // P1.5 对话状态机：isThinking / audioPlaying → 三态总线（控制台订阅用）
+  useEffect(() => {
+    const next = audioPlaying ? 'speaking' : state.isThinking ? 'thinking' : 'idle';
+    setConversationState(next);
+  }, [state.isThinking, audioPlaying]);
+
   // ------------------------------------------------------------------ //
   // Proactive / screen awareness
   // ------------------------------------------------------------------ //
@@ -236,10 +280,24 @@ export function useAppShell(): AppShell {
 
   useScreenAwareness({
     enabled: settings.screenAwareEnabled,
+    // 修复（2026-08-11）：后端重启/刚启动时 WS 未连接不采集；连接恢复后
+    // 重建 effect 自动重新 enable，避免「后端重启后屏幕感知失联」。
+    connected: state.connStatus === 'connected',
     pollIntervalSec: settings.screenPollIntervalSec,
     proactiveEnabled: settings.proactiveEnabled && !petModeOnly,
     proactiveIdleSec: settings.proactiveIdleSec,
     onProactiveTrigger: settings.autoSpeakOnIdle ? triggerProactive : () => undefined,
+    // Phase 2（pet-ptt-workflow）：定时巡检间隔（0=关闭；与空闲主动独立）。
+    proactiveIntervalSec: settings.screenProactiveIntervalSec,
+    // screen_awareness Phase 1/2：WS 引用 + 隐私黑名单 + 阈值。
+    wsRef,
+    blockedApps: settings.screenBlockedApps,
+    blockedTitleKeywords: settings.screenBlockedTitleKeywords,
+    changeThreshold: settings.screenChangeThreshold,
+    idleThresholdSec: settings.screenIdleThresholdSec,
+    isBusy: () => stateRef.current.isThinking || stateRef.current.connStatus !== 'connected',
+    // Phase 5：仅用户询问时识别（不自动采集）。
+    captureOnDemand: settings.screenCaptureOnDemand,
   });
 
   // ------------------------------------------------------------------ //
@@ -317,6 +375,7 @@ export function useAppShell(): AppShell {
     adapterRef,
     audioPlayerRef,
     wsRef,
+    audioPlaying,
     toggleMode,
     settingsOpen,
     setSettingsOpen,
@@ -325,5 +384,6 @@ export function useAppShell(): AppShell {
     handlePointerUp,
     petVisible: state.mode === 'pet',
     maximized,
+    settingsSync,
   };
 }

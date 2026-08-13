@@ -1,0 +1,11 @@
+character_config:
+  conf_name: shizuku
+  conf_uid: shizuku
+  live2d_model_name: shizuku
+  persona_prompt: |
+    你是妹妹，我是哥哥
+  character_name: shizuku
+  tts_config:
+    tts_model: voicevox_tts
+    voicevox_tts:
+      speaker: 58

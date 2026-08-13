@@ -77,7 +77,43 @@ export type ClientMessageType =
   | 'heartbeat'
   | 'add-client-to-group'
   | 'remove-client-from-group'
-  | 'request-group-info';
+  | 'request-group-info'
+  // screen_awareness（Phase 0）：独立协议，不混入普通聊天消息。
+  | 'screen-frame'
+  | 'screen-enable'
+  | 'screen-clear';
+
+/** 前台窗口身份（与后端 ScreenWindowInfo 对齐）。 */
+export interface ScreenWindowInfo {
+  title: string;
+  app: string;
+  pid?: number;
+  /** [x, y, width, height] 物理像素。 */
+  bounds?: number[];
+}
+
+/** 屏幕帧（screen-frame 入站，独立协议）。 */
+export interface ScreenFramePayload {
+  type: 'screen-frame';
+  frame_id: string;
+  captured_at: number;
+  window: ScreenWindowInfo;
+  image: string;
+  image_hash: string;
+  reason: 'window_changed' | 'content_changed' | 'user_requested';
+}
+
+/** 屏幕感知启用/停用（screen-enable 入站）。 */
+export interface ScreenEnablePayload {
+  type: 'screen-enable';
+  enabled: boolean;
+  reason?: string;
+}
+
+/** 清除屏幕上下文（screen-clear 入站）。 */
+export interface ScreenClearPayload {
+  type: 'screen-clear';
+}
 
 /** Outgoing message shape (from the frontend to the backend). */
 export interface ClientMessage {
@@ -95,6 +131,15 @@ export interface ClientMessage {
   request_id?: string;
   /** 养成交互：点击/摸头等互动区域（backend websocket_handler "interact"）。 */
   zone?: string;
+  // screen_awareness：screen-frame 载荷（类型收窄见 ScreenFramePayload）。
+  frame_id?: string;
+  captured_at?: number;
+  window?: ScreenWindowInfo;
+  image?: string;
+  image_hash?: string;
+  reason?: string;
+  /** screen-enable 的启用标志。 */
+  enabled?: boolean;
 }
 
 // ------------------------------------------------------------------ //
@@ -190,6 +235,7 @@ export interface SetModelAndConfMessage {
   type: 'set-model-and-conf';
   model_info: ModelInfo;
   conf_name: string;
+  character_name?: string | null;
   conf_uid: string;
   client_uid: string;
 }
@@ -299,6 +345,15 @@ export interface ToolCallStatusMessage {
   name?: string;
 }
 
+/** P5.1 意图副模型出站：勿扰/闲聊/任务 + 情绪（ChatInput 状态条实时显示）。 */
+export interface IntentEventMessage {
+  type: 'intent-event';
+  intent: 'silence' | 'chat' | 'task' | string;
+  emotion: string;
+  source: string;
+  text?: string;
+}
+
 /** delegate 任务完整结果直达聊天区（backend single_conversation 的 task_result 事件）。
  *  text 为完整清单/表格，前端直接渲染为 AI 气泡，不等 LLM 逐句复述。 */
 export interface TaskResultMessage {
@@ -306,6 +361,34 @@ export interface TaskResultMessage {
   text: string;
   name?: string;
   avatar?: string;
+  task_id?: string | null;
+}
+
+/** 屏幕感知运行时状态（screen_awareness，Phase 0）。 */
+export interface ScreenStatusMessage {
+  type: 'screen-status';
+  enabled: boolean;
+  capturing: boolean;
+  last_capture_at?: number | null;
+  last_analyze_at?: number | null;
+  last_window_title?: string;
+  last_window_app?: string;
+  last_scene?: string;
+  last_summary?: string;
+  pause_reason?: string;
+  pending_frames?: number;
+  frames_captured?: number;
+  frames_deduped?: number;
+  analyze_count?: number;
+  last_error?: string;
+}
+
+/** 屏幕上下文就绪通知（前端显示「正在看屏幕」）。 */
+export interface ScreenContextMessage {
+  type: 'screen-context';
+  snapshot?: Record<string, unknown> | null;
+  frame_available: boolean;
+  reason: string;
 }
 
 export type ServerMessage =
@@ -332,7 +415,10 @@ export type ServerMessage =
   | ConfigUpdatedMessage
   | AffectionUpdateMessage
   | ToolCallStatusMessage
-  | TaskResultMessage;
+  | IntentEventMessage
+  | TaskResultMessage
+  | ScreenStatusMessage
+  | ScreenContextMessage;
 
 /**
  * 运行期守卫：只校验「是带 type 字段的对象」。

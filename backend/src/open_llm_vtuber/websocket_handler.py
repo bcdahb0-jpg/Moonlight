@@ -95,6 +95,9 @@ class WebSocketHandler:
         # Store microphone chunks without repeatedly reallocating the complete
         # utterance. The conversation handler joins the list once on trigger.
         self.received_data_buffers: Dict[str, list[np.ndarray]] = {}
+        # 屏幕视觉任务独立追踪；连接断开时统一取消，避免后台任务继续向旧 socket 发消息。
+        self._screen_tasks: Dict[str, set[asyncio.Task]] = {}
+        self._connection_generation: Dict[str, int] = {}
 
         # Message handlers mapping
         self._message_handlers = self._init_message_handlers()
@@ -125,6 +128,10 @@ class WebSocketHandler:
             "audio-play-start": self._handle_audio_play_start,
             "request-init-config": self._handle_init_config_request,
             "heartbeat": self._handle_heartbeat,
+            # screen_awareness（Phase 0）：独立协议。
+            "screen-frame": self._handle_screen_frame,
+            "screen-enable": self._handle_screen_enable,
+            "screen-clear": self._handle_screen_clear,
         }
 
     async def handle_new_connection(
@@ -172,6 +179,10 @@ class WebSocketHandler:
         self.client_connections[client_uid] = websocket
         self.client_contexts[client_uid] = session_service_context
         self.received_data_buffers[client_uid] = []
+        self._screen_tasks[client_uid] = set()
+        self._connection_generation[client_uid] = (
+            self._connection_generation.get(client_uid, 0) + 1
+        )
 
         self.chat_group_manager.client_group_map[client_uid] = ""
         await self.send_group_update(websocket, client_uid)
@@ -194,6 +205,7 @@ class WebSocketHandler:
                 "type": "set-model-and-conf",
                 "model_info": session_service_context.live2d_model.model_info,
                 "conf_name": session_service_context.character_config.conf_name,
+                "character_name": session_service_context.character_config.conf_name,
                 "conf_uid": session_service_context.character_config.conf_uid,
                 "client_uid": client_uid,
             },
@@ -347,6 +359,18 @@ class WebSocketHandler:
 
     async def handle_disconnect(self, client_uid: str) -> None:
         """Handle client disconnection"""
+        # 先使旧 generation 失效，再取消任务；即使取消竞态发生，任务也不能发送。
+        self._connection_generation[client_uid] = (
+            self._connection_generation.get(client_uid, 0) + 1
+        )
+        self._cancel_screen_tasks(client_uid)
+        try:
+            from .screen_awareness.service import get_store
+
+            get_store().clear(client_uid)
+        except Exception:
+            pass
+
         group = self.chat_group_manager.get_client_group(client_uid)
         if group:
             await handle_group_interrupt(
@@ -358,6 +382,7 @@ class WebSocketHandler:
                 broadcast_to_group=self.broadcast_to_group,
             )
 
+        context = self.client_contexts.get(client_uid)
         await handle_client_disconnect(
             client_uid=client_uid,
             chat_group_manager=self.chat_group_manager,
@@ -376,7 +401,6 @@ class WebSocketHandler:
             self.current_conversation_tasks.pop(client_uid, None)
 
         # Call context close to clean up resources (e.g., MCPClient)
-        context = self.client_contexts.get(client_uid)
         if context:
             await context.close()
 
@@ -385,6 +409,16 @@ class WebSocketHandler:
 
     async def _cleanup_failed_connection(self, client_uid: str) -> None:
         """Clean up failed connection data"""
+        self._connection_generation[client_uid] = (
+            self._connection_generation.get(client_uid, 0) + 1
+        )
+        self._cancel_screen_tasks(client_uid)
+        try:
+            from .screen_awareness.service import get_store
+
+            get_store().clear(client_uid)
+        except Exception:
+            pass
         self.client_connections.pop(client_uid, None)
         self.client_contexts.pop(client_uid, None)
         self.received_data_buffers.pop(client_uid, None)
@@ -741,7 +775,7 @@ class WebSocketHandler:
         config_file_name = data.get("file")
         if config_file_name:
             context = self.client_contexts[client_uid]
-            await context.handle_config_switch(websocket, config_file_name)
+            await context.handle_config_switch(websocket, config_file_name, client_uid)
 
     async def _handle_fetch_backgrounds(
         self, websocket: WebSocket, client_uid: str, data: WSMessage
@@ -792,6 +826,7 @@ class WebSocketHandler:
                 "type": "set-model-and-conf",
                 "model_info": context.live2d_model.model_info,
                 "conf_name": context.character_config.conf_name,
+                "character_name": context.character_config.conf_name,
                 "conf_uid": context.character_config.conf_uid,
                 "client_uid": client_uid,
             },
@@ -805,3 +840,111 @@ class WebSocketHandler:
             await send_message(websocket.send_text, {"type": "heartbeat-ack"})
         except Exception as e:
             logger.error(f"Error sending heartbeat acknowledgment: {e}")
+
+    # ------------------------------------------------------------------ #
+    # screen_awareness（Phase 0）：帧上传 / 启用 / 清除
+    # ------------------------------------------------------------------ #
+    async def _handle_screen_frame(
+        self, websocket: WebSocket, client_uid: str, data: dict
+    ) -> None:
+        """接收前端采集的屏幕帧（独立协议）。隐私二次校验 + 去重 + 单飞分析。"""
+        try:
+            from .screen_awareness.models import ScreenFrame
+            from .screen_awareness.service import get_store
+
+            frame = ScreenFrame.model_validate(data)
+            store = get_store()
+            cfg = store.config()
+            # 视觉模型是慢 I/O，不能阻塞同一条 WS 的文字、PTT 和打断消息。
+            # 入队后立即回状态；分析完成再推送一次最终状态。
+            expected_generation = self._connection_generation.get(client_uid, 0)
+
+            def can_send() -> bool:
+                return (
+                    self._connection_generation.get(client_uid, 0)
+                    == expected_generation
+                    and self.client_connections.get(client_uid) is websocket
+                )
+
+            async def analyze_frame() -> None:
+                try:
+                    status = await store.ingest(client_uid, frame, api_key=cfg.api_key)
+                    if not can_send():
+                        return
+                    await send_message(
+                        websocket.send_text,
+                        {"type": "screen-status", **status.model_dump(mode="json")},
+                    )
+                except Exception as exc:
+                    logger.debug(
+                        f"[screen_awareness] async frame failed: {type(exc).__name__}: {exc}"
+                    )
+
+            task = asyncio.create_task(analyze_frame())
+            tasks = self._screen_tasks.setdefault(client_uid, set())
+            tasks.add(task)
+            task.add_done_callback(tasks.discard)
+            status = store.status(client_uid)
+            if not can_send():
+                return
+            await send_message(
+                websocket.send_text,
+                {"type": "screen-status", **status.model_dump(mode="json")},
+            )
+        except Exception as e:
+            logger.debug(f"[screen_awareness] frame rejected: {type(e).__name__}: {e}")
+
+    async def _handle_screen_enable(
+        self, websocket: WebSocket, client_uid: str, data: dict
+    ) -> None:
+        """启用/停用屏幕感知（关闭后立即停采，无残留帧）。"""
+        try:
+            from .screen_awareness.service import get_store
+
+            store = get_store()
+            enabled = bool(data.get("enabled", True))
+            pause_reason = str(data.get("reason") or "")
+            store.set_client_enabled(client_uid, enabled, pause_reason)
+            if not enabled:
+                self._cancel_screen_tasks(client_uid)
+                store.clear(client_uid)
+            logger.info(
+                f"[screen_awareness] client {client_uid} enable={enabled} "
+                f"store_enabled={store.is_enabled()} reason={pause_reason!r}"
+            )
+            await send_message(
+                websocket.send_text,
+                {
+                    "type": "screen-status",
+                    **store.status(client_uid).model_dump(mode="json"),
+                },
+            )
+        except Exception as e:
+            logger.debug(f"[screen_awareness] enable failed: {type(e).__name__}: {e}")
+
+    async def _handle_screen_clear(
+        self, websocket: WebSocket, client_uid: str, data: dict
+    ) -> None:
+        """即时清除该客户端的内存上下文（图像 + 摘要 + 窗口身份）。"""
+        try:
+            from .screen_awareness.service import get_store
+
+            store = get_store()
+            self._cancel_screen_tasks(client_uid)
+            store.clear(client_uid)
+            await send_message(
+                websocket.send_text,
+                {
+                    "type": "screen-status",
+                    **store.status(client_uid).model_dump(mode="json"),
+                },
+            )
+        except Exception as e:
+            logger.debug(f"[screen_awareness] clear failed: {type(e).__name__}: {e}")
+
+    def _cancel_screen_tasks(self, client_uid: str) -> None:
+        """取消该客户端的屏幕 job；底层 provider 即使不能取消也会被 generation 丢弃。"""
+        tasks = self._screen_tasks.pop(client_uid, set())
+        for task in tasks:
+            if not task.done():
+                task.cancel()

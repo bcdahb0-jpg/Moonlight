@@ -77,6 +77,7 @@ class SetModelAndConfMessage(BaseModel):
     type: Literal["set-model-and-conf"]
     model_info: dict[str, Any]
     conf_name: str
+    character_name: Optional[str] = None
     conf_uid: str
     client_uid: str
 
@@ -136,6 +137,16 @@ class BackendSynthCompleteMessage(BaseModel):
     type: Literal["backend-synth-complete"]
 
 
+class IntentEventMessage(BaseModel):
+    """P5.1 意图副模型出站：勿扰/闲聊/任务 + 情绪（前端状态条实时显示）。"""
+
+    type: Literal["intent-event"]
+    intent: str  # silence | chat | task
+    emotion: str
+    source: str  # rule | llm | fallback | disabled
+    text: Optional[str] = None
+
+
 class ToolCallStatusMessage(BaseModel):
     """聊天 agent 工具执行状态（basic_memory_agent 的 tool_call_status 事件）。
 
@@ -154,6 +165,7 @@ class TaskResultMessage(BaseModel):
     text: str
     name: Optional[str] = None
     avatar: Optional[str] = None
+    task_id: Optional[str] = None
 
 
 class ForceNewMessage(BaseModel):
@@ -175,6 +187,11 @@ class HistoryListMessage(BaseModel):
 class NewHistoryCreatedMessage(BaseModel):
     type: Literal["new-history-created"]
     history_uid: str
+    # v5：会话绑定的工作目录（绝对路径）。空串 = 未绑定（旧链路兼容）。
+    # 后端 websocket_handler._handle_create_history 始终携带；前端据此立即
+    # 解析 currentWorkspace，避免「刚新建的会话因空会话不进 history-list
+    # 而一直提示选择工作目录」。
+    workspace: str = ""
     # True = 后端在对话中途自动创建的会话（首次真人消息）；False/缺省 = 用户手动新建。
     # 前端据此决定是否清空当前聊天区：自动创建时聊天区里已有刚回显的用户消息，不能清。
     auto: bool = False
@@ -201,6 +218,18 @@ class HistoryDataMessage(BaseModel):
     messages: list[Any] = Field(default_factory=list)
 
 
+class HistoryWorkspaceUpdatedMessage(BaseModel):
+    type: Literal["history-workspace-updated"]
+    success: bool
+    history_uid: str
+    workspace: str
+
+
+class HistoriesClearedMessage(BaseModel):
+    type: Literal["histories-cleared"]
+    removed: int
+
+
 class ConfigFilesMessage(BaseModel):
     type: Literal["config-files"]
     configs: list[str] = Field(default_factory=list)
@@ -225,6 +254,40 @@ class ConfigUpdatedMessage(BaseModel):
     type: Literal["config-updated"]
 
 
+class ConfigSwitchedMessage(BaseModel):
+    type: Literal["config-switched"]
+    message: str
+
+
+class ScreenStatusMessage(BaseModel):
+    """屏幕感知状态推送（screen_awareness，Phase 0）。"""
+
+    type: Literal["screen-status"]
+    enabled: bool = False
+    capturing: bool = False
+    last_capture_at: Optional[float] = None
+    last_analyze_at: Optional[float] = None
+    last_window_title: str = ""
+    last_window_app: str = ""
+    last_scene: str = ""
+    last_summary: str = ""
+    pause_reason: str = ""
+    pending_frames: int = 0
+    frames_captured: int = 0
+    frames_deduped: int = 0
+    analyze_count: int = 0
+    last_error: str = ""
+
+
+class ScreenContextMessage(BaseModel):
+    """屏幕上下文就绪通知（前端可据此显示「正在看屏幕」状态）。"""
+
+    type: Literal["screen-context"]
+    snapshot: Optional[dict[str, Any]] = None
+    frame_available: bool = False
+    reason: str = ""
+
+
 ServerMessage = Union[
     SetModelAndConfMessage,
     FullTextMessage,
@@ -243,11 +306,16 @@ ServerMessage = Union[
     HistoryDeletedMessage,
     HistoryTitleUpdatedMessage,
     HistoryDataMessage,
+    HistoryWorkspaceUpdatedMessage,
+    HistoriesClearedMessage,
     ConfigFilesMessage,
     BackgroundFilesMessage,
     GroupUpdateMessage,
     HeartbeatAckMessage,
     ConfigUpdatedMessage,
+    ConfigSwitchedMessage,
+    ScreenStatusMessage,
+    ScreenContextMessage,
 ]
 
 # type 字符串 -> 对应 pydantic 模型（用于动态分发校验）。
@@ -366,6 +434,10 @@ _CLIENT_MESSAGE_TYPES: frozenset[str] = frozenset(
         "frontend-playback-complete",
         "tts-play-start",
         "refresh-model-conf",
+        # screen_awareness（Phase 0）：独立协议，不混入普通聊天消息。
+        "screen-frame",
+        "screen-enable",
+        "screen-clear",
     }
 )
 
@@ -381,6 +453,15 @@ _CLIENT_MESSAGE_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "create-new-history": ("workspace",),
     "set-history-workspace": ("history_uid", "workspace"),
     "switch-config": ("file",),
+    # screen_awareness：screen-frame 必须携带帧标识与窗口身份。
+    "screen-frame": ("frame_id", "captured_at", "window"),
+}
+
+# 可选字段的类型约束（Phase 1 pet-ptt-workflow：workspace 可选但必须是字符串）。
+_CLIENT_MESSAGE_OPTIONAL_FIELD_TYPES: dict[str, dict[str, type]] = {
+    "text-input": {"workspace": str},
+    "mic-audio-end": {"workspace": str},
+    "interrupt-signal": {"text": str},
 }
 
 
@@ -396,4 +477,7 @@ def validate_client_message(data: dict[str, Any]) -> Optional[str]:
     for field in _CLIENT_MESSAGE_REQUIRED_FIELDS.get(msg_type, ()):
         if field not in data:
             return f"消息 {msg_type} 缺少必需字段 {field}"
+    for field, expected in _CLIENT_MESSAGE_OPTIONAL_FIELD_TYPES.get(msg_type, {}).items():
+        if field in data and data[field] is not None and not isinstance(data[field], expected):
+            return f"消息 {msg_type} 字段 {field} 类型错误（应为 {expected.__name__}）"
     return None

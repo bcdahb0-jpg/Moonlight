@@ -64,7 +64,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-function get<T>(path: string): Promise<T> {
+export function get<T>(path: string): Promise<T> {
   return request<T>(path, { method: 'GET' });
 }
 
@@ -96,6 +96,8 @@ export interface ConfigPayload {
       // UX 修复（2026-08-10）：与后端 UiPrefs 新增字段保持一致
       proactive_pet_mode_only?: boolean;
       subtitle_enabled?: boolean;
+      // Phase 2（pet-ptt-workflow）：定时屏幕巡检间隔（秒，0=关闭）
+      screen_proactive_interval_sec?: number;
     };
     [key: string]: unknown;
   };
@@ -765,10 +767,577 @@ export interface EmotionEvent {
   timestamp: string;
 }
 
+/** GET /api/emotion/state-machine（P1 emotion-machine 卡片）。 */
+export interface EmotionStateMachineResult {
+  states: string[];
+  current: string;
+  confidence: number;
+  decay_minutes: number;
+  per_conversation: boolean;
+}
+
 export const emotionApi = {
   get: () => get<EmotionState>('/api/emotion'),
   getHistory: (limit = 10) =>
     get<{ events: EmotionEvent[] }>(`/api/emotion/history?limit=${limit}`),
   override: (emotion: string) => post<{ ok: boolean; emotion: string }>('/api/emotion/override', { emotion }),
   reset: () => post<{ ok: boolean; emotion: string }>('/api/emotion/reset'),
+  stateMachine: (uid = ''): Promise<EmotionStateMachineResult> =>
+    get(`/api/emotion/state-machine?uid=${encodeURIComponent(uid)}`),
+};
+
+// ------------------------------------------------------------------ //
+// screen_awareness（Phase 5）：状态 / 指标（含成本估算）/ 反馈 / 配置
+// ------------------------------------------------------------------ //
+
+export interface ScreenMetricsPayload {
+  frames_captured: number;
+  frames_deduped: number;
+  frames_dropped: number;
+  analyze_count: number;
+  analyze_errors: number;
+  proactive_count: number;
+  proactive_suppressed: number;
+  proactive_suppressed_reasons?: Record<string, number>;
+  vision_tokens: number;
+  vision_input_tokens: number;
+  vision_output_tokens: number;
+  feedback_useful: number;
+  feedback_disruptive: number;
+  feedback_misrecognition: number;
+  capture_p50_ms?: number | null;
+  capture_p95_ms?: number | null;
+  analyze_p50_ms?: number | null;
+  analyze_p95_ms?: number | null;
+  dedupe_ratio: number;
+  estimated_cost_usd?: number;
+  price_input_per_mtok?: number;
+  price_output_per_mtok?: number;
+}
+
+export interface ScreenConfigPayload {
+  enabled: boolean;
+  provider: string;
+  base_url: string;
+  model: string;
+  provider_label?: string;
+  local_only: boolean;
+  quality: number;
+  max_side: number;
+  [key: string]: unknown;
+}
+
+export const screenApi = {
+  metrics: () => get<ScreenMetricsPayload>('/api/screen/metrics'),
+  config: () => get<ScreenConfigPayload>('/api/screen/config'),
+  /** 识别反馈：useful / disruptive / misrecognition（本地策略调优）。 */
+  feedback: (kind: 'useful' | 'disruptive' | 'misrecognition') =>
+    post<{ ok: boolean }>('/api/screen/feedback', { kind }),
+  /** 清除内存上下文（图像 + 摘要 + 窗口身份）。 */
+  clear: () => post<{ ok: boolean }>('/api/screen/clear', {}),
+};
+
+// ------------------------------------------------------------------ //
+// Console aggregate (console_route.py, P0 接线工程)
+// ------------------------------------------------------------------ //
+
+/** GET /api/console/overview —— 顶栏 + 概览分区实时数据（fail-soft 字段可为 null）。 */
+export interface ConsoleOverview {
+  role: { name: string; live2d: string; conf_uid: string };
+  llm: {
+    provider: string;
+    model: string;
+    base_url: string;
+    api_key_masked: string;
+    is_configured: boolean;
+  };
+  engines: {
+    voicevox: { state: string | null; running: boolean; progress?: number };
+    deeplx: { running: boolean; rate_limited: boolean; port: number };
+  };
+  memory: {
+    core_chars: number | null;
+    facts: number | null;
+    reflections: number | null;
+    vector_count: number | null;
+  };
+  emotion: { emotion: string | null; confidence: number | null };
+  screen: { enabled: boolean | null; analyze_count: number; proactive_count: number; cost_usd: number | null };
+  task: { enabled: boolean };
+  mcp: { configured: number; enabled: number };
+  system: {
+    backend_online: boolean;
+    frontend_online: boolean;
+    mcp_port_open: boolean;
+    cpu_percent: number | null;
+    mem_percent: number | null;
+    process_mem_mb: number | null;
+    uptime_sec: number | null;
+  };
+}
+
+export const consoleApi = {
+  overview: (): Promise<ConsoleOverview> => get<ConsoleOverview>('/api/console/overview'),
+};
+
+// ------------------------------------------------------------------ //
+// Expression（P1 表情与动作域）：motion-plan / generate / config
+// ------------------------------------------------------------------ //
+
+export interface ExpressionFrame {
+  secondIndex: number;
+  action: string;
+  parameters: Record<string, number>;
+}
+
+export interface MotionPlanResult {
+  ok: boolean;
+  duration_sec: number;
+  frames: ExpressionFrame[];
+  source: 'llm' | 'fallback';
+}
+
+export interface ExpressionConfig {
+  enabled: boolean;
+  sensitivity: number; // 0-100
+  amplitude: number; // 0-100
+  easing: boolean;
+  model: string;
+}
+
+export interface GenerateExpressionResult {
+  ok: boolean;
+  emotion: string;
+  intensity: number;
+  duration_ms: number;
+  source: string;
+}
+
+export const expressionApi = {
+  motionPlan: (body: { text: string; duration_sec?: number }): Promise<MotionPlanResult> =>
+    post('/api/expression/motion-plan', body),
+  generate: (text: string): Promise<GenerateExpressionResult> =>
+    post('/api/expression/generate', { text }),
+  config: (): Promise<ExpressionConfig> => get('/api/expression/config'),
+  saveConfig: (patch: Partial<ExpressionConfig>): Promise<ExpressionConfig> =>
+    post('/api/expression/config', patch),
+};
+
+// ------------------------------------------------------------------ //
+// Live2D catalog（P1 多模型与专属 Prompt）
+// ------------------------------------------------------------------ //
+
+export interface CatalogModel {
+  name: string;
+  model_url: string;
+  custom_prompt: string;
+  has_prompt: boolean;
+}
+
+export interface ModelsResult {
+  ok: boolean;
+  models: CatalogModel[];
+  current: string;
+}
+
+export interface LoadModelResult {
+  ok: boolean;
+  name: string;
+  model_url: string;
+  custom_prompt: string;
+  hot_switch: boolean;
+}
+
+export const live2dCatalogApi = {
+  models: (): Promise<ModelsResult> => get('/api/live2d/models'),
+  load: (name: string): Promise<LoadModelResult> =>
+    post(`/api/live2d/models/${encodeURIComponent(name)}/load`, {}),
+  prompt: (name: string): Promise<{ ok: boolean; name: string; custom_prompt: string }> =>
+    get(`/api/live2d/models/${encodeURIComponent(name)}/prompt`),
+  savePrompt: (name: string, custom_prompt: string): Promise<{ ok: boolean; name: string; custom_prompt: string }> =>
+    post(`/api/live2d/models/${encodeURIComponent(name)}/prompt`, { custom_prompt }),
+};
+
+// ------------------------------------------------------------------ //
+// Singing（P2 唱歌 MVP）：点歌学唱 / 队列 / 翻唱引擎
+// ------------------------------------------------------------------ //
+
+export interface SingingConfig {
+  acm_url: string;
+  create_timeout: number;
+  song_not_convert: string;
+  svc_url?: string;
+}
+
+export interface SingingSong {
+  songname: string;
+  audio_url: string;
+  accompany_url?: string;
+  is_created: boolean;
+}
+
+export interface SingingStatus {
+  state: 'idle' | 'learning' | 'error';
+  learning: boolean;
+  current: SingingSong | null;
+  queue: string[];
+  ready: SingingSong[];
+  progress: string;
+  last_error: string;
+  config: SingingConfig;
+  output_dir: string;
+}
+
+export interface SingingRequestResult {
+  ok: boolean;
+  songname?: string;
+  reason?: string;
+}
+
+export interface SingingNextResult {
+  ok: boolean;
+  song?: SingingSong;
+  reason?: string;
+}
+
+export interface SvcEngineStatus {
+  configured: boolean;
+  online: boolean;
+  svc_url: string;
+  error: string | null;
+}
+
+export const singingApi = {
+  request: (body: { text?: string; songname?: string }): Promise<SingingRequestResult> =>
+    post('/api/singing/request', body),
+  status: (): Promise<SingingStatus> => get('/api/singing/status'),
+  next: (): Promise<SingingNextResult> => post('/api/singing/next', {}),
+  stopLearning: (): Promise<{ ok: boolean }> => post('/api/singing/stop_learning', {}),
+  clear: (): Promise<{ ok: boolean }> => post('/api/singing/clear', {}),
+  config: (): Promise<SingingConfig> => get('/api/singing/config'),
+  saveConfig: (patch: Partial<SingingConfig>): Promise<SingingConfig> =>
+    post('/api/singing/config', patch),
+  engineStatus: (): Promise<SvcEngineStatus> => get('/api/singing/engine/status'),
+};
+
+// ------------------------------------------------------------------ //
+// Live（P3 直播与弹幕）：B站接入 / 弹幕玩法 / OBS+VTS / 叠加层
+// ------------------------------------------------------------------ //
+
+export interface LiveStatus {
+  room_id: number;
+  listening: boolean;
+  danmaku_count: number;
+  can_listen: boolean;
+  can_send: boolean;
+  biliapi_available: boolean;
+  reply_mode: string;
+  login: { sessdata: boolean; bili_jct: boolean; buvid3: boolean };
+}
+
+export interface LiveConfig {
+  room_id: number;
+  sessdata: string; // 打码
+  bili_jct: string;
+  buvid3: string;
+  reply_mode: string;
+  welcome_enabled: boolean;
+  gift_enabled: boolean;
+  chat_to_conversation: boolean; // P5.1 弹幕闲聊进对话
+  obs_host: string;
+  obs_port: number;
+  obs_password: string;
+  obs_scene: string;
+  vts_host: string;
+  vts_port: number;
+}
+
+export interface OverlayChatMessage {
+  kind: string;
+  text: string;
+  uname: string;
+  ts: number;
+}
+
+export interface OverlayChatResult {
+  ok: boolean;
+  messages: OverlayChatMessage[];
+  ts: number;
+}
+
+export interface ObsStatus {
+  available: boolean;
+  online: boolean;
+  scenes: string[];
+  error?: string;
+}
+
+export interface VtsStatus {
+  online: boolean;
+  url: string;
+  detail?: unknown;
+}
+
+export const liveApi = {
+  status: (): Promise<LiveStatus> => get('/api/live/status'),
+  connect: (body: { room_id: number; sessdata?: string; bili_jct?: string; buvid3?: string; reply_mode?: string }): Promise<{ ok: boolean; error?: string; status?: LiveStatus }> =>
+    post('/api/live/connect', body),
+  disconnect: (): Promise<{ ok: boolean }> => post('/api/live/disconnect', {}),
+  sendDanmaku: (text: string): Promise<{ ok: boolean; error?: string | null }> =>
+    post('/api/live/danmaku', { text }),
+  config: (): Promise<LiveConfig> => get('/api/live/config'),
+  saveConfig: (patch: Partial<LiveConfig>): Promise<LiveConfig> => post('/api/live/config', patch),
+  overlayChat: (limit = 30): Promise<OverlayChatResult> => get(`/api/live/overlay/chat?limit=${limit}`),
+  obsStatus: (): Promise<ObsStatus> => get('/api/live/obs/status'),
+  obsAction: (action: string, body: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> =>
+    post(`/api/live/obs/${action}`, body),
+  vtsStatus: (): Promise<VtsStatus> => get('/api/live/vts/status'),
+  vtsAction: (action: 'emote' | 'swing' | 'stop', body: Record<string, unknown> = {}): Promise<{ ok: boolean }> =>
+    post(`/api/live/vts/${action}`, body),
+};
+
+// ------------------------------------------------------------------ //
+// Playmate（P4 游戏陪玩）：目标游戏 / 画面事件 / 攻略知识库 / 喝彩
+// ------------------------------------------------------------------ //
+
+export interface PlaymateGame {
+  id: string;
+  name: string;
+  window_regex: string;
+  sample_sec: number;
+}
+
+export interface PlaymateEvent {
+  event_type: string;
+  confidence: number;
+  summary: string;
+  game_id: string;
+  ts: number;
+  cheer: string | null;
+}
+
+export interface PlaymateConfig {
+  active_game: string;
+  window_regex: string;
+  sample_sec: number;
+  vision_enabled: boolean;
+  cheer_enabled: boolean;
+  cheer_cooldown: number;
+}
+
+export interface PlaymateStatus {
+  ok: boolean;
+  config: PlaymateConfig;
+  active_game: string;
+  window_regex: string;
+  events: PlaymateEvent[];
+  kb: Record<string, { game_id: string; chunks: number; indexed: number }>;
+}
+
+export interface KbImportResult {
+  ok: boolean;
+  game_id?: string;
+  imported?: number;
+  error?: string;
+}
+
+export interface KbQueryResult {
+  ok: boolean;
+  hits: { text: string; score: number }[];
+  error?: string;
+}
+
+export const playmateApi = {
+  games: (): Promise<{ ok: boolean; games: PlaymateGame[] }> => get('/api/playmate/games'),
+  status: (): Promise<PlaymateStatus> => get('/api/playmate/status'),
+  bind: (body: { game_id?: string; window_regex?: string }): Promise<PlaymateConfig> =>
+    post('/api/playmate/bind', body),
+  analyze: (frame: unknown): Promise<{ ok: boolean; event?: PlaymateEvent; reason?: string }> =>
+    post('/api/playmate/analyze', frame),
+  cheer: (): Promise<PlaymateEvent> => post('/api/playmate/cheer', {}),
+  config: (): Promise<PlaymateConfig> => get('/api/playmate/config'),
+  saveConfig: (patch: Partial<PlaymateConfig>): Promise<PlaymateConfig> =>
+    post('/api/playmate/config', patch),
+  kbImport: (body: { game_id: string; text: string; source?: string }): Promise<KbImportResult> =>
+    post('/api/playmate/kb/import', body),
+  kbQuery: (body: { game_id: string; question: string; top_k?: number }): Promise<KbQueryResult> =>
+    post('/api/playmate/kb/query', body),
+};
+
+// ------------------------------------------------------------------ //
+// Plugin（P5 插件生态）：管理器 / 技能市场 / 导出分享 / 意图识别
+// ------------------------------------------------------------------ //
+
+export interface PluginItem {
+  plugin_id: string; // "builtin/echo"
+  category: string;
+  name: string;
+  title: string;
+  version: string;
+  author: string;
+  description: string;
+  hooks: string[];
+  entry: string;
+  readme: string;
+  enabled: boolean;
+}
+
+export interface PluginListResult {
+  ok: boolean;
+  plugins: PluginItem[];
+  enabled: string[];
+}
+
+export interface MarketplacePlugin {
+  name: string;
+  display_name: string;
+  description: string;
+  author: string;
+  version: string;
+  category: string;
+  download_url?: string;
+  repo?: string;
+}
+
+export interface MarketplaceResult {
+  ok: boolean;
+  plugins: MarketplacePlugin[];
+  source: 'remote' | 'builtin';
+}
+
+export interface InstallStatus {
+  status: 'idle' | 'installing' | 'error' | string;
+  progress: number;
+  error?: string;
+  ts?: number;
+}
+
+export interface IntentConfig {
+  enabled: boolean;
+  model: string;
+}
+
+export interface IntentClassifyResult {
+  ok: boolean;
+  intent: 'chat' | 'silence' | 'task';
+  emotion: string;
+  source: string;
+}
+
+export const pluginApi = {
+  list: (): Promise<PluginListResult> => get('/api/plugin/list'),
+  toggle: (plugin_id: string): Promise<{ ok: boolean; enabled?: boolean; error?: string }> =>
+    post('/api/plugin/toggle', { plugin_id }),
+};
+
+export const marketplaceApi = {
+  list: (): Promise<MarketplaceResult> => get('/api/plugin/marketplace'),
+  install: (plugin_id: string): Promise<{ ok: boolean; error?: string }> =>
+    post('/api/plugin/marketplace/install', { plugin_id }),
+  installStatus: (plugin_id: string): Promise<InstallStatus> =>
+    get(`/api/plugin/marketplace/install-status/${plugin_id}`),
+};
+
+export const exportApi = {
+  character: (): Promise<Record<string, unknown>> => get('/api/export/character'),
+  config: (): Promise<Record<string, unknown>> => get('/api/export/config'),
+  import: (payload: unknown): Promise<{ ok: boolean; imported?: string[]; skipped?: string[]; error?: string }> =>
+    post('/api/import', payload),
+};
+
+export const intentApi = {
+  config: (): Promise<IntentConfig> => get('/api/intent/config'),
+  saveConfig: (patch: Partial<IntentConfig>): Promise<IntentConfig> =>
+    post('/api/intent/config', patch),
+  classify: (text: string): Promise<IntentClassifyResult> =>
+    post('/api/intent/classify', { text }),
+};
+
+// ------------------------------------------------------------------ //
+// Attachment（P5.1 聊天附件）：PDF 抽取 / 图片预描述（multipart 上传）
+// ------------------------------------------------------------------ //
+
+export interface AttachmentResult {
+  ok: boolean;
+  kind: 'pdf' | 'image' | 'audio' | 'unsupported';
+  name: string;
+  size: number;
+  summary: string;
+}
+
+export const attachmentsApi = {
+  /** 上传附件 → 后端降级处理（PDF 抽取 / 图片描述）→ 返回可拼入消息的摘要文本。 */
+  upload(file: File): Promise<AttachmentResult> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return fetch(`${API_BASE}/api/conversation/attachments`, {
+      method: 'POST',
+      body: form,
+    }).then((r) => (r.ok ? (r.json() as Promise<AttachmentResult>) : r.json().then((j) => Promise.reject(new Error(j.error ?? `HTTP ${r.status}`)))));
+  },
+};
+
+// ------------------------------------------------------------------ //
+// P6 进阶：插件市场配置 / 本地 zip / 遮罩 AI 前景 / QQ 连接器
+// ------------------------------------------------------------------ //
+
+export interface PluginConfig {
+  marketplace_url: string;
+}
+
+export interface OcclusionExtractResult {
+  ok: boolean;
+  engine: 'rembg' | 'pillow-fallback' | 'rembg-failed';
+  points: { x: number; y: number }[]; // 0-100 坐标
+  name: string;
+}
+
+export interface QqConfig {
+  enabled: boolean;
+  ws_url: string;
+  auto_reply: boolean;
+}
+
+export interface QqStatus {
+  ok: boolean;
+  enabled: boolean;
+  connected: boolean;
+  url: string;
+  auto_reply: boolean;
+  msg_count: number;
+  last_error: string;
+  last_event_at: number | null;
+}
+
+export const pluginConfigApi = {
+  get: (): Promise<PluginConfig> => get('/api/plugin/config'),
+  save: (patch: Partial<PluginConfig>): Promise<PluginConfig> => post('/api/plugin/config', patch),
+  /** 上传本地 zip 安装插件（防 zip-slip + plugin.json 校验）。 */
+  installZip: (file: File): Promise<{ ok: boolean; plugin_id?: string; name?: string; error?: string }> => {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return fetch(`${API_BASE}/api/plugin/install-zip`, { method: 'POST', body: form }).then((r) =>
+      r.ok ? (r.json() as Promise<{ ok: boolean; plugin_id?: string; name?: string; error?: string }>) : r.json().then((j) => Promise.reject(new Error(j.error ?? `HTTP ${r.status}`))),
+    );
+  },
+};
+
+export const occlusionApi = {
+  extract: (file: File): Promise<OcclusionExtractResult> => {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return fetch(`${API_BASE}/api/occlusion/extract`, { method: 'POST', body: form }).then((r) =>
+      r.ok ? (r.json() as Promise<OcclusionExtractResult>) : r.json().then((j) => Promise.reject(new Error(j.error ?? `HTTP ${r.status}`))),
+    );
+  },
+};
+
+export const qqApi = {
+  config: (): Promise<QqConfig> => get('/api/qq/config'),
+  saveConfig: (patch: Partial<QqConfig>): Promise<QqConfig> => post('/api/qq/config', patch),
+  status: (): Promise<QqStatus> => get('/api/qq/status'),
+  connect: (): Promise<QqStatus> => post('/api/qq/connect', {}),
+  disconnect: (): Promise<QqStatus> => post('/api/qq/disconnect', {}),
+  send: (body: { message_type?: string; target?: number; text: string }): Promise<{ ok: boolean; error?: string }> =>
+    post('/api/qq/send', body),
 };

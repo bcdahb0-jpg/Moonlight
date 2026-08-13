@@ -1,6 +1,12 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { playerApi, translatorApi, deeplxApi, type TranslatorConfig, type DeeplxStatus } from '@/api/rest';
 import { useAppState } from '@/state/AppStateContext';
+import {
+  SettingsActionBar,
+  SettingsGroup,
+  SettingsRow,
+  SettingsStatusBadge,
+} from './SettingsConsole';
 
 const LANGUAGES = [
   { value: '', label: '自动（跟随角色）' },
@@ -23,7 +29,13 @@ const LANGUAGES = [
  * 需本地部署 deeplx）或「LLM API」（更自然，但每句 5~10s 网络往返）。同时后端
  * 已做整段聚合翻译 + 异步化 + 文本先上屏，LLM 引擎的感知延迟大幅降低。
  */
-export function VoiceLanguageSettings(): ReactElement {
+export type VoiceLanguageMode = 'chat' | 'translation';
+
+export interface VoiceLanguageSettingsProps {
+  mode?: VoiceLanguageMode;
+}
+
+export function VoiceLanguageSettings({ mode = 'chat' }: VoiceLanguageSettingsProps): ReactElement {
   const { state, dispatch } = useAppState();
   const [language, setLanguage] = useState('');
   const [voiceEnabled, setVoiceEnabled] = useState(false);
@@ -120,11 +132,20 @@ export function VoiceLanguageSettings(): ReactElement {
     dispatch({ type: 'UPDATE_SETTINGS', settings: { subtitleEnabled: v } });
   };
 
-  const saveLanguage = async (): Promise<void> => {
-    setStatus('保存中…');
+  const saveLanguage = async (nextLanguage: string): Promise<void> => {
     try {
-      await playerApi.setLanguage({ language });
-      setStatus('回复语言已保存');
+      await playerApi.setLanguage({ language: nextLanguage });
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : '保存失败');
+    }
+  };
+
+  const saveSubtitleTarget = async (nextTarget: string): Promise<void> => {
+    try {
+      await translatorApi.save({
+        translate_subtitle: subtitleEnabled,
+        subtitle_target_lang: nextTarget,
+      });
     } catch (err) {
       setStatus(err instanceof Error ? err.message : '保存失败');
     }
@@ -153,88 +174,64 @@ export function VoiceLanguageSettings(): ReactElement {
   };
 
   return (
-    <div className="settings-section">
-      <section className="settings-card">
-        <div className="settings-card-head">
-          <span className="settings-card-icon">
-            <IconLanguages />
-          </span>
-          <div className="settings-card-title">
-            <h3>回复语言</h3>
-          </div>
-        </div>
-        <div className="settings-card-body">
-          <label className="field">
-            <span>回复语言</span>
-            <select value={language} onChange={(e) => setLanguage(e.target.value)}>
-              {LANGUAGES.map((l) => (
-                <option key={l.value} value={l.value}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="btn-row">
-            <button className="btn btn-primary" onClick={() => void saveLanguage()}>
-              保存
-            </button>
-          </div>
-        </div>
-      </section>
+    <div className={`settings-section settings-console-root voice-language-settings voice-language-settings-${mode}`}>
+      {mode === 'chat' ? (
+        <>
+          <SettingsGroup title="回复语言">
+            <SettingsRow label="回复语言" settingKey="setting-reply-language">
+              <select
+                value={language}
+                onChange={(e) => {
+                  const nextLanguage = e.target.value;
+                  setLanguage(nextLanguage);
+                  void saveLanguage(nextLanguage);
+                }}
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l.value} value={l.value}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </SettingsRow>
+          </SettingsGroup>
 
-      <section className="settings-card">
-        <div className="settings-card-head">
-          <span className="settings-card-icon">
-            <IconSubtitles />
-          </span>
-          <div className="settings-card-title">
-            <h3>字幕翻译 · 双语气泡</h3>
-          </div>
-        </div>
-        <div className="settings-card-body">
-          <label className="toggle-row">
-            <span>翻译字幕</span>
-            <input
-              type="checkbox"
-              checked={subtitleEnabled}
-              onChange={(e) => setSubtitleEnabled(e.target.checked)}
-            />
-          </label>
-          {subtitleEnabled && (
-            <label className="field">
-              <span>字幕目标语言</span>
+          <SettingsGroup title="双语气泡">
+            <SettingsRow label="双语气泡" settingKey="setting-subtitle-enabled">
               <input
-                value={subtitleTarget}
-                onChange={(e) => setSubtitleTarget(e.target.value)}
-                placeholder="如 英语 / 日本語"
+                className="switch"
+                type="checkbox"
+                checked={subtitleEnabled}
+                onChange={(e) => setSubtitleEnabled(e.target.checked)}
               />
-            </label>
-          )}
-        </div>
-      </section>
+            </SettingsRow>
+            {subtitleEnabled && (
+              <SettingsRow label="目标语言">
+                <input
+                  value={subtitleTarget}
+                  onChange={(e) => setSubtitleTarget(e.target.value)}
+                  onBlur={(e) => void saveSubtitleTarget(e.currentTarget.value)}
+                  placeholder="如 英语 / 日本語"
+                />
+              </SettingsRow>
+            )}
+          </SettingsGroup>
+        </>
+      ) : null}
 
-      <section className="settings-card">
-        <div className="settings-card-head">
-          <span className="settings-card-icon">
-            <IconVolume />
-          </span>
-          <div className="settings-card-title">
-            <h3>跨语音翻译</h3>
-          </div>
-        </div>
-        <div className="settings-card-body">
-          <label className="toggle-row">
-            <span>启用语音翻译</span>
+      {mode === 'translation' ? <SettingsGroup title="语音合成前翻译" className="console-group-primary">
+        <div data-setting-key="setting-voice-translation">
+          <SettingsRow label="启用语音翻译">
             <input
+              className="switch"
               type="checkbox"
               checked={voiceEnabled}
               onChange={(e) => setVoiceEnabled(e.target.checked)}
             />
-          </label>
+          </SettingsRow>
           {voiceEnabled && (
             <>
-              <label className="field">
-                <span>翻译引擎</span>
+              <SettingsRow label="翻译引擎">
                 <select
                   value={engine}
                   onChange={(e) => setEngine(e.target.value as 'llm' | 'deeplx')}
@@ -242,38 +239,36 @@ export function VoiceLanguageSettings(): ReactElement {
                   <option value="llm">LLM API（DeepSeek 等，翻译更自然）</option>
                   <option value="deeplx">本地 DeepLX（毫秒级、免费，需本地部署）</option>
                 </select>
-              </label>
+              </SettingsRow>
               {engine === 'deeplx' && (
-                <label className="field">
-                  <span>DeepLX 端点</span>
+                <SettingsRow label="DeepLX 端点">
                   <input
                     value={deeplxEndpoint}
                     onChange={(e) => setDeeplxEndpoint(e.target.value)}
                     placeholder="http://localhost:1188/v2/translate"
                   />
-                </label>
+                </SettingsRow>
               )}
-              <label className="field">
-                <span>语音目标语言</span>
+              <SettingsRow label="语音目标语言">
                 <input
                   value={voiceTarget}
                   onChange={(e) => setVoiceTarget(e.target.value)}
                   placeholder={engine === 'deeplx' ? '如 JA / EN-US' : '如 日文 / 英文'}
                 />
-              </label>
+              </SettingsRow>
               {engine === 'deeplx' && (
                 <div className="deeplx-service-box">
                   <div className="voicevox-state-row">
-                    <span
-                      className={`engine-badge ${
+                    <SettingsStatusBadge
+                      tone={
                         dx?.rate_limited
-                          ? 'err'
+                          ? 'danger'
                           : dx?.running
                             ? 'ok'
                             : dx?.exe_exists
                               ? 'warn'
-                              : 'err'
-                      }`}
+                              : 'danger'
+                      }
                     >
                       {dx?.rate_limited
                         ? '限流中'
@@ -282,16 +277,7 @@ export function VoiceLanguageSettings(): ReactElement {
                           : dx?.exe_exists
                             ? '已就绪 · 未启动'
                             : '未安装'}
-                    </span>
-                    <span className="voicevox-state-text">
-                      {dx?.rate_limited
-                        ? 'DeepL 官方已临时限制本机 IP（429），翻译会失败、语音会静默跳过'
-                        : dx?.running
-                          ? '本地翻译服务运行于 127.0.0.1:1188（毫秒级、免费）'
-                          : dx?.exe_exists
-                            ? '已随项目内置，点「一键启动」即可（或手动运行 backend/vendor/deeplx/start_deeplx.bat）'
-                            : 'deeplx.exe 未找到，请检查 backend/vendor/deeplx/'}
-                    </span>
+                    </SettingsStatusBadge>
                   </div>
                   {dx?.rate_limited && (
                     <p className="deeplx-rate-limit-hint">
@@ -315,53 +301,35 @@ export function VoiceLanguageSettings(): ReactElement {
                       停止
                     </button>
                   </div>
-                  <p className="field-hint">
-                    未启动时自动回退原文朗读。目标语言用 DeepL 代码（JA / EN-US / ZH-HANS…）。
-                  </p>
                 </div>
               )}
             </>
           )}
-          <div className="btn-row">
+          <SettingsActionBar>
             <button className="btn" onClick={() => void saveTranslator()}>
               保存翻译设置
             </button>
-          </div>
-          {status && <div className="setting-status">{status}</div>}
+          </SettingsActionBar>
         </div>
-      </section>
+      </SettingsGroup> : null}
+      {status && <div className="setting-status">{status}</div>}
     </div>
   );
 }
 
-function IconLanguages(): ReactElement {
+/**
+ * 回复方式面板（控制台「语音 → 回复方式」卡片）。
+ *
+ * 2026-08-13 改造：去掉 4 Tab（聊天回复/语音识别/语音合成前翻译/语音合成），
+ * 平铺「聊天回复 + 语音合成前翻译」两组标准设置——与其他真实组件卡片（LLM /
+ * 角色 / 屏幕感知等）的 SettingsGroup 列表样式一致。ASR/TTS 细分配置由
+ * 「语音引擎」卡片（voice-engine）覆盖，不在此重复。
+ */
+export function VoiceSettingsPanel(): ReactElement {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M5 8l6 6" />
-      <path d="M4 14l6-6 2-3" />
-      <path d="M2 5h12" />
-      <path d="M7 2h1" />
-      <path d="M22 22l-5-10-5 10" />
-      <path d="M14 18h6" />
-    </svg>
-  );
-}
-
-function IconSubtitles(): ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="5" width="20" height="14" rx="3" />
-      <path d="M7 15h4M15 15h2M7 11h10" />
-    </svg>
-  );
-}
-
-function IconVolume(): ReactElement {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 5 6 9H2v6h4l5 4z" />
-      <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-      <path d="M18.5 5.5a9 9 0 0 1 0 13" />
-    </svg>
+    <div className="settings-section settings-console-root voice-settings-panel">
+      <VoiceLanguageSettings mode="chat" />
+      <VoiceLanguageSettings mode="translation" />
+    </div>
   );
 }

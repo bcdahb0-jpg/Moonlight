@@ -108,10 +108,16 @@ class EventBus:
         self,
         status: str,
         summary: str | None = None,
+        report: str | None = None,
+        artifacts: list[str] | None = None,
     ) -> TaskEvent:
         payload: dict[str, Any] = {"status": status}
         if summary is not None:
             payload["summary"] = summary
+        if report:
+            payload["report"] = report
+        if artifacts:
+            payload["artifacts"] = artifacts
         return self.emit("run_end", payload)
 
     def emit_run_error(self, error: str) -> TaskEvent:

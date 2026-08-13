@@ -20,6 +20,33 @@ from src.open_llm_vtuber.config_manager import Config, read_yaml, validate_confi
 os.environ["HF_HOME"] = str(Path(__file__).parent / "models")
 os.environ["MODELSCOPE_CACHE"] = str(Path(__file__).parent / "models")
 
+
+def _preload_onnxruntime_dll() -> None:
+    """Windows：抢先加载 venv 自己的 onnxruntime.dll，防止命中 SYSTEM32 旧版。
+
+    sherpa_onnx 的 pyd 动态依赖 onnxruntime.dll；若按默认搜索顺序解析，会命中
+    C:\\Windows\\SYSTEM32\\onnxruntime.dll（Windows 内置 ORT 1.17，仅支持 API
+    1-17），与 sherpa-onnx 1.13.4 编译期的 API 27 不匹配 → 加载模型时 C++ 层
+    segfault（2026-08-12 实测）。必须先于任何 ``import sherpa_onnx`` 显式加载
+    venv 的 onnxruntime（1.28），后续 LoadLibrary("onnxruntime.dll") 复用该模块。
+    在模块 import 阶段执行（本文件 import 顺序保证它先于 server/ASR 链）。
+    """
+    try:
+        import onnxruntime
+
+        dll = os.path.join(
+            os.path.dirname(onnxruntime.__file__), "capi", "onnxruntime.dll"
+        )
+        if os.path.isfile(dll):
+            import ctypes
+
+            ctypes.WinDLL(dll)
+    except Exception:
+        pass  # 预加载失败仅回到原行为（仅旧版 Windows/无 ORT 场景才会走到）
+
+
+_preload_onnxruntime_dll()
+
 upgrade_manager = UpgradeManager()
 
 
@@ -210,6 +237,10 @@ def run(console_log_level: str, open_browser: bool = False):
     except Exception as e:
         logger.error(f"Failed to initialize server context: {e}")
         sys.exit(1)  # Exit if initialization fails
+
+    # MCP 服务端延后到模型加载完成后再启动：后台 uvicorn 线程与
+    # sherpa_onnx 的 ONNX 模型加载并发会在 C++ 层 segfault（2026-08-12 实测）。
+    server.start_mcp_service()
 
     # Open the browser only once the server is actually listening (opt-in; the
     # double-click launcher passes --open-browser). The thread polls the port and

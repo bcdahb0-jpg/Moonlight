@@ -1,4 +1,4 @@
-import type { AffectionSummary, ErrorCode, ModelInfo } from '@/types/ws';
+import type { AffectionSummary, ErrorCode, ModelInfo, ScreenStatusMessage } from '@/types/ws';
 
 export type ViewMode = 'pet' | 'window';
 export type ThemeMode = 'light' | 'dark';
@@ -88,13 +88,27 @@ export interface LocalSettings {
   proactivePetModeOnly: boolean;
   /** UX 修复（2026-08-10）：双语气泡（字幕翻译）前端渲染闸门，默认关。 */
   subtitleEnabled: boolean;
+  // screen_awareness（Phase 1）：隐私黑名单（与后端 conf.yaml 白名单联动）。
+  /** 应用黑名单（进程名，小写匹配；命中即不采集）。 */
+  screenBlockedApps: string[];
+  /** 标题关键词黑名单（小写子串匹配；命中即不采集）。 */
+  screenBlockedTitleKeywords: string[];
+  /** 画面变化阈值（pHash 归一化差异，0-1；越小越敏感，默认 0.08）。 */
+  screenChangeThreshold: number;
+  /** 系统空闲多少秒进入「仅监听窗口变更」模式（默认 15）。 */
+  screenIdleThresholdSec: number;
+  /** Phase 5：仅用户询问时识别（不自动轮询/不主动分析；问「看看屏幕」才采集）。 */
+  screenCaptureOnDemand: boolean;
+  /** Phase 2（pet-ptt-workflow）：定时屏幕巡检间隔（秒）。0=关闭；300~3600 可调。
+   *  与 proactiveIdleSec（空闲主动）相互独立：本开关按固定周期 + 新快照去重触发。 */
+  screenProactiveIntervalSec: number;
 }
 
 export const DEFAULT_SETTINGS: LocalSettings = {
-  theme: 'dark',
+  theme: 'light',
   // 卖点默认开启（Phase 1）：屏幕感知 = 了解你在用什么应用，主动话题 = 她会偶尔主动搭话。
   // 隐私敏感：屏幕感知会读取当前活动窗口标题；介意可在设置中关闭。
-  screenAwareEnabled: true,
+  screenAwareEnabled: false,
   screenPollIntervalSec: 5,
   proactiveEnabled: true,
   proactiveIdleSec: 60,
@@ -103,6 +117,14 @@ export const DEFAULT_SETTINGS: LocalSettings = {
   proactivePetModeOnly: true,
   // UX 修复：双语气泡默认关闭（与后端 translate_subtitle 默认一致）
   subtitleEnabled: false,
+  // screen_awareness：默认无用户黑名单；阈值用后端默认值。
+  screenBlockedApps: [],
+  screenBlockedTitleKeywords: [],
+  screenChangeThreshold: 0.08,
+  screenIdleThresholdSec: 15,
+  screenCaptureOnDemand: false,
+  // pet-ptt-workflow：定时巡检默认关闭（避免静态画面重复打扰）。
+  screenProactiveIntervalSec: 0,
 };
 
 export interface ActiveWindowInfo {
@@ -127,6 +149,8 @@ export interface AppState {
   modelUrl: string | null;
   modelInfo: ModelInfo | null;
   confName: string;
+  /** 当前角色卡的展示名；confName 仅作为兼容回退。 */
+  characterName: string;
   confUid: string;
   clientUid: string;
   messages: ChatMessage[];
@@ -139,9 +163,14 @@ export interface AppState {
   isThinking: boolean;
   /** Live streaming subtitle from the audio payload. */
   subtitle: string;
+  /** Phase 3（pet-ptt-workflow）：桌宠字幕条（最近一条流式 AI full-text）。
+   *  独立于 subtitle（翻译副文本）；会话结束/打断/切换时清空。 */
+  petSubtitle: string;
   /** 聊天 agent 工具执行状态文案（tool_call_status；空 = 无/已结束）。 */
   toolStatus: string | null;
   activeWindow: ActiveWindowInfo | null;
+  /** screen_awareness 运行时状态（后端 screen-status 推送）。 */
+  screenStatus: ScreenStatusMessage | null;
   settings: LocalSettings;
   lastError: string | null;
   /** 结构化错误码（契约层 Phase 0，Phase 3 渲染成修复卡）。 */
@@ -153,11 +182,12 @@ export interface AppState {
 export function createInitialState(): AppState {
   return {
     mode: 'pet',
-    theme: 'dark',
+    theme: 'light',
     connStatus: 'idle',
     modelUrl: null,
     modelInfo: null,
-    confName: '',
+  confName: '',
+  characterName: '',
     confUid: '',
     clientUid: '',
     messages: [],
@@ -167,8 +197,10 @@ export function createInitialState(): AppState {
     affection: null,
     isThinking: false,
     subtitle: '',
+    petSubtitle: '',
     toolStatus: null,
     activeWindow: null,
+    screenStatus: null,
     settings: DEFAULT_SETTINGS,
     lastError: null,
     errorCode: null,

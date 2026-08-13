@@ -85,6 +85,13 @@ _NOUN_RE = re.compile("|".join(re.escape(k) for k in _NOUN_KEYWORDS))
 _QUERY_RE = re.compile("|".join(re.escape(k) for k in _QUERY_KEYWORDS) + r"|[?？]")
 _CHAT_RE = re.compile("|".join(re.escape(k) for k in _CHAT_KEYWORDS))
 
+# 纠正、追问和观点表达优先走聊天链路。不能因为句子里顺带出现“搜索/查”
+# 就把它升级成新任务；这类消息通常是在回应上一条 AI 回复。
+_CHAT_OVERRIDE_RE = re.compile(
+    r"^(?:为什么|为何|为啥|怎么回事|怎么会|我不是|我的意思是|不是问|"
+    r"你理解错了|不对)"
+)
+
 #: LLM 分类超时（秒）：分类只是路由，不值得卡住发送链路。超时直接回退 chat
 #: （聊天链路比误触任务安全）。前端已改为「先回显、后台分类」，但后端仍需防挂死。
 _LLM_CLASSIFY_TIMEOUT = 3.0
@@ -103,13 +110,16 @@ def _rule_classify(text: str) -> str | None:
     强动作词先于疑问句：真正的执行指令即使带问号（"怎么写脚本？"）
     也不会被查询式误吞——那类指令词面有明确执行动词。
     """
-    if _ACTION_RE.search(text):
-        return "task"
-    if _QUERY_RE.search(text):
+    normalized = text.strip()
+    if _CHAT_OVERRIDE_RE.search(normalized):
         return "chat"
-    if _NOUN_RE.search(text):
+    if _ACTION_RE.search(normalized):
         return "task"
-    if _CHAT_RE.search(text):
+    if _QUERY_RE.search(normalized):
+        return "chat"
+    if _NOUN_RE.search(normalized):
+        return "task"
+    if _CHAT_RE.search(normalized):
         return "chat"
     return None
 

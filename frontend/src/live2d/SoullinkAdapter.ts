@@ -75,6 +75,24 @@ export class SoullinkAdapter implements Live2DAdapter {
   private latestParams: Live2DParamState = {};
   private lastNativeAnimToken = -1;
   private suppressedParamIds: ReadonlySet<string> = new Set();
+  // P1 连续动作：外部参数帧（motion-plan），叠加在引擎输出之上
+  private externalParams: Record<string, number> = {};
+  // P1.5 外观 / 滤镜 / 遮罩状态
+  private appearance: { scale: number; posX: number; posY: number; opacity: number } = {
+    scale: 100,
+    posX: 50,
+    posY: 60,
+    opacity: 100,
+  };
+  private visualFx: { enabled: boolean; brightness: number; colorTemp: number; saturation: number } = {
+    enabled: false,
+    brightness: 1,
+    colorTemp: 6500,
+    saturation: 1,
+  };
+  private colorFilter: PIXI.ColorMatrixFilter | null = null;
+  private occlusion: { x: number; y: number }[] | null = null;
+  private occlusionGraphics: PIXI.Graphics | null = null;
 
   // ---- 自研眨眼（引擎 0.1.0-beta.1 的 BlinkController 缺陷补丁）----
   // Node 探针实证：idle 的 eyeBlinkL/R FACS 恒 0，12s 无一次眨眼。
@@ -215,6 +233,96 @@ export class SoullinkAdapter implements Live2DAdapter {
     }
   }
 
+  /** P1 连续动作：外部参数帧叠加（motion-plan），在 beforeModelUpdate 时写入。 */
+  applyExternalParams(params: Record<string, number>): void {
+    this.externalParams = { ...params };
+  }
+
+  // ------------------------------------------------------------------ //
+  // P1.5 外观 / 视觉滤镜 / 遮罩
+  // ------------------------------------------------------------------ //
+
+  /** P1.5 外观：缩放/位置/不透明度应用到模型（渲染层真实生效）。 */
+  applyAppearance(appearance: {
+    scale?: number; // 40-200 %
+    posX?: number; // 0-100 %
+    posY?: number; // 0-100 %
+    opacity?: number; // 20-100 %
+  }): void {
+    this.appearance = { ...this.appearance, ...appearance };
+    this.fitModel();
+    if (this.model) {
+      this.model.alpha = (this.appearance.opacity ?? 100) / 100;
+    }
+  }
+
+  /** P1.5 视觉滤镜：亮度/色温/饱和度（ColorMatrixFilter，参考 SoulLink ambient-lighting）。 */
+  applyVisualFx(fx: {
+    enabled?: boolean;
+    brightness?: number; // 0.2-2.0（1 = 不变）
+    colorTemp?: number; // 2000-10000 K（6500 = 不变）
+    saturation?: number; // 0-2（1 = 不变）
+  }): void {
+    this.visualFx = { ...this.visualFx, ...fx };
+    if (!this.model) return;
+    const { enabled, brightness, colorTemp, saturation } = this.visualFx;
+    if (!enabled) {
+      if (this.colorFilter) {
+        this.model.filters = [];
+        this.colorFilter = null;
+      }
+      return;
+    }
+    if (!this.colorFilter) {
+      this.colorFilter = new PIXI.ColorMatrixFilter();
+      this.model.filters = [this.colorFilter];
+    }
+    const cf = this.colorFilter;
+    cf.reset();
+    // 亮度
+    const b = Math.max(0.2, Math.min(2.0, brightness ?? 1));
+    cf.brightness(b, false);
+    // 色温：6500K 不变；偏暖（<6500）→ 提高 R 降低 B；偏冷（>6500）反向
+    const temp = Math.max(2000, Math.min(10000, colorTemp ?? 6500));
+    const diff = (temp - 6500) / 6500; // -1..+0.54
+    const rBoost = Math.max(0.85, Math.min(1.25, 1 + diff * 0.35));
+    const bBoost = Math.max(0.8, Math.min(1.3, 1 - diff * 0.3));
+    cf.matrix[0] *= rBoost;
+    cf.matrix[12] *= bBoost;
+    // 饱和度（PIXI ColorMatrixFilter.saturate）
+    const sat = Math.max(0, Math.min(2, saturation ?? 1));
+    if (Math.abs(sat - 1) > 0.01) cf.saturate(sat, false);
+  }
+
+  /** P1.5 遮罩：多边形裁剪（画布坐标归一化 0..1，多边形内可见）。 */
+  setOcclusion(points: { x: number; y: number }[] | null): void {
+    this.occlusion = points;
+    if (!this.model || !this.app) return;
+    if (!points || points.length < 3) {
+      this.model.mask = null;
+      if (this.occlusionGraphics) {
+        this.occlusionGraphics.destroy();
+        this.occlusionGraphics = null;
+      }
+      return;
+    }
+    if (!this.occlusionGraphics) {
+      this.occlusionGraphics = new PIXI.Graphics();
+      this.model.mask = this.occlusionGraphics;
+    }
+    const w = this.app.renderer.width;
+    const h = this.app.renderer.height;
+    const g = this.occlusionGraphics;
+    g.clear();
+    g.beginFill(0xffffff);
+    g.moveTo(points[0].x * w, points[0].y * h);
+    for (let i = 1; i < points.length; i += 1) {
+      g.lineTo(points[i].x * w, points[i].y * h);
+    }
+    g.closePath();
+    g.endFill();
+  }
+
   /** 捕获当前渲染帧为 PNG data URL（用于生成模型缩略图）。 */
   capturePng(): string {
     if (!this.app) return this.canvas.toDataURL('image/png');
@@ -257,6 +365,13 @@ export class SoullinkAdapter implements Live2DAdapter {
         off?: (event: string, fn: () => void) => void;
       };
       internalModel.off?.('beforeModelUpdate', this.onBeforeModelUpdate);
+      if (this.occlusionGraphics) {
+        this.occlusionGraphics.destroy();
+        this.occlusionGraphics = null;
+        this.model.mask = null;
+      }
+      this.model.filters = [];
+      this.colorFilter = null;
       this.model.destroy();
       this.model = null;
     }
@@ -404,6 +519,16 @@ export class SoullinkAdapter implements Live2DAdapter {
       coreModel.setParameterValueById(id, final, 1);
     }
 
+    // P1 连续动作：外部参数帧覆盖（motion-plan 产物；跳过口型开合——交给音量驱动）
+    for (const [id, value] of Object.entries(this.externalParams)) {
+      if (this.suppressedParamIds.has(id)) continue;
+      if (isHeadParam(id) || isBodyParam(id)) continue;
+      const lower = id.toLowerCase();
+      if (lower.includes('mouthopen') || lower === 'parammouthopeny') continue;
+      if (coreModel.getParameterIndex && coreModel.getParameterIndex(id) < 0) continue;
+      coreModel.setParameterValueById(id, value, 1);
+    }
+
     // 说话头部微动叠加（Phase B2）：仅说话时生效，幅度小不冲突动作。
     // 引擎头部参数已在上方无条件跳过，此处直接叠加（无需再检查引擎值）。
     if (this.headMotion.isActive()) {
@@ -432,10 +557,18 @@ export class SoullinkAdapter implements Live2DAdapter {
     const origH = this.model.internalModel.originalHeight || this.model.height;
     if (origW <= 0 || origH <= 0) return;
 
-    const scale = Math.min(w / origW, h / origH) * 0.95;
+    // P1.5 外观：缩放百分比 + 位置百分比叠加
+    const scalePct = (this.appearance.scale ?? 100) / 100;
+    const scale = Math.min(w / origW, h / origH) * 0.95 * scalePct;
     this.model.scale.set(scale);
-    this.model.x = w / 2;
-    this.model.y = h / 2 + h * 0.04;
+    const dx = (((this.appearance.posX ?? 50) - 50) / 100) * w * 0.5;
+    const dy = (((this.appearance.posY ?? 60) - 50) / 100) * h * 0.5;
+    this.model.x = w / 2 + dx;
+    this.model.y = h / 2 + h * 0.04 + dy;
+    this.model.alpha = (this.appearance.opacity ?? 100) / 100;
+
+    // 遮罩随画布尺寸重绘（点坐标为归一化 0..1）
+    if (this.occlusion) this.setOcclusion(this.occlusion);
   }
 }
 

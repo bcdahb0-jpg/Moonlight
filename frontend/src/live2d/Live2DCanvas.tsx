@@ -4,6 +4,64 @@ import { SoullinkAdapter } from './SoullinkAdapter';
 import type { Live2DAdapter } from './Live2DAdapter';
 import { generateDefaultProfile } from './defaultProfile';
 import type { ModelProfile } from '@soullink-emotion/engine';
+import type { Live2DAppearance } from '@/settings/Live2DAppearanceSettings';
+import type { Live2DVisualFx } from '@/settings/OcclusionEditor';
+
+/** P1.5 localStorage 键（与设置组件共用同一数据契约）。 */
+const APPEARANCE_KEY = 'moonlight.live2d.appearance';
+const FX_KEY = 'moonlight.live2d.fx';
+
+function readAppearance(): Partial<Live2DAppearance> {
+  try {
+    const raw = localStorage.getItem(APPEARANCE_KEY);
+    return raw ? (JSON.parse(raw) as Partial<Live2DAppearance>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function readVisualFx(): Partial<Live2DVisualFx> {
+  try {
+    const raw = localStorage.getItem(FX_KEY);
+    return raw ? (JSON.parse(raw) as Partial<Live2DVisualFx>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** P1.5 渲染层应用外观 + 滤镜 + 遮罩（并监听 storage 跨窗口同步）。 */
+function useLive2dConfig(adapterRef: React.MutableRefObject<Live2DAdapter | null>): void {
+  useEffect(() => {
+    const apply = (): void => {
+      const adapter = adapterRef.current as (Live2DAdapter & {
+        applyAppearance?: (a: Partial<Live2DAppearance>) => void;
+        applyVisualFx?: (f: Partial<Live2DVisualFx>) => void;
+        setOcclusion?: (p: { x: number; y: number }[] | null) => void;
+      }) | null;
+      if (!adapter) return;
+      adapter.applyAppearance?.(readAppearance());
+      adapter.applyVisualFx?.(readVisualFx());
+      const fx = readVisualFx();
+      adapter.setOcclusion?.(fx.enabled && fx.occlusion && fx.occlusion.length >= 3 ? fx.occlusion : null);
+    };
+    // adapter 就绪后立刻应用
+    const timer = window.setInterval(() => {
+      if (adapterRef.current) {
+        apply();
+        window.clearInterval(timer);
+      }
+    }, 120);
+    // 控制台窗口修改 → storage 事件 → 桌宠窗口实时同步
+    const onStorage = (e: StorageEvent): void => {
+      if (e.key === APPEARANCE_KEY || e.key === FX_KEY) apply();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [adapterRef]);
+}
 
 /**
  * 是否禁用 Soullink Emotion SDK 引擎（Phase 0 起默认为启用）。
@@ -78,6 +136,9 @@ export function Live2DCanvas({
   onReadyRef.current = onAdapterReady;
   onErrorRef.current = onError;
   onEngineChangeRef.current = onEngineChange;
+
+  // P1.5：渲染层应用外观 / 滤镜 / 遮罩（localStorage 契约 + storage 跨窗口同步）
+  useLive2dConfig(adapterRef);
 
   useEffect(() => {
     onReadyRef.current = onAdapterReady;

@@ -8,6 +8,7 @@ export class VoiceRecorder {
   private stream: MediaStream | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
   private processor: ScriptProcessorNode | null = null;
+  private stopping = false;
   private readonly onChunk: (chunk: Float32Array) => void;
   private readonly onEnd: () => void;
   private readonly onError: (error: Error) => void;
@@ -23,6 +24,7 @@ export class VoiceRecorder {
   }
 
   async start(): Promise<void> {
+    this.stopping = false;
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -31,6 +33,13 @@ export class VoiceRecorder {
           autoGainControl: true,
         },
       });
+      // The user may release the button while the permission prompt is open.
+      // Do not attach a late stream after the recorder has already been stopped.
+      if (this.stopping) {
+        this.stream.getTracks().forEach((track) => track.stop());
+        this.stream = null;
+        return;
+      }
 
       // Prefer a 16 kHz context; fall back to the device rate and resample.
       let rate = 16000;
@@ -56,6 +65,7 @@ export class VoiceRecorder {
   }
 
   stop(): void {
+    this.stopping = true;
     if (this.processor) {
       this.processor.disconnect();
       this.processor.onaudioprocess = null;
@@ -95,4 +105,16 @@ function resampleToRate(input: Float32Array, inputRate: number, outputRate: numb
     out[i] = input[i0] * (1 - frac) + input[i1] * frac;
   }
   return out;
+}
+
+/** 计算 chunk 音量（RMS，0..1 近似）。PTT 音量条 / 倾听动画共用。 */
+export function chunkVolume(chunk: Float32Array): number {
+  let sum = 0;
+  for (let i = 0; i < chunk.length; i++) {
+    const v = chunk[i];
+    sum += v * v;
+  }
+  const rms = Math.sqrt(sum / Math.max(1, chunk.length));
+  // RMS 0.5（≈-6dBFS）封顶，再压缩到 0..1。
+  return Math.min(1, rms * 2);
 }

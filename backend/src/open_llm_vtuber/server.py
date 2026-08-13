@@ -24,6 +24,16 @@ from .translator_route import init_translator_route
 from .memory_route import init_memory_route
 from .perf_route import init_perf_route
 from .engine_route import init_engine_route
+from .console_route import init_console_route
+from .expression_route import init_expression_route
+from .live2d_catalog import init_live2d_catalog_route
+from .singing.routes import init_singing_route
+from .live.live_route import init_live_route
+from .playmate.route import init_playmate_route
+from .plugin_route import init_plugin_route
+from .attachment_route import init_attachment_route
+from .occlusion_route import init_occlusion_route
+from .social_route import init_social_route
 from .emotion_route import init_emotion_route
 from .topics_route import (
     init_topics_route,
@@ -33,6 +43,7 @@ from .topics_route import (
 from .task_platform.task_route import init_task_route
 from .task_platform.task_config_route import init_task_config_route
 from .task_platform.intent_route import init_intent_route
+from .screen_awareness.route import init_screen_route
 from .service_context import ServiceContext
 from .config_manager.utils import Config
 
@@ -167,6 +178,37 @@ class WebSocketServer:
         # surgical per-block writes, and VOICEVOX local-engine download/start/stop.
         self.app.include_router(init_engine_route())
 
+        # 控制台聚合 API（P0 接线工程）：GET /api/console/overview —— 顶栏 + 概览
+        # 分区 + 系统性能的实时数据，聚合现有 service 内存态（fail-soft）。
+        self.app.include_router(init_console_route())
+
+        # 表情 / 口型动作（P1 表情与动作域）：motion-plan / generate / config。
+        self.app.include_router(init_expression_route())
+
+        # Live2D 模型目录扫描 / 热切换（P1 多模型与专属 Prompt）。
+        self.app.include_router(init_live2d_catalog_route())
+
+        # 唱歌与音乐（P2 唱歌 MVP）：点歌学唱 / 队列 / 翻唱引擎。
+        self.app.include_router(init_singing_route())
+
+        # 直播与互动（P3）：B站接入 / 弹幕玩法 / 叠加层 / OBS+VTS。
+        self.app.include_router(init_live_route())
+
+        # 游戏陪玩（P4）：目标游戏 / 画面事件 / 攻略知识库 / 高光喝彩。
+        self.app.include_router(init_playmate_route())
+
+        # 插件生态（P5）：插件管理器 / 技能市场 / 导出分享 / 意图识别。
+        self.app.include_router(init_plugin_route())
+
+        # 聊天附件（P5.1）：PDF 抽取 / 图片预描述（multipart 上传）。
+        self.app.include_router(init_attachment_route())
+
+        # 遮罩 AI 前景（P6）：rembg 抠图 → 轮廓点。
+        self.app.include_router(init_occlusion_route())
+
+        # QQ 社交连接器（P6）：OneBot v11（NapCat）。
+        self.app.include_router(init_social_route())
+
         # Proactive topic-pool endpoints (localhost-only). Manage the manual topic
         # pool + optional Google-News auto-topics that compose into
         # proactive_speak_prompt.txt. Same /api/* placement (before "/").
@@ -179,41 +221,27 @@ class WebSocketServer:
         # （Phase 1）；Phase 2 起追加 runs/stream SSE + interrupt，Phase 3 追加 skills。
         # 装配外壳播报（G7）：广播函数注入 task_route，TTS 引擎注入 task_platform.shell
         # ——外壳汇报复用主对话链路（WS audio 消息），前端零改动。
-        try:
-            from .task_platform import shell as _task_shell
-
-            async def _shell_audio_broadcast(payload):
-                from .websocket_handler import get_ws_handler
-                from .contracts import send_message
-
-                handler = get_ws_handler()
-                if handler is None:
-                    return
-                for ws in list(handler.client_connections.values()):
-                    try:
-                        await send_message(ws.send_text, payload)
-                    except Exception:
-                        pass  # 单个连接失败不阻断其他连接
-
-            from .task_platform.task_route import set_shell_broadcast
-
-            set_shell_broadcast(_shell_audio_broadcast)
-            try:
-                _task_shell.set_tts_engine(
-                    getattr(self.default_context_cache, "tts_engine", None)
-                )
-            except Exception as _e:
-                from loguru import logger as _logger
-
-                _logger.warning(f"[shell] TTS 引擎注入失败（将按需自建）：{_e}")
-        except Exception as _e:
-            from loguru import logger as _logger
-
-            _logger.warning(f"[shell] 外壳播报装配失败（任务链路不受影响）：{_e}")
         self.app.include_router(init_task_route())
 
         # 意图路由（P1）：POST /api/intent/classify —— 聊天/任务自动分类。
         self.app.include_router(init_intent_route())
+
+        # 屏幕理解与陪聊（Phase 0）：状态/指标/分析/清除/配置端点（localhost-only）。
+        # 读取 system_config.screen_awareness 并注入 screen_awareness store；
+        # 视觉 provider 未显式配置时继承对话 LLM（inherit 语义）。
+        try:
+            from .screen_awareness.route import apply_screen_config, fill_llm_defaults
+            from .screen_awareness.models import screen_config_from
+
+            _sc_cfg = fill_llm_defaults(
+                screen_config_from(config.system_config), config.character_config
+            )
+            apply_screen_config(_sc_cfg)
+        except Exception as _sc_e:
+            from loguru import logger as _logger
+
+            _logger.warning(f"[screen_awareness] startup config inject failed: {_sc_e}")
+        self.app.include_router(init_screen_route())
 
         # 任务平台配置端点（localhost-only）：设置 UI 读取/保存 task_platform 配置 +
         # MCP 服务器管理（增删改/整体替换/测试连接）。写盘外科手术式，需重启生效。
@@ -263,19 +291,6 @@ class WebSocketServer:
                 init_proxy_route(server_url=server_url),
             )
 
-        # Moonlight 集成：MCP 服务端。开启后外部 Agent（Claude/OpenClaw 等）可经
-        # Streamable HTTP（127.0.0.1:12394，Bearer token 鉴权）反向控制桌宠。
-        # 启动失败只记警告，绝不让 MCP 问题拖垮主服务。
-        try:
-            if getattr(system_config, "mcp_server_enabled", True):
-                from .mcp_server.launcher import start_mcp_server
-
-                start_mcp_server()
-        except Exception as e:
-            from loguru import logger as _logger
-
-            _logger.warning(f"Failed to start MCP server: {e}")
-
         # Mount cache directory first (to ensure audio file access)
         if not os.path.exists("cache"):
             os.makedirs("cache")
@@ -283,6 +298,14 @@ class WebSocketServer:
             "/cache",
             CORSStaticFiles(directory="cache"),
             name="cache",
+        )
+
+        # P2 唱歌产物（学歌完成的 vocal/accompany wav）静态挂载。
+        os.makedirs(os.path.join("output", "singing"), exist_ok=True)
+        self.app.mount(
+            "/singing-output",
+            CORSStaticFiles(directory=os.path.join("output", "singing")),
+            name="singing-output",
         )
 
         # Ensure static dirs exist before mounting. Empty dirs (notably avatars/)
@@ -321,6 +344,26 @@ class WebSocketServer:
             CORSStaticFiles(directory="frontend", html=True),
             name="frontend",
         )
+
+    def start_mcp_service(self) -> None:
+        """启动 MCP 服务端（延后到模型加载完成后调用，见 run_server.py）。
+
+        不能放在构造函数里：MCP 的后台 uvicorn 线程与 sherpa_onnx 的 ONNX
+        模型加载并发时会在 C++ 层 segfault（2026-08-12 实测，100% 复现），
+        导致整个后端启动崩溃。模型全部加载完再拉起 MCP 线程则稳定。
+        启动失败只记警告，绝不让 MCP 问题拖垮主服务。
+        """
+        system_config = self.config.system_config
+        if not getattr(system_config, "mcp_server_enabled", True):
+            return
+        try:
+            from .mcp_server.launcher import start_mcp_server
+
+            start_mcp_server()
+        except Exception as e:
+            from loguru import logger as _logger
+
+            _logger.warning(f"Failed to start MCP server: {e}")
 
     async def initialize(self):
         """Asynchronously load the service context from config.

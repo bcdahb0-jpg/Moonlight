@@ -2,7 +2,6 @@ import asyncio
 import re
 from typing import Optional, Union, Any, List, Dict, Callable, Awaitable
 import numpy as np
-import json
 from loguru import logger
 
 from ..contracts import ErrorCode, send_error, send_message
@@ -197,12 +196,10 @@ async def process_agent_output(
     subtitle_translate_engine: Optional[Any] = None,
 ) -> str:
     """Process agent output with character information and optional translation"""
-    # Display name shown on the AI side of the chat: prefer the explicit
-    # character_name, else fall back to conf_name. Never let it be empty (which the
-    # frontend would render as a hardcoded 'AI'/'A').
-    output.display_text.name = (
-        character_config.character_name or character_config.conf_name
-    )
+    # The selected character card's conf_name is the single chat display name.
+    # character_name is persona/config metadata and may still contain a legacy
+    # value (for example hiyori card + 小月), so it must not leak into bubbles.
+    output.display_text.name = character_config.conf_name
     output.display_text.avatar = character_config.avatar
 
     # Derive the voice language V once per output (not per sentence): the audio
@@ -426,7 +423,10 @@ async def handle_audio_output(
     full_response = ""
     async for audio_path, display_text, transcript, actions in output:
         full_response += transcript
-        audio_payload = prepare_audio_payload(
+        # WAV decoding/base64/viseme extraction can be expensive. Never run it
+        # inline on the asyncio loop or heartbeat and text frames will stutter.
+        audio_payload = await asyncio.to_thread(
+            prepare_audio_payload,
             audio_path=audio_path,
             display_text=display_text,
             actions=actions.to_dict() if actions else None,
@@ -477,8 +477,7 @@ async def finalize_conversation_turn(
     broadcast_ctx: Optional[BroadcastContext] = None,
 ) -> None:
     """Finalize a conversation turn"""
-    if tts_manager.task_list:
-        await asyncio.gather(*tts_manager.task_list)
+    if await tts_manager.wait_for_delivery():
         await send_message(websocket_send, {"type": "backend-synth-complete"})
 
         # Playback is a frontend concern and may last tens of seconds. Do not
@@ -508,7 +507,7 @@ async def send_conversation_end_signal(
         "text": "conversation-chain-end",
     }
 
-    await websocket_send(json.dumps(chain_end_msg))
+    await send_message(websocket_send, chain_end_msg)
 
     if broadcast_ctx and broadcast_ctx.broadcast_func and broadcast_ctx.group_members:
         await broadcast_ctx.broadcast_func(

@@ -11,6 +11,7 @@ export type Action =
       modelUrl: string;
       modelInfo: ModelInfo;
       confName: string;
+      characterName: string;
       confUid: string;
     }
   | { type: 'ADD_MESSAGE'; message: ChatMessage }
@@ -27,7 +28,12 @@ export type Action =
   | { type: 'SET_EMOTION'; emotion: Emotion; intensity?: number | null; source?: string | null }
   | { type: 'SET_AFFECTION'; affection: AffectionSummary | null }
   | { type: 'SET_SUBTITLE'; text: string }
+  /** Phase 3（pet-ptt-workflow）：桌宠字幕条文本（最近一条流式 AI full-text）。
+   *  与 subtitle（翻译副文本）数据源分离：前者来自 full-text，后者来自 audio 的
+   *  subtitle_text / transcript。 */
+  | { type: 'SET_PET_SUBTITLE'; text: string }
   | { type: 'SET_ACTIVE_WINDOW'; info: AppState['activeWindow'] }
+  | { type: 'SET_SCREEN_STATUS'; status: AppState['screenStatus'] }
   | { type: 'UPDATE_SETTINGS'; settings: Partial<LocalSettings> }
   | { type: 'SET_ERROR'; message: string | null; code?: ErrorCode | null }
   | { type: 'CLEAR_MESSAGES' }
@@ -51,6 +57,7 @@ export function reducer(state: AppState, action: Action): AppState {
         modelUrl: action.modelUrl,
         modelInfo: action.modelInfo,
         confName: action.confName,
+        characterName: action.characterName,
         confUid: action.confUid,
       };
 
@@ -140,8 +147,14 @@ export function reducer(state: AppState, action: Action): AppState {
     case 'SET_SUBTITLE':
       return { ...state, subtitle: action.text };
 
+    case 'SET_PET_SUBTITLE':
+      return { ...state, petSubtitle: action.text };
+
     case 'SET_ACTIVE_WINDOW':
       return { ...state, activeWindow: action.info };
+
+    case 'SET_SCREEN_STATUS':
+      return { ...state, screenStatus: action.status };
 
     case 'UPDATE_SETTINGS':
       return { ...state, settings: { ...state.settings, ...action.settings } };

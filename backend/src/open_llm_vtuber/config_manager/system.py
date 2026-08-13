@@ -22,6 +22,10 @@ class UiPrefs(BaseModel):
     # Moonlight（2026-08-10 UX 修复）：双语气泡（字幕翻译）开关的前端渲染
     # 闸门。默认 False（关闭，用户确认默认关是正确的）。
     subtitle_enabled: bool = Field(False, alias="subtitle_enabled")
+    # Phase 2（pet-ptt-workflow）：定时屏幕巡检间隔（秒）。0=关闭（默认）；
+    # 300~3600 可调。与 proactive_idle_sec（空闲主动）相互独立：按固定周期
+    # 触发检查，且只允许「上次主动对话之后产生的新快照」通过（静态画面去重）。
+    screen_proactive_interval_sec: int = Field(0, alias="screen_proactive_interval_sec")
 
 
 class SystemConfig(I18nMixin):
@@ -42,6 +46,11 @@ class SystemConfig(I18nMixin):
     # Moonlight：前端 UI 行为偏好（屏幕感知/主动话题等）。带默认值，conf.yaml
     # 未声明时用默认，向后兼容。
     ui_prefs: UiPrefs = Field(default_factory=UiPrefs, alias="ui_prefs")
+    # Moonlight（screen_awareness Phase 0）：屏幕理解与陪聊配置块。
+    # 原样透传 dict（未声明为 None），由 screen_awareness.screen_config_from 兜底。
+    screen_awareness: Dict[str, object] | None = Field(
+        default=None, alias="screen_awareness"
+    )
 
     DESCRIPTIONS: ClassVar[Dict[str, Description]] = {
         "player_language": Description(

@@ -170,7 +170,7 @@ def init_group_conversation_contexts(
     client_contexts: Dict[str, ServiceContext],
 ) -> None:
     """Initialize group conversation context for each AI participant"""
-    ai_names = [ctx.character_config.character_name for ctx in client_contexts.values()]
+    ai_names = [ctx.character_config.conf_name for ctx in client_contexts.values()]
 
     for context in client_contexts.values():
         agent = context.agent_engine
@@ -180,12 +180,12 @@ def init_group_conversation_contexts(
                 ai_participants=[
                     name
                     for name in ai_names
-                    if name != context.character_config.character_name
+                    if name != context.character_config.conf_name
                 ],
             )
             logger.debug(
                 f"Initialized group conversation context for "
-                f"{context.character_config.character_name}"
+                f"{context.character_config.conf_name}"
             )
 
 
@@ -255,7 +255,7 @@ async def handle_group_member_turn(
     )
 
     logger.info(
-        f"AI {context.character_config.character_name} "
+        f"AI {context.character_config.conf_name} "
         f"(client {current_member_uid}) receiving context:\n{new_context}"
     )
 
@@ -270,10 +270,7 @@ async def handle_group_member_turn(
 
     # 把聚合缓冲里的剩余文本整段合成（句子已按段落聚合，见 tts_manager.speak）
     await tts_manager.flush()
-    if tts_manager.task_list:
-        await asyncio.gather(*tts_manager.task_list)
-        await send_message(current_ws_send, {"type": "backend-synth-complete"})
-
+    if tts_manager.task_list or tts_manager._payload_queue._unfinished_tasks:
         broadcast_ctx = BroadcastContext(
             broadcast_func=broadcast_func,
             group_members=group_members,
@@ -288,7 +285,7 @@ async def handle_group_member_turn(
         )
 
     if full_response:
-        ai_message = f"{context.character_config.character_name}: {full_response}"
+        ai_message = f"{context.character_config.conf_name}: {full_response}"
         state.conversation_history.append(ai_message)
         logger.info(f"Appended complete response: {ai_message}")
 
@@ -299,8 +296,7 @@ async def handle_group_member_turn(
                 history_uid=member_context.history_uid,
                 role="ai",
                 content=full_response,
-                name=context.character_config.character_name
-                or context.character_config.conf_name,
+                name=context.character_config.conf_name,
                 avatar=context.character_config.avatar,
             )
         else:
@@ -373,7 +369,7 @@ async def process_member_response(
             ):
                 if broadcast_func and group_members:
                     logger.debug(f"Broadcasting tool status update: {output_item}")
-                    output_item["name"] = context.character_config.character_name
+                    output_item["name"] = context.character_config.conf_name
                     await broadcast_func(group_members, output_item)
                 else:
                     logger.warning(

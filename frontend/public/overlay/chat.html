@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>弹幕聊天框 · Moonlight Overlay</title>
+<style>
+  /* 直播叠加层：透明背景，OBS 浏览器源使用 */
+  html, body { margin: 0; padding: 0; background: transparent; overflow: hidden;
+    font-family: "Microsoft YaHei", sans-serif; }
+  #chat { position: fixed; left: 16px; bottom: 16px; width: 420px;
+    display: flex; flex-direction: column; gap: 6px; }
+  .msg { background: rgba(0,0,0,0.45); border-radius: 8px; padding: 6px 10px;
+    font-size: 15px; color: #fff; animation: pop .25s ease; word-break: break-all; }
+  .msg .uname { color: #ffd666; font-weight: 600; margin-right: 6px; }
+  .msg.system { border-left: 3px solid #6ee7a8; }
+  .msg.welcome { border-left: 3px solid #fbbf24; }
+  .msg.gift { border-left: 3px solid #f472b6; }
+  @keyframes pop { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+</style>
+</head>
+<body>
+<div id="chat"></div>
+<script>
+// 轮询 /api/live/overlay/chat，最多保留 6 条
+const el = document.getElementById('chat');
+let lastTs = 0;
+async function poll() {
+  try {
+    const r = await fetch('http://127.0.0.1:12393/api/live/overlay/chat?limit=10');
+    const data = await r.json();
+    const fresh = (data.messages || []).filter(m => m.ts > lastTs);
+    if (fresh.length) lastTs = Math.max(...fresh.map(m => m.ts));
+    fresh.slice(-3).forEach(m => {
+      const d = document.createElement('div');
+      d.className = 'msg ' + (m.kind === 'chat' ? '' : m.kind);
+      if (m.uname) { const u = document.createElement('span'); u.className = 'uname'; u.textContent = m.uname + '：'; d.appendChild(u); }
+      d.appendChild(document.createTextNode(m.text));
+      el.appendChild(d);
+      while (el.children.length > 6) el.removeChild(el.firstChild);
+      setTimeout(() => d.remove(), 8000);
+    });
+  } catch (e) { /* 后端未启动时静默 */ }
+}
+setInterval(poll, 1500); poll();
+</script>
+</body>
+</html>

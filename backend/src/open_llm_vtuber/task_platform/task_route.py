@@ -28,7 +28,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from loguru import logger
 from starlette.responses import JSONResponse, StreamingResponse
 
-from . import compaction, goal, graph, hooks, models, shell
+from . import compaction, goal, graph, hooks, models
 from .conf_bridge import TaskPlatformConfig, task_config
 from .memory.store import get_memory_manager
 from .session import SessionFile
@@ -43,14 +43,6 @@ _runs: dict[str, "RunContext"] = {}
 
 #: 外壳播报广播函数（server.py 注入：把 WS audio payload 发给所有已连接前端）。
 #: None = 未注入（离线/测试环境）→ shell.speak 直接跳过，不影响任务链路。
-_shell_broadcast: Any = None
-
-
-def set_shell_broadcast(fn: Any) -> None:
-    """注入外壳播报广播函数（server.py 装配时调用）。"""
-    global _shell_broadcast
-    _shell_broadcast = fn
-
 _SSE_HEARTBEAT_SEC = 15
 #: /api/tasks/tools 探测结果缓存 TTL（探测会启动子进程，避免每次请求都重探测 —— review MEDIUM）。
 _TOOLS_CACHE_TTL_SEC = 60
@@ -70,11 +62,13 @@ class RunContext:
         run: models.Run,
         bus: hooks.EventBus,
         cfg: TaskPlatformConfig,
+        persist_chat_message: bool = True,
     ):
         self.task = task
         self.run = run
         self.bus = bus
         self.cfg = cfg
+        self.persist_chat_message = persist_chat_message
         self.run_task: asyncio.Task | None = None
 
     @property
@@ -185,23 +179,6 @@ async def _run_task_agent(
     cfg = ctx.cfg
     evaluator = goal_evaluator or goal.evaluate_goal_completion
 
-    def _shell_speak(event_type: str, payload: dict[str, Any]) -> None:
-        """fire-and-forget 外壳播报（不阻塞 run；未注入广播函数时静默跳过）。"""
-        if _shell_broadcast is None:
-            return
-        try:
-            asyncio.create_task(
-                shell.speak(
-                    event_type,
-                    payload,
-                    task,
-                    cfg=cfg,
-                    send_func=_shell_broadcast,
-                )
-            )
-        except Exception as _e:  # 播报失败不影响 run
-            logger.debug(f"[shell] 播报调度失败 {event_type}: {_e}")
-
     try:
         run_summary = ""  # 最后一条 AI 文本（run_end 播报/简报用）
         # 2026-08-10：run_start 携带本次触发指令 + 任务执行序号（前端据此渲染
@@ -212,11 +189,13 @@ async def _run_task_agent(
         except Exception:
             pass
         bus.emit_run_start(task.goal, message=message, run_number=run_number)
-        _shell_speak("run_start", {"goal": task.goal})
         bus.emit_message("user", message)
         bus.session.add_message({"role": "user", "content": message})
-        # 2026-08-10：用户指令回注发起会话 chat_history（历史恢复完整对话）。
-        _inject_chat_message(task, "user", message)
+        # 聊天委托的 message 是模型生成的内部 goal，不是用户在聊天区发送
+        # 的原文；它只属于任务 session/EventBus。任务模式手动运行则保留
+        # 用户输入投影，方便该模式刷新后恢复。
+        if ctx.persist_chat_message:
+            _inject_chat_message(task, "user", message)
         model = model or graph.build_model(cfg)
         async with graph.build_agent(
             task.workspace, task.id, bus=bus, cfg=cfg, model=model, extra_tools=extra_tools,
@@ -242,18 +221,17 @@ async def _run_task_agent(
                     err_msg = "上下文已满（token 预算耗尽），任务未完成。请执行 /compact 压缩历史后重试。"
                     logger.warning(f"run {ctx.run.id} hard-stopped by token_budget")
                     bus.emit_run_error(err_msg)
-                    _shell_speak("run_error", {"error": err_msg})
                     _finish_run(ctx.run.id, "error", error=err_msg)
                     return
-                # 最后一条 AI 文本 → message 事件 + 会话历史（前端投影）
+                # 最后一条 AI 文本只属于任务卡/任务事件；不能写入普通聊天历史。
+                # 委托任务的 agent 输出不是用户可见的聊天回复，真正的对话回复
+                # 会由 basic_memory_agent 在收到 tool result 后负责落盘。
                 for m in reversed(state["messages"]):
                     if isinstance(m, AIMessage) and m.content:
                         text = str(m.content)
                         run_summary = text
                         bus.emit_message("assistant", text)
                         bus.session.add_message({"role": "assistant", "content": text})
-                        # 2026-08-10：AI 回复回注发起会话 chat_history。
-                        _inject_chat_message(task, "assistant", text)
                         break
                 # 空目标 → 单轮完成（不做目标评估）
                 if not task.goal.strip():
@@ -272,11 +250,8 @@ async def _run_task_agent(
                 if no_progress >= cfg.max_no_progress:
                     # review LOW：发 clarify_requested 事件，前端可区分「需澄清」与「正常完成」
                     bus.emit_clarify(goal.CLARIFICATION_MESSAGE)
-                    _shell_speak("clarify_requested", {"question": goal.CLARIFICATION_MESSAGE})
                     bus.emit_message("assistant", goal.CLARIFICATION_MESSAGE)
                     bus.session.add_message({"role": "assistant", "content": goal.CLARIFICATION_MESSAGE})
-                    # 2026-08-10：澄清消息同样回注（历史完整）。
-                    _inject_chat_message(task, "assistant", goal.CLARIFICATION_MESSAGE)
                     break
                 if not goal.should_continue(ev, iteration=iteration, max_iterations=cfg.max_iterations):
                     break
@@ -287,11 +262,10 @@ async def _run_task_agent(
                         additional_kwargs={"hide_from_ui": True},
                     )],
                 }
-        bus.emit_run_end("completed")
+        artifacts = _collect_task_artifacts(task.id, task.workspace)
+        report = _build_task_report(task, run_summary, artifacts)
         # 2026-08-10：run_end 播报携带任务摘要——LLM 转述据此汇报真实结果
         # （"番茄钟做好了，pomodoro.html 在工作目录"），而非干巴巴的"任务完成了"。
-        _shell_speak("run_end", {"status": "completed", "summary": (run_summary or "")[:800]})
-        _finish_run(ctx.run.id, "completed")
         # v3 Phase 7：任务完成 → 写入项目级记忆（DeerMem；失败静默不影响主链路）。
         try:
             _write_task_memory(task, state.get("messages") or [])
@@ -306,20 +280,34 @@ async def _run_task_agent(
         #   3. 按 task_id upsert —— 同一任务多次 run 只保留最新一条简报，
         #      不再每次 run 都追加一条导致历史被任务记录淹没。
         try:
-            if run_summary:
-                artifacts = _collect_task_artifacts(task.id, task.workspace)
+            # Chat delegation already has its final answer persisted by the
+            # normal conversation pipeline.  A second task_brief would be a
+            # duplicate card that reappears after refresh.  Keep the brief for
+            # the standalone task mode only.
+            if ctx.persist_chat_message and run_summary:
                 _inject_task_brief(task, run_summary[:500], artifacts=artifacts)
         except Exception as _b:
             logger.debug(f"[shell] 简报生成失败（静默）：{_b}")
+        # 任务报告只通过 task card / task_result 展示，不再重复写入普通聊天历史。
+        # 所有历史投影完成后再广播终态，避免用户在收到完成事件后立即刷新，
+        # 却遇到“当前界面有、历史里没有”的读写竞态。
+        bus.emit_run_end(
+            "completed",
+            summary=(run_summary or "")[:800] or None,
+            report=report,
+            artifacts=artifacts,
+        )
+        # delegate-task must observe completion only after the brief is written.
+        # Otherwise the chat request can finish first and a later history write
+        # makes the brief appear only after refresh (or overwrite other messages).
+        _finish_run(ctx.run.id, "completed")
     except asyncio.CancelledError:
         bus.emit_run_end("interrupted")
-        _shell_speak("run_end", {"status": "interrupted"})
         _finish_run(ctx.run.id, "interrupted")
         raise
     except Exception as e:  # 运行失败不阻断后续 run
         logger.exception(f"run {ctx.run.id} failed: {e}")
         bus.emit_run_error(str(e))
-        _shell_speak("run_error", {"error": str(e)})
         _finish_run(ctx.run.id, "error", error=str(e))
     # 不把 ctx.run_task 置 None：is_running 已用 run_task.done() 判定，保留引用供调用方 await。
 
@@ -412,13 +400,21 @@ def _chat_ctx(task: models.Task) -> tuple[str, str] | None:
         conf_uid = str(cc.get("conf_uid") or cc.get("conf_name") or "").strip()
         if not conf_uid:
             return None
-        char_name = str(cc.get("character_name") or "AI")
+        # conf_name is the selected character-card name used by chat bubbles.
+        # Do not use legacy character_name here (hiyori may still contain 小月).
+        char_name = str(cc.get("conf_name") or "AI")
         return conf_uid, char_name
     except Exception:
         return None
 
 
-def _inject_chat_message(task: models.Task, role: str, content: str) -> None:
+def _inject_chat_message(
+    task: models.Task,
+    role: str,
+    content: str,
+    *,
+    kind: str | None = None,
+) -> None:
     """2026-08-10：任务对话消息回注发起会话的聊天历史（P2 上下文桥补充）。
 
     - 背景：任务平台的消息此前只写 task session（JSONL），**从不进 chat_history**——
@@ -440,15 +436,36 @@ def _inject_chat_message(task: models.Task, role: str, content: str) -> None:
         if ctx is None:
             return
         conf_uid, char_name = ctx
-        store_message(
+        store_kwargs = dict(
             conf_uid=conf_uid,
             history_uid=conv_uid,
             role="human" if role == "user" else "ai",
             content=text,
             name=char_name if role != "user" else None,
         )
+        # task_report 是唯一需要在刷新后作为普通角色气泡保留的任务消息；
+        # task_brief/task_shell 仍由前端折叠或隐藏，避免重复。
+        if kind:
+            store_kwargs["kind"] = kind
+            store_kwargs["task_id"] = task.id
+        store_message(**store_kwargs)
     except Exception as e:  # fail-soft
         logger.debug(f"[shell] 对话消息回注失败（静默）：{e}")
+
+
+def _build_task_report(task: models.Task, summary: str, artifacts: list[str]) -> str:
+    """生成一条简短的角色汇报，不复制任务卡的完整输出。"""
+    result = " ".join((summary or "").split()).strip()
+    if len(result) > 220:
+        result = result[:220].rstrip("，。；; ") + "……"
+    parts = ["任务完成啦"]
+    if result:
+        parts.append(result)
+    if artifacts:
+        names = "、".join(Path(p).name for p in artifacts[:3])
+        parts.append(f"生成文件：{names}")
+    parts.append("详细过程和结果都在上面的任务卡里。")
+    return "，".join(parts[:2]) + ("。" if len(parts) == 2 else "；" + "；".join(parts[2:]) + "")
 
 
 def _inject_task_brief(task: models.Task, summary: str, artifacts: list[str] | None = None) -> None:
@@ -539,6 +556,7 @@ def start_run(
     model: Any | None = None,
     extra_tools: tuple = (),
     goal_evaluator: Any | None = None,
+    persist_chat_message: bool = True,
 ) -> RunContext:
     """发起一次 run：建 run 行 + 取/建 bus + 起后台 agent 任务。返回 RunContext。
 
@@ -551,7 +569,13 @@ def start_run(
 
     run = models.create_run(task.id)
     bus = _bus_for(task, run.id)
-    ctx = RunContext(task=task, run=run, bus=bus, cfg=cfg)
+    ctx = RunContext(
+        task=task,
+        run=run,
+        bus=bus,
+        cfg=cfg,
+        persist_chat_message=persist_chat_message,
+    )
     ctx.run_task = asyncio.create_task(
         _run_task_agent(ctx, message, model=model, extra_tools=extra_tools, goal_evaluator=goal_evaluator)
     )
@@ -821,7 +845,7 @@ def init_task_route() -> APIRouter:
                 conversation_uid=conv_uid,
             )
             SessionFile(workspace, task.id).ensure()
-            ctx = start_run(task, task_config(), goal)
+            ctx = start_run(task, task_config(), goal, persist_chat_message=False)
         except RunBusyError as e:
             return JSONResponse({"ok": False, "error": str(e)}, status_code=409)
         except Exception as e:

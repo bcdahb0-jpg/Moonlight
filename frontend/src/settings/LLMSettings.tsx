@@ -7,6 +7,12 @@ import {
   type OllamaModelsResult,
   type PerfResult,
 } from '@/api/rest';
+import {
+  SettingsActionBar,
+  SettingsGroup,
+  SettingsMetricStrip,
+  SettingsRow,
+} from './SettingsConsole';
 
 const PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
@@ -108,10 +114,21 @@ export function LLMSettings(): ReactElement {
   };
 
   return (
-    <div className="settings-section">
-      <h3>LLM 配置</h3>
-      <label className="field">
-        <span>服务商</span>
+    <div className="settings-section settings-console-root">
+      <SettingsMetricStrip
+        metrics={[
+          { label: '连接状态', value: config ? '已配置' : '待配置', tone: config ? 'ok' : 'warn' },
+          { label: '当前模型', value: config?.model || '未选择' },
+          { label: '服务商', value: provider.toUpperCase() },
+        ]}
+      />
+
+      <SettingsGroup
+        title="对话模型"
+        description="配置对话服务商和当前使用的模型"
+        className="console-group-primary"
+      >
+        <SettingsRow label="服务商" description="选择云端 API 或本地 Ollama" settingKey="setting-llm-provider">
         <select value={provider} onChange={(e) => setProvider(e.target.value)}>
           {PROVIDERS.map((p) => (
             <option key={p.value} value={p.value}>
@@ -119,59 +136,62 @@ export function LLMSettings(): ReactElement {
             </option>
           ))}
         </select>
-      </label>
-      <label className="field">
-        <span>Base URL</span>
-        <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://api.openai.com/v1" />
-      </label>
-      <label className="field">
-        <span>模型</span>
-        <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="gpt-4o-mini" />
-      </label>
-      <label className="field">
-        <span>API Key {config?.api_key_masked ? `（已存：${config.api_key_masked}）` : ''}</span>
+        </SettingsRow>
+        <SettingsRow label="Base URL" description="模型服务接口地址" settingKey="setting-llm-base-url">
+          <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://api.openai.com/v1" />
+        </SettingsRow>
+        <SettingsRow label="模型" description="当前对话模型名称" settingKey="setting-llm-model">
+          <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="gpt-4o-mini" />
+        </SettingsRow>
+        <SettingsRow
+          label="API Key"
+          description={config?.api_key_masked ? `已保存：${config.api_key_masked}` : '仅保存在本地配置中'}
+          settingKey="setting-llm-api-key"
+        >
         <input
           type="password"
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           placeholder={provider === 'ollama' ? '本地无需 key' : 'sk-...'}
         />
-      </label>
-      <div className="btn-row">
-        <button className="btn" onClick={() => void testConnection()} disabled={testing || busy}>
-          {testing ? '测试中…' : '测试并保存'}
-        </button>
-        <button className="btn" onClick={() => void probeOllama()} disabled={busy}>
-          探测 Ollama
-        </button>
-        {ollama?.available && (
-          <select
-            className="field-select-inline"
-            value={model}
-            onChange={(e) => {
-              setModel(e.target.value);
-              setBaseUrl('http://localhost:11434/v1');
-              setProvider('ollama');
-            }}
-          >
-            <option value="">选择本地模型…</option>
-            {ollama.models.map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
-      {status && <div className="setting-status">{status}</div>}
+        </SettingsRow>
+        <SettingsActionBar note={status || '修改模型连接后，后端可能需要重启才能完全生效'}>
+          <button className="btn btn-primary" onClick={() => void testConnection()} disabled={testing || busy}>
+            {testing ? '测试中…' : '测试并保存'}
+          </button>
+          <button className="btn" onClick={() => void probeOllama()} disabled={busy}>
+            探测 Ollama
+          </button>
+          {ollama?.available && (
+            <select
+              className="field-select-inline"
+              value={model}
+              onChange={(e) => {
+                setModel(e.target.value);
+                setBaseUrl('http://localhost:11434/v1');
+                setProvider('ollama');
+              }}
+            >
+              <option value="">选择本地模型…</option>
+              {ollama.models.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          )}
+        </SettingsActionBar>
+        {status && <div className="setting-status">{status}</div>}
+      </SettingsGroup>
 
       {/* 性能与预设：本地模型驻留 / 一键预设（折叠收纳，重设计 v4） */}
       {perf && (
-        <details className="llm-perf-fold">
-          <summary>性能与预设</summary>
-          <div className="engine-more-panel">
-            <label className="field">
-              <span>Ollama keep_alive（秒，-1 常驻）</span>
+        <SettingsGroup title="性能与预设" description="Ollama 常驻、性能档位和批量优化">
+          <SettingsRow
+            label="Ollama keep_alive"
+            description="秒数；-1 表示常驻内存"
+            settingKey="setting-llm-keep-alive"
+          >
               <input
                 type="number"
                 value={perf.keep_alive}
@@ -181,10 +201,8 @@ export function LLMSettings(): ReactElement {
                   apply(() => perfApi.setKeepAlive({ keep_alive: Number(e.target.value) }))
                 }
               />
-            </label>
-            <div className="engine-presets">
-              <span className="engine-presets-label">一键预设（批量调整引擎 / 记忆 / 性能，记忆相关项在「记忆」页生效）</span>
-              <div className="btn-row">
+          </SettingsRow>
+          <SettingsActionBar note="预设会批量调整引擎、记忆与性能参数">
                 {perf.presets.map((name) => (
                   <button
                     key={name}
@@ -194,10 +212,8 @@ export function LLMSettings(): ReactElement {
                     {PRESET_LABELS[name] ?? name}
                   </button>
                 ))}
-              </div>
-            </div>
-          </div>
-        </details>
+          </SettingsActionBar>
+        </SettingsGroup>
       )}
     </div>
   );

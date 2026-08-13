@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import type { ChatMessage } from '@/state/types';
 import type { ErrorCode } from '@/types/ws';
+import type { ScreenStatusMessage } from '@/types/ws';
 import { MessageList, type TaskRunPlacement } from './MessageList';
 import { ChatInput } from './ChatInput';
 import { ErrorBanner } from '@/components/ErrorBanner';
@@ -29,6 +30,10 @@ export interface ChatPanelProps {
   /** 聊天 agent 工具执行状态文案（tool_call_status；空 = 无）。 */
   toolStatus?: string | null;
   connected: boolean;
+  sessionTitle?: string | null;
+  workspace?: string | null;
+  workspaceReady?: boolean;
+  screenStatus?: ScreenStatusMessage | null;
   /** 结构化错误修复卡（Phase 3）：错误不再注入聊天流，改横幅。 */
   lastError: string | null;
   errorCode: ErrorCode | null;
@@ -47,6 +52,8 @@ export interface ChatPanelProps {
   onPickWorkspace?: () => void;
   /** 气泡「再次播放」回调（2026-08-10）：透传给 MessageList。 */
   onReplayAudio?: (message: ChatMessage) => void;
+  /** 聊天框功能按钮：打开控制台对应分区（点歌/直播/陪玩/插件/全部）。 */
+  onOpenSection?: (section: string) => void;
 }
 
 export function ChatPanel({
@@ -55,6 +62,10 @@ export function ChatPanel({
   subtitle,
   toolStatus = null,
   connected,
+  sessionTitle = null,
+  workspace = null,
+  workspaceReady = Boolean(workspace),
+  screenStatus = null,
   lastError,
   errorCode,
   onDismissError,
@@ -68,10 +79,33 @@ export function ChatPanel({
   showWorkspaceGuide = false,
   onPickWorkspace,
   onReplayAudio,
+  onOpenSection,
 }: ChatPanelProps): ReactElement {
   const showGuide = showWorkspaceGuide && messages.length === 0;
   return (
-    <div className="chat-panel">
+    <div className="chat-panel" data-testid="chat-workspace" aria-label="聊天工作区">
+      <div className="chat-workspace-header">
+        <div className="chat-workspace-heading">
+          <strong>{sessionTitle || '新会话'}</strong>
+          <span>{workspace || '尚未绑定工作目录'}</span>
+        </div>
+        <div className="chat-workspace-statuses">
+          <span className={`workspace-status-pill ${connected ? 'ok' : 'offline'}`}>
+            <span className="connection-dot" />{connected ? '已连接' : '连接中'}
+          </span>
+          <span className={`workspace-status-pill ${screenStatus?.enabled ? 'active' : ''}`}>
+            <span className="workspace-status-icon">◉</span>
+            {screenStatus?.capturing ? '识别中' : screenStatus?.enabled ? '屏幕已启用' : '屏幕已暂停'}
+          </span>
+        </div>
+      </div>
+      <div className="chat-context-bar" role="status" aria-live="polite" data-testid="workspace-status-bar">
+        <span className={`connection-dot ${connected ? 'online' : 'offline'}`} />
+        <span className="chat-context-status">{connected ? '已连接' : '正在连接…'}</span>
+        <span className="chat-context-separator" />
+        <span className="chat-context-mode">{taskMode?.isRunning ? '任务执行中' : '对话模式'}</span>
+        {taskMode?.isRunning && <span className="chat-context-pulse" aria-label="任务运行中" />}
+      </div>
       <ErrorBanner
         message={lastError}
         code={errorCode}
@@ -111,8 +145,12 @@ export function ChatPanel({
         onAudioEnd={onAudioEnd}
         onInterrupt={onInterrupt}
         canSend={connected}
+        workspaceReady={workspaceReady}
+        workspaceHint="请先选择工作目录，才能发送消息或执行任务"
+        onPickWorkspace={onPickWorkspace}
         isReplying={isThinking}
         taskMode={taskMode}
+        onOpenSection={onOpenSection}
       />
     </div>
   );
